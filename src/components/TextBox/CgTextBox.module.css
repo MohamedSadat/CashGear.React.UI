@@ -1,0 +1,154 @@
+.root {
+  display: inline-flex;
+  flex-direction: column;
+  gap: var(--cg-space-1);
+  font-family: var(--cg-font-family);
+  font-size: var(--cg-font-size-md);
+  line-height: var(--cg-line-height);
+  color: var(--cg-color-fg);
+  min-width: 0;
+}
+
+.fullWidth {
+  display: flex;
+  width: 100%;
+}
+
+.labelRow {
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.label {
+  font-weight: var(--cg-font-weight-medium);
+  color: var(--cg-color-fg-muted);
+}
+
+.required {
+  margin-left: var(--cg-space-1);
+  color: var(--cg-color-error);
+}
+
+/* The field wrapper carries the border so prefix/suffix sit inside it. */
+.field {
+  display: flex;
+  align-items: center;
+  gap: var(--cg-space-2);
+  box-sizing: border-box;
+  padding: 0 var(--cg-control-padding-x);
+  background-color: var(--cg-color-bg);
+  border: var(--cg-border-width) solid var(--cg-border-color);
+  border-radius: var(--cg-radius-md);
+  transition:
+    border-color var(--cg-transition-fast),
+    background-color var(--cg-transition-fast);
+}
+
+.field:hover:not(.disabled) {
+  border-color: var(--cg-border-color-strong);
+}
+
+/* Focus lives on the wrapper so the ring surrounds prefix/suffix too. */
+.field:focus-within {
+  border-color: var(--cg-focus-ring-color);
+  outline: var(--cg-focus-ring-width) solid var(--cg-focus-ring-color);
+  outline-offset: var(--cg-focus-ring-offset);
+}
+
+/* --- Sizes --------------------------------------------------------------- */
+.sm .field {
+  height: var(--cg-control-height-sm);
+  font-size: var(--cg-font-size-sm);
+}
+
+.md .field {
+  height: var(--cg-control-height-md);
+}
+
+.lg .field {
+  height: var(--cg-control-height-lg);
+  font-size: var(--cg-font-size-lg);
+}
+
+/* --- The input itself ----------------------------------------------------- */
+.input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--cg-color-fg-muted);
+  opacity: 1;
+}
+
+.affix {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  color: var(--cg-color-fg-muted);
+}
+
+/* --- States --------------------------------------------------------------- */
+.disabled .field,
+.field.disabled {
+  background-color: var(--cg-color-disabled-bg);
+  border-color: var(--cg-color-disabled-border);
+  color: var(--cg-color-disabled-fg);
+  cursor: not-allowed;
+}
+
+.disabled .input {
+  cursor: not-allowed;
+}
+
+.disabled .label,
+.disabled .required {
+  color: var(--cg-color-disabled-fg);
+}
+
+.readOnly .field {
+  background-color: var(--cg-color-bg-subtle);
+}
+
+.error .field {
+  border-color: var(--cg-color-error);
+  background-color: var(--cg-color-error-bg);
+}
+
+.warning .field {
+  border-color: var(--cg-color-warning);
+}
+
+.success .field {
+  border-color: var(--cg-color-success);
+}
+
+.message {
+  font-size: var(--cg-font-size-sm);
+  color: var(--cg-color-fg-muted);
+}
+
+.error .message {
+  color: var(--cg-color-error);
+}
+
+.warning .message {
+  color: var(--cg-color-warning);
+}
+
+.success .message {
+  color: var(--cg-color-success);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .field {
+    transition: none;
+  }
+}

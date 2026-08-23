@@ -1,0 +1,128 @@
+/**
+ * CashGear design tokens.
+ *
+ * Every component in this library styles itself exclusively through these
+ * custom properties — no hard-coded colours, sizes or radii in component CSS.
+ * That is the whole theming contract: an application (or a future `CgThemeProvider`)
+ * can re-declare any subset of these variables on `:root`, on `[data-cg-theme]`,
+ * or on any wrapper element, and every descendant control follows without a
+ * single component being rewritten.
+ *
+ * Deliberately small. This is a foundation, not a finished design system.
+ */
+
+:root,
+[data-cg-theme='light'] {
+  /* --- Typography ------------------------------------------------------- */
+  --cg-font-family: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --cg-font-family-mono: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
+  --cg-font-size-sm: 0.75rem;   /* 12px — dense grids, helper text */
+  --cg-font-size-md: 0.8125rem; /* 13px — ERP default body size    */
+  --cg-font-size-lg: 0.9375rem; /* 15px — headings, emphasis       */
+  --cg-font-weight-regular: 400;
+  --cg-font-weight-medium: 600;
+  --cg-line-height: 1.4;
+
+  /* --- Spacing ---------------------------------------------------------- */
+  --cg-space-0: 0;
+  --cg-space-1: 2px;
+  --cg-space-2: 4px;
+  --cg-space-3: 8px;
+  --cg-space-4: 12px;
+  --cg-space-5: 16px;
+  --cg-space-6: 24px;
+
+  /* --- Shape ------------------------------------------------------------ */
+  --cg-radius-sm: 2px;
+  --cg-radius-md: 4px;
+  --cg-radius-lg: 8px;
+  --cg-border-width: 1px;
+  --cg-border-color: #c8ccd4;
+  --cg-border-color-strong: #98a0ad;
+  --cg-border: var(--cg-border-width) solid var(--cg-border-color);
+
+  /* --- Control sizing (dense business UI) -------------------------------- */
+  --cg-control-height-sm: 24px;
+  --cg-control-height-md: 30px;
+  --cg-control-height-lg: 38px;
+  --cg-control-padding-x: var(--cg-space-3);
+
+  /* --- Surfaces & foreground --------------------------------------------- */
+  --cg-color-bg: #ffffff;
+  --cg-color-bg-subtle: #f4f5f7;
+  --cg-color-fg: #1c2129;
+  --cg-color-fg-muted: #5c6675;
+  --cg-color-fg-on-accent: #ffffff;
+
+  /* --- Primary / accent --------------------------------------------------- */
+  --cg-color-primary: #1565c0;
+  --cg-color-primary-hover: #10559f;
+  --cg-color-primary-active: #0d4784;
+  --cg-color-accent: #00897b;
+
+  /* --- Interaction states -------------------------------------------------- */
+  --cg-color-hover-bg: #e8eef7;
+  --cg-color-active-bg: #dbe5f3;
+  --cg-color-selected-bg: #cfe0f5;
+  --cg-color-selected-fg: #0d3c73;
+
+  /* --- Disabled ------------------------------------------------------------ */
+  --cg-color-disabled-bg: #f0f1f3;
+  --cg-color-disabled-fg: #9aa1ad;
+  --cg-color-disabled-border: #dcdfe4;
+  --cg-opacity-disabled: 1; /* prefer explicit colours over opacity for legibility */
+
+  /* --- Feedback ------------------------------------------------------------ */
+  --cg-color-error: #c62828;
+  --cg-color-error-bg: #fdecec;
+  --cg-color-warning: #b26a00;
+  --cg-color-success: #2e7d32;
+
+  /* --- Focus --------------------------------------------------------------- */
+  --cg-focus-ring-color: #1565c0;
+  --cg-focus-ring-width: 2px;
+  --cg-focus-ring-offset: 1px;
+
+  /* --- Elevation ----------------------------------------------------------- */
+  --cg-shadow-sm: 0 1px 2px rgb(16 24 40 / 8%);
+  --cg-shadow-md: 0 4px 12px rgb(16 24 40 / 12%);
+
+  /* --- Motion -------------------------------------------------------------- */
+  --cg-transition-fast: 120ms ease;
+}
+
+/**
+ * Opt-in dark palette. Only the tokens change; component CSS is untouched.
+ * Apply with `<div data-cg-theme="dark">` or on `<html>`.
+ */
+[data-cg-theme='dark'] {
+  --cg-border-color: #3a424f;
+  --cg-border-color-strong: #566072;
+
+  --cg-color-bg: #1b1f27;
+  --cg-color-bg-subtle: #232833;
+  --cg-color-fg: #e6e9ef;
+  --cg-color-fg-muted: #9aa3b2;
+  --cg-color-fg-on-accent: #ffffff;
+
+  --cg-color-primary: #5b8dff;
+  --cg-color-primary-hover: #6f8dff;
+  --cg-color-primary-active: #446ae6;
+  --cg-color-accent: #26a69a;
+
+  --cg-color-hover-bg: #2a313d;
+  --cg-color-active-bg: #333c4a;
+  --cg-color-selected-bg: #2f4570;
+  --cg-color-selected-fg: #dce7ff;
+
+  --cg-color-disabled-bg: #262b34;
+  --cg-color-disabled-fg: #656d7c;
+  --cg-color-disabled-border: #333a45;
+
+  --cg-color-error: #ef5350;
+  --cg-color-error-bg: #3a2323;
+  --cg-color-warning: #e0a030;
+  --cg-color-success: #66bb6a;
+
+  --cg-focus-ring-color: #7aa2ff;
+}

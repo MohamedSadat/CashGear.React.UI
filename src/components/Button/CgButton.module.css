@@ -1,0 +1,156 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cg-space-2);
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: 0 var(--cg-control-padding-x);
+  border: var(--cg-border-width) solid transparent;
+  border-radius: var(--cg-radius-md);
+  font-family: var(--cg-font-family);
+  font-size: var(--cg-font-size-md);
+  font-weight: var(--cg-font-weight-medium);
+  line-height: var(--cg-line-height);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color var(--cg-transition-fast),
+    border-color var(--cg-transition-fast),
+    color var(--cg-transition-fast);
+}
+
+/* Keyboard focus only — a mouse click should not leave a ring behind. */
+.root:focus-visible {
+  outline: var(--cg-focus-ring-width) solid var(--cg-focus-ring-color);
+  outline-offset: var(--cg-focus-ring-offset);
+}
+
+/* --- Sizes --------------------------------------------------------------- */
+.sm {
+  height: var(--cg-control-height-sm);
+  font-size: var(--cg-font-size-sm);
+}
+
+.md {
+  height: var(--cg-control-height-md);
+}
+
+.lg {
+  height: var(--cg-control-height-lg);
+  font-size: var(--cg-font-size-lg);
+  padding: 0 var(--cg-space-5);
+}
+
+/* --- Variants ------------------------------------------------------------ */
+.primary {
+  background-color: var(--cg-color-primary);
+  border-color: var(--cg-color-primary);
+  color: var(--cg-color-fg-on-accent);
+}
+
+.primary:hover:not(:disabled) {
+  background-color: var(--cg-color-primary-hover);
+  border-color: var(--cg-color-primary-hover);
+}
+
+.primary:active:not(:disabled) {
+  background-color: var(--cg-color-primary-active);
+  border-color: var(--cg-color-primary-active);
+}
+
+.secondary {
+  background-color: var(--cg-color-bg);
+  border-color: var(--cg-border-color);
+  color: var(--cg-color-fg);
+}
+
+.secondary:hover:not(:disabled) {
+  background-color: var(--cg-color-hover-bg);
+  border-color: var(--cg-border-color-strong);
+}
+
+.secondary:active:not(:disabled) {
+  background-color: var(--cg-color-active-bg);
+}
+
+.ghost {
+  background-color: transparent;
+  border-color: transparent;
+  color: var(--cg-color-primary);
+}
+
+.ghost:hover:not(:disabled) {
+  background-color: var(--cg-color-hover-bg);
+}
+
+.ghost:active:not(:disabled) {
+  background-color: var(--cg-color-active-bg);
+}
+
+.danger {
+  background-color: var(--cg-color-error);
+  border-color: var(--cg-color-error);
+  color: var(--cg-color-fg-on-accent);
+}
+
+.danger:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+.danger:active:not(:disabled) {
+  filter: brightness(0.85);
+}
+
+/* --- States -------------------------------------------------------------- */
+.root:disabled {
+  background-color: var(--cg-color-disabled-bg);
+  border-color: var(--cg-color-disabled-border);
+  color: var(--cg-color-disabled-fg);
+  cursor: not-allowed;
+  filter: none;
+}
+
+.fullWidth {
+  display: flex;
+  width: 100%;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- Loading spinner ------------------------------------------------------ */
+.spinner {
+  width: 1em;
+  height: 1em;
+  flex: 0 0 auto;
+  border: 2px solid currentcolor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: cg-button-spin 600ms linear infinite;
+}
+
+@keyframes cg-button-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    transition: none;
+  }
+
+  .spinner {
+    animation-duration: 2s;
+  }
+}

@@ -1,0 +1,7 @@
+/**
+ * Single stylesheet entry point for the library.
+ * Consumers import this once, near the top of their application:
+ *
+ *   import '@cashgear/ui/styles.css';
+ */
+@import './tokens.css';
