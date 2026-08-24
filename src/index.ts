@@ -4,6 +4,8 @@ export { CgButton } from './components/Button';
 export type { CgButtonAppearance, CgButtonIconPosition, CgButtonProps } from './components/Button';
 export { CgCheckBox } from './components/CheckBox';
 export type { CgCheckBoxProps, CgCheckedState, CgLabelPosition } from './components/CheckBox';
+export { CgComboBox } from './components/ComboBox';
+export type { CgComboBoxChangeReason, CgComboBoxErrorMessage, CgComboBoxLoadContext, CgComboBoxMinimumLengthMessage, CgComboBoxProps, CgComboBoxRenderContext, CgComboBoxSearchMode, CgComboBoxValueChangeDetails } from './components/ComboBox';
 export { CgField } from './components/Field';
 export type { CgFieldProps } from './components/Field';
 export { CgIcon } from './components/Icon';

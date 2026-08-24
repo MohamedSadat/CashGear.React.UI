@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useRef, useState } from 'react';
 import type { CompositionEvent } from 'react';
-import { useAsyncOperation, useCgId, useControllableState, useDebouncedCallback, useFormReset, useMergedRefs, useStableCallback } from '../../hooks';
+import { useAsyncOperation, useControllableState, useDebouncedCallback, useFormReset, useMergedRefs, useStableCallback } from '../../hooks';
+import { useFieldControl } from '../../internal';
 import { assertNonNegative } from '../../internal/validation';
 import type { CgEditorButtonDescriptor } from '../../types';
 import { CgTextBox } from '../TextBox';
@@ -107,7 +108,7 @@ export const CgSearchBox = forwardRef<HTMLInputElement, CgSearchBoxProps>(functi
     onPress: ({ value }) => search(value, 'submit'),
   };
   const status = loading || asyncOperation.pending ? loadingText : resultStatus;
-  const inputId = useCgId(id);
+  const inputId = useFieldControl({ id }).id;
   const minimumMessageId = `${inputId}-minimum-length`;
   const belowMinimum = draftQuery.length > 0 && draftQuery.trim().length < minimumLength;
   const minimumMessage = belowMinimum

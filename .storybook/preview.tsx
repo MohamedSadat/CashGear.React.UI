@@ -27,7 +27,7 @@ const preview: Preview = {
   ],
   parameters: {
     controls: { expanded: true },
-    a11y: { test: 'todo' },
+    a11y: { test: 'error' },
   },
 };
 

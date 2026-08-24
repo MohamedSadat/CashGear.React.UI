@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { CgEditorButtonDescriptor } from '../types';
 import { isPromiseLike } from './async';
 import { renderIcon } from './icons';
@@ -10,6 +11,18 @@ export interface EditorButtonProps<TValue> {
   disabled?: boolean;
 }
 
+export interface EditorButtonInteraction {
+  onPointerDown?: (event: ReactPointerEvent<HTMLButtonElement>) => void;
+  onPointerUp?: (event: ReactPointerEvent<HTMLButtonElement>) => void;
+  onPointerCancel?: (event: ReactPointerEvent<HTMLButtonElement>) => void;
+  onLostPointerCapture?: (event: ReactPointerEvent<HTMLButtonElement>) => void;
+  consumeClick?: () => boolean;
+}
+
+export type InternalEditorButtonDescriptor<TValue> = CgEditorButtonDescriptor<TValue> & {
+  interaction?: EditorButtonInteraction;
+};
+
 export function EditorButton<TValue>({ descriptor, value, disabled }: EditorButtonProps<TValue>) {
   const [pending, setPending] = useState(false);
   const pendingCountRef = useRef(0);
@@ -18,6 +31,7 @@ export function EditorButton<TValue>({ descriptor, value, disabled }: EditorButt
     mountedRef.current = false;
   }, []);
   if (descriptor.visible === false) return null;
+  const interaction = (descriptor as InternalEditorButtonDescriptor<TValue>).interaction;
   const duplicateDisabled = descriptor.preventDuplicateClicks !== false && pending;
   return (
     <button
@@ -27,10 +41,15 @@ export function EditorButton<TValue>({ descriptor, value, disabled }: EditorButt
       aria-busy={pending || undefined}
       title={descriptor.title}
       disabled={disabled || descriptor.disabled || duplicateDisabled}
+      onPointerDown={interaction?.onPointerDown}
+      onPointerUp={interaction?.onPointerUp}
+      onPointerCancel={interaction?.onPointerCancel}
+      onLostPointerCapture={interaction?.onLostPointerCapture}
       onMouseDown={(event) => {
         if (descriptor.preventFocusLoss !== false) event.preventDefault();
       }}
       onClick={(event) => {
+        if (interaction?.consumeClick?.()) return;
         if (descriptor.preventDuplicateClicks !== false && pendingCountRef.current > 0) return;
         const result = descriptor.onPress?.({ value, event });
         if (isPromiseLike(result)) {

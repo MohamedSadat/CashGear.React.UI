@@ -54,5 +54,6 @@ export function useOverlayStack(active: boolean, dismiss?: () => void) {
     };
   }, [active, dismiss, identity, stableDismiss]);
   const order = overlays.find((entry) => entry.identity === identity)?.id ?? 0;
-  return { order } as const;
+  const isTopmost = overlays.at(-1)?.identity === identity;
+  return { order, isTopmost } as const;
 }

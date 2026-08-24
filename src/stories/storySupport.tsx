@@ -8,7 +8,7 @@ export interface StoryFrameProps {
 
 export function StoryFrame({ source, difference, children }: StoryFrameProps) {
   return (
-    <section style={{ display: 'grid', gap: '1rem', maxWidth: 820 }}>
+    <section data-cg-story-root="" style={{ display: 'grid', gap: '1rem', maxWidth: 820 }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'end' }}>{children}</div>
       <small style={{ color: 'var(--cg-text-secondary)' }}>
         <strong>Razor:</strong> {source}<br />

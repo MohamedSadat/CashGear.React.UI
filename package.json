@@ -44,15 +44,21 @@
     "build:lib": "vite build",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build -o storybook-static --quiet",
+    "storybook:serve": "vite preview --host 127.0.0.1 --port 6006 --strictPort --outDir storybook-static",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:browser": "npm run build-storybook && npm run test:browser:built",
+    "test:browser:built": "playwright test",
+    "test:browser:semantic": "npm run build-storybook && playwright test --project=chromium-semantic --project=firefox-semantic --project=webkit-semantic",
+    "test:browser:visual": "npm run build-storybook && playwright test --project=chromium-visual",
+    "test:browser:update": "npm run build-storybook && playwright test --project=chromium-visual --update-snapshots",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "check:cycles": "node scripts/check-cycles.mjs",
     "verify:package": "node scripts/verify-package.mjs",
-    "verify": "npm run typecheck && npm run lint && npm run test && npm run check:cycles && npm run clean && npm run build:lib && npm run build-storybook && npm run verify:package",
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run check:cycles && npm run clean && npm run build:lib && npm run build-storybook && npm run test:browser:built && npm run verify:package",
     "prepublishOnly": "npm run verify"
   },
   "peerDependencies": {
@@ -60,7 +66,9 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "1.62.1",
     "@storybook/addon-a11y": "10.5.10",
     "@storybook/react-vite": "10.5.10",
     "@testing-library/dom": "^10.4.1",

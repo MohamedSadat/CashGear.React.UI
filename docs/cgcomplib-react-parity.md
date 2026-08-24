@@ -1,4 +1,4 @@
-# CG.CompLib → `@cashgear/ui` Phase 1–2 parity
+# CG.CompLib → `@cashgear/ui` Phase 1–3 parity
 
 ## Reference snapshot
 
@@ -49,6 +49,50 @@ The implementation was compared against the **working tree**, not only the commi
 ?? CG.CompLib/Comp/ContextMenu/
 ```
 
+## Phase 3 reference refresh
+
+Phase 3 retained the original `5cc83289` snapshot above and re-audited the same read-only repository before implementing ComboBox behavior. A final read-only audit found concurrent external changes during the pass; the exact completion status below supersedes the earlier Phase 3 status capture. None of the changed paths affects the ComboBox reference evidence.
+
+- Reference HEAD: `759c030706f0e67f0a50305eafaaef8895587830`
+- Reference captured: 2026-08-24
+- `git status --short` at capture:
+
+```text
+ M CashGear.App/Components/Comp/CustomersListExComp.razor
+ M CashGear.App/Components/Comp/Sales/SalesAgentsComp.razor
+ M CashGear.App/Components/Comp/VendorsListComp.razor
+ M CashGear.App/Components/Pages/Accounting/AddLedgerAccountPage.razor
+ M CashGear.App/Components/Pages/Accounting/CustPayment/EditCustPaymentComp.razor
+ M CashGear.App/Components/Pages/Accounting/LrdgerJournalPages/AddLedgerJournalPage.razor
+ M CashGear.App/Components/Pages/Accounting/LrdgerJournalPages/EditLedgerJournalPage.razor
+ M CashGear.App/Components/Pages/Accounting/LrdgerJournalPages/EditLedgerJournalPage.razor.cs
+ M CashGear.App/Components/Pages/Accounting/LrdgerJournalPages/EditLedgerJournalPage.razor.css
+ M CashGear.App/Components/Pages/Accounting/LrdgerJournalPages/GLJournalsComp.razor
+ M CashGear.App/Components/Pages/Accounting/Reports/AccountBoard.razor
+ M CashGear.App/Components/Pages/Accounting/Reports/CustPayments.razor
+ M CashGear.App/Components/Pages/Accounting/Reports/LedgertransPage.razor
+ M CashGear.App/Components/Pages/Accounting/Reports/TrialBalancePage.razor
+ M CashGear.App/Components/Pages/Accounting/VendPayment/VendPaymentsComp.razor
+ M CashGear.App/Components/Pages/CMMSPages/CMWorkOrderPage.razor
+ M CashGear.App/Components/Pages/CMMSPages/CMWorkOrderPage.razor.cs
+ M CashGear.App/Components/Pages/CustPages/CustTransPage.razor
+ M CashGear.App/Components/Pages/Production/ProdOrder/AddProdOrderPage.razor
+ M CashGear.App/Components/Pages/Projects/AddProject.razor
+ M CashGear.App/Components/Pages/Retail/RetailOrder/EditRatailOrderPage.razor.cs
+ M CashGear.App/Components/Pages/Sales/OrderPlace/AddOrderProducts.razor
+ M CashGear.App/Components/Pages/Sales/OrderPlace/AddOrderProducts.razor.cs
+ M CashGear.App/Components/Pages/Sales/Reports/SalesAgentTransPage.razor
+ M CashGear.App/Components/Pages/Sales/SalesOrderSearchPage.razor
+ D CashGear.App/Components/ProdComp/ProdOrderUpdateComp.razor
+ D CashGear.App/Components/SalesComp/CustTransHeaderComp.razor
+ D CashGear.App/Components/SalesComp/OrderDetailsComp.razor
+ D CashGear.App/Components/SalesComp/OrderHeaderComp.razor
+ M CashGear.App/Components/_Imports.razor
+?? .claude/settings.local.json
+?? CG.CompLib.Tests/AccountingPageCgMigrationTests.cs
+?? CG.CompLib.Tests/PartnerSelectorMigrationTests.cs
+```
+
 ## Implemented inventory
 
 “Mirrored” means the user-visible contract is carried across with React/native-DOM adaptations. “Partially mirrored” identifies a deliberate Phase 2 omission. “New React implementation” has no exact Razor component.
@@ -61,16 +105,25 @@ The implementation was compared against the **working tree**, not only the commi
 | `CgTextBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgTextBox.*`; `CG.CompLib.Demo/Components/Pages/TextBoxDemo.razor` | `src/components/TextBox/*` | `tests/text-box.test.tsx`, `tests/foundation.test.tsx` | `src/components/TextBox/CgTextBox.stories.tsx` | Labels/messages move to `CgField`; IME drafts and native events/attributes are retained. |
 | `CgMemo` | Mirrored | `CG.CompLib/Comp/Inputs/CgMemo.*`; `CG.CompLib.Demo/Components/Pages/MemoDemo.razor` | `src/components/Memo/*` | `tests/memo.test.tsx` | `src/components/Memo/CgMemo.stories.tsx` | Native textarea resizing plus `ResizeObserver` replaces the DevExpress implementation. |
 | `CgCheckBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgCheckBox.*`; `CG.CompLib.Demo/Components/Pages/CheckBoxDemo.razor` | `src/components/CheckBox/*` | `tests/choice-controls.test.tsx` | `src/components/CheckBox/CgCheckBox.stories.tsx` | Boolean/`indeterminate` only; C# numeric/string mappings are intentionally omitted. |
+| `CgComboBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgComboBox.*`; `CG.CompLib.Demo/Components/Pages/ComboBoxDemo.razor` | `src/components/ComboBox/*`, `src/internal/PositionedOverlay.tsx` | `tests/combo-box.test.tsx`, `tests/browser/components.browser.spec.ts` | `src/components/ComboBox/CgComboBox.stories.tsx` | Object-valued selection uses required stable keys for identity and form serialization. Scalar-key adapters remain deferred. |
 | `CgSwitch` | Mirrored | `CG.CompLib/Comp/Inputs/CgCheckBox.*` switch mode | `src/components/Switch/*` | `tests/choice-controls.test.tsx` | `src/components/Switch/CgSwitch.stories.tsx` | Extracted as a separate two-state component. The source has no pending state, so React does not add one. |
 | `CgRadio` | Mirrored | `CG.CompLib/Comp/Inputs/CgRadio.*`; `CG.CompLib.Demo/Components/Pages/RadioDemo.razor` | `src/components/Radio/*` | `tests/choice-controls.test.tsx` | `src/components/Radio/CgRadio.stories.tsx` | Native grouping is preserved for uncontrolled same-name radios; typed string/number values replace C# conversion. |
 | `CgRadioGroup` | Mirrored | `CG.CompLib/Comp/Inputs/CgRadioGroup.*`; `CG.CompLib.Demo/Components/Pages/RadioDemo.razor` | `src/components/RadioGroup/*` | `tests/choice-controls.test.tsx` | `src/components/RadioGroup/CgRadioGroup.stories.tsx` | Generic React options replace reflection-based field-name mapping. |
 | `CgNumericEdit` | New React implementation | No exact source; informed by `CG.CompLib/Comp/Inputs/CgNumberInput.*` and `CgSpinEdit.*` | `src/components/NumericEdit/*`, `src/internal/numeric.ts` | `tests/numeric-editors.test.tsx` | `src/components/NumericEdit/CgNumericEdit.stories.tsx` | `number | null`, strict `Intl.NumberFormat` parsing, and IEEE-754 arithmetic; not arbitrary-precision decimal. |
-| `CgSpinEdit` | Partially mirrored | `CG.CompLib/Comp/Inputs/CgSpinEdit.*`; `CG.CompLib.Demo/Components/Pages/SpinEditDemo.razor` | `src/components/SpinEdit/*` | `tests/numeric-editors.test.tsx` | `src/components/SpinEdit/CgSpinEdit.stories.tsx` | Press-and-hold is deferred. Draft stepping and the Razor null-start policy are implemented. |
+| `CgSpinEdit` | Mirrored with React extension | `CG.CompLib/Comp/Inputs/CgSpinEdit.*`; `CG.CompLib.Demo/Components/Pages/SpinEditDemo.razor` | `src/components/SpinEdit/*` | `tests/numeric-editors.test.tsx`, `tests/browser/components.browser.spec.ts` | `src/components/SpinEdit/CgSpinEdit.stories.tsx` | Draft stepping and the Razor null-start policy are implemented; opt-out pointer hold repetition uses private timing. |
 | `CgSearchBox` | Mirrored | Working-tree `CG.CompLib/Comp/Inputs/CgSearchBox.*`; `CG.CompLib.Demo/Components/Pages/SearchBoxDemo.razor` | `src/components/SearchBox/*` | `tests/search-box.test.tsx` | `src/components/SearchBox/CgSearchBox.stories.tsx` | Does not fetch data; caller receives the raw query, reason, monotonic request ID, and `AbortSignal`. |
-| `CgLoadingPanel` | Mirrored | `CG.CompLib/Comp/Overlays/CgLoadingPanel.*`; `CG.CompLib.Demo/Components/Pages/LoadingPanelDemo.razor` | `src/components/LoadingPanel/*`, `src/internal/overlayStack.ts`, `src/internal/inert.ts` | `tests/loading-progress.test.tsx` | `src/components/LoadingPanel/CgLoadingPanel.stories.tsx` | No focus trap. Missing portal targets fall back to `document.body`; targets must establish the desired positioning context. |
+| `CgLoadingPanel` | Mirrored with React extension | `CG.CompLib/Comp/Overlays/CgLoadingPanel.*`; `CG.CompLib.Demo/Components/Pages/LoadingPanelDemo.razor` | `src/components/LoadingPanel/*`, `src/internal/PositionedOverlay.tsx`, `src/internal/overlayStack.ts`, `src/internal/inert.ts` | `tests/loading-progress.test.tsx`, `tests/browser/components.browser.spec.ts` | `src/components/LoadingPanel/CgLoadingPanel.stories.tsx` | Focus containment is opt-in; external targets are covered by body-portal fixed geometry and missing targets still fall back safely. |
 | `CgProgressBar` | New React implementation | No exact source | `src/components/ProgressBar/*` | `tests/loading-progress.test.tsx` | `src/components/ProgressBar/CgProgressBar.stories.tsx` | Native React progress semantics, logical RTL fill, and reduced-motion support. |
 
 The shared hook/primitives layer is covered in `tests/foundation.test.tsx`. The exact runtime export allow-list is guarded by `tests/public-api.test.ts`.
+
+## Phase 3 browser and interaction behavior
+
+- ComboBox uses an input-focused ARIA combobox/listbox, object identity through stable keys, local locale-aware filtering or abortable remote loading, form key serialization, IME-safe drafts, authoritative controlled restoration, and body-portal popup positioning with viewport flip/shift.
+- The private positioned-overlay layer follows resize, zoom, visual viewport, nested scroll, and portal-target replacement. Zero-sized external targets remain hidden until usable, and target mutations are restored on retarget or disposal.
+- LoadingPanel `trapFocus` is valid only for blocking overlay/portal modes. It saves the origin, focuses the first focusable descendant or panel, cycles Tab, and returns focus when the origin remains connected.
+- SpinEdit `repeatOnHold` defaults to `true`: primary pointer-down steps once, pointer capture keeps the gesture coherent, repetition accelerates after the private delay, and every release/cancel/blur/boundary/disable/unmount path cleans up.
+- Playwright runs semantic projects in Chromium, Firefox, and WebKit plus Windows Chromium snapshots. Canonical stories receive Axe serious/critical checks; Storybook retains full manual accessibility review.
 
 ## Phase 2 hardening behavior
 
@@ -84,26 +137,27 @@ The shared hook/primitives layer is covered in `tests/foundation.test.tsx`. The 
 
 ## Verification result
 
-Verified on 2026-08-24 with Node 24.19 from the Phase 2 working tree:
+Verified on 2026-08-24 with Node 24.19 from the Phase 3 working tree:
 
 | Command/gate | Result |
 | --- | --- |
 | `npm run typecheck` | Passed (strict TypeScript 6) |
 | `npm run lint` | Passed |
-| `npm run test` | Passed: 9 files, 45 tests |
-| `npm run check:cycles` | Passed: 73 source modules, no relative-import cycles |
-| `npm run build:lib` | Passed: 70 transformed modules; declarations/maps and `dist/cashgear-ui.css` emitted |
-| `npm run build-storybook` | Passed with Storybook 10.5.10; a sandbox-only warning reported that the user-level Storybook settings file could not be written |
-| `npm run verify:package` | Passed: 17 runtime exports, 337 packed files, React externalization/declarations/styles/dry-run ESM import verified |
+| `npm run test` | Passed: 10 files, 62 tests |
+| `npm run check:cycles` | Passed: 77 source modules, no relative-import cycles |
+| `npm run build:lib` | Passed: 74 transformed modules; declarations/maps and `dist/cashgear-ui.css` emitted |
+| `npm run build-storybook` | Passed with Storybook 10.5.10 |
+| `npm run test:browser:built` | Passed: 57 semantic/Axe tests (19 each in Chromium, Firefox, and WebKit) plus 37 Chromium visual tests comparing 40 Windows snapshots |
+| `npm run verify:package` | Passed: 18 runtime exports, 356 packed files, React externalization/declarations/styles/dry-run ESM import verified |
 | `npm run verify` | Passed end to end |
 
 ## Deferred inventory
 
-These rows are evidence only. No React API or implementation is included in Phase 1–2.
+These rows are evidence only. No React API or implementation is included in Phase 1–3.
 
 | Planned component | Razor evidence | Status |
 | --- | --- | --- |
-| ComboBox | `CG.CompLib/Comp/Inputs/CgComboBox.*` | Deferred |
+| Scalar-key ComboBox adapter | No separate Razor component; adapter would sit above `CgComboBox<TItem>` | Deferred |
 | ListBox | `CG.CompLib/Comp/Inputs/CgListBox.*` | Deferred |
 | TagBox | `CG.CompLib/Comp/Inputs/CgTagBox.*` | Deferred |
 | DropDownBox | `CG.CompLib/Comp/Inputs/CgDropDownBox.*` | Deferred |
@@ -117,10 +171,9 @@ These rows are evidence only. No React API or implementation is included in Phas
 | PivotTable | `CG.CompLib/Comp/Pivot/CgPivotTable.*` | Deferred |
 | Chart | `CG.CompLib/Comp/Chart/CgChart.*` | Deferred |
 
-## Phase 3 prerequisites and remaining gaps
+## Remaining gaps
 
-- Add browser-test infrastructure before automated screenshots or cross-browser visual regression; Phase 2 intentionally stops at Vitest plus Storybook/a11y panel.
-- Decide whether SpinEdit press-and-hold is required before adding it; pointer capture, acceleration, and cleanup need browser tests.
 - Decide on a decimal/arbitrary-precision value model before using numeric editors for accounting amounts that cannot tolerate IEEE-754 rounding.
-- Add browser validation of external loading-panel geometry for positioned, transformed, and scrolling portal targets.
+- A scalar-only `CgKeyComboBox`/key adapter is not part of the object-valued Phase 3 API.
+- Browser gates are local; this phase intentionally adds no GitHub Actions workflow. Chromium snapshots must be compared and regenerated on the same platform.
 - Start each deferred advanced control with a fresh Razor working-tree audit because several reference components are currently uncommitted.

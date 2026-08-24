@@ -8,6 +8,7 @@ import * as publicApi from '../src/index';
 const EXPECTED_RUNTIME_EXPORTS = [
   'CgButton',
   'CgCheckBox',
+  'CgComboBox',
   'CgField',
   'CgIcon',
   'CgLoadingPanel',

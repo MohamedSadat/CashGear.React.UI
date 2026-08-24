@@ -5,4 +5,5 @@ export interface CgSpinEditProps extends Omit<CgNumericEditProps, 'buttons' | 'o
   onValueChange?: CgNumericEditProps['onValueChange'];
   incrementAriaLabel?: string;
   decrementAriaLabel?: string;
+  repeatOnHold?: boolean;
 }

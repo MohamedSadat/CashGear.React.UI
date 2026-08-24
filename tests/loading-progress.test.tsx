@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { CgLoadingPanel, CgProgressBar } from '../src';
 
@@ -70,6 +70,55 @@ describe('CgLoadingPanel', () => {
     rerender(<CgLoadingPanel visible showContent={false}>Secret</CgLoadingPanel>);
     await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
     expect(screen.queryByText('Secret')).not.toBeInTheDocument();
+  });
+
+  it('contains and returns focus only when explicitly requested', async () => {
+    const view = render(<><button>Origin</button><CgLoadingPanel visible={false} mode="overlay" trapFocus indicator="custom" customIndicator={<><button>First action</button><button>Last action</button></>}>Blocked</CgLoadingPanel></>);
+    const origin = screen.getByRole('button', { name: 'Origin' });
+    origin.focus();
+    view.rerender(<><button>Origin</button><CgLoadingPanel visible mode="overlay" trapFocus indicator="custom" customIndicator={<><button>First action</button><button>Last action</button></>}>Blocked</CgLoadingPanel></>);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'First action' })).toHaveFocus());
+    const first = screen.getByRole('button', { name: 'First action' });
+    const last = screen.getByRole('button', { name: 'Last action' });
+    last.focus();
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(first).toHaveFocus();
+    first.focus();
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    expect(last).toHaveFocus();
+    origin.focus();
+    expect(first).toHaveFocus();
+    view.rerender(<><button>Origin</button><CgLoadingPanel visible={false} mode="overlay" trapFocus indicator="custom" customIndicator={<button>First action</button>}>Blocked</CgLoadingPanel></>);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Origin' })).toHaveFocus());
+  });
+
+  it('tracks portal geometry and selector target replacement', async () => {
+    const first = document.createElement('div');
+    first.id = 'portal-host';
+    first.getBoundingClientRect = () => ({ x: 10, y: 20, left: 10, top: 20, right: 130, bottom: 80, width: 120, height: 60, toJSON: () => ({}) });
+    first.append(document.createElement('button'));
+    document.body.append(first);
+    const view = render(<CgLoadingPanel mode="portal" target="#portal-host" visible>Portal</CgLoadingPanel>);
+    const panel = screen.getByRole('status');
+    expect(panel).toHaveStyle({ position: 'fixed', left: '10px', top: '20px', width: '120px', height: '60px', visibility: 'visible' });
+    expect(first.firstElementChild).toHaveAttribute('inert');
+
+    const second = document.createElement('div');
+    second.id = 'portal-host';
+    second.getBoundingClientRect = () => ({ x: 30, y: 40, left: 30, top: 40, right: 230, bottom: 140, width: 200, height: 100, toJSON: () => ({}) });
+    second.append(document.createElement('button'));
+    first.replaceWith(second);
+    await waitFor(() => expect(panel).toHaveStyle({ left: '30px', top: '40px', width: '200px', height: '100px' }));
+    expect(first.firstElementChild).not.toHaveAttribute('inert');
+    expect(second.firstElementChild).toHaveAttribute('inert');
+    view.unmount();
+    expect(second.firstElementChild).not.toHaveAttribute('inert');
+    second.remove();
+  });
+
+  it('rejects focus containment where blocking cannot be guaranteed', () => {
+    expect(() => render(<CgLoadingPanel mode="inline" visible trapFocus />)).toThrow(/trapFocus/u);
+    expect(() => render(<CgLoadingPanel mode="overlay" visible blocking={false} trapFocus />)).toThrow(/trapFocus/u);
   });
 });
 

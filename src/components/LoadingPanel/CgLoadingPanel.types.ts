@@ -20,4 +20,5 @@ export interface CgLoadingPanelProps extends NativeLoadingProps, CgBaseProps {
   minimumVisibleDuration?: number;
   dismissOnClick?: boolean;
   dismissOnEscape?: boolean;
+  trapFocus?: boolean;
 }

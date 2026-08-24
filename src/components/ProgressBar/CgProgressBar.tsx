@@ -18,7 +18,7 @@ export const CgProgressBar = forwardRef<HTMLDivElement, CgProgressBarProps>(func
   const displayLabel = label ?? (labelFormatter ? labelFormatter(value, { min, max, percent }) : showLabel ? (percent === undefined ? 'Loading…' : `${Math.round(percent)}%`) : null);
   return (
     <div className={styles.container}>
-      <div {...nativeProps} ref={ref} className={cx(styles.track, value === undefined && styles.indeterminate, className)} style={style} role="progressbar" aria-valuemin={min} aria-valuemax={max} aria-valuenow={clamped} aria-valuetext={typeof displayLabel === 'string' || typeof displayLabel === 'number' ? String(displayLabel) : undefined} data-intent={intent} data-size={size} data-testid={testId}>
+      <div {...nativeProps} ref={ref} className={cx(styles.track, value === undefined && styles.indeterminate, className)} style={style} role="progressbar" aria-label={nativeProps['aria-label'] ?? (typeof label === 'string' || typeof label === 'number' ? String(label) : 'Progress')} aria-valuemin={min} aria-valuemax={max} aria-valuenow={clamped} aria-valuetext={typeof displayLabel === 'string' || typeof displayLabel === 'number' ? String(displayLabel) : undefined} data-intent={intent} data-size={size} data-testid={testId}>
         <span className={styles.fill} style={percent === undefined ? undefined : { inlineSize: `${percent}%` }} />
       </div>
       {displayLabel !== null && displayLabel !== undefined && displayLabel !== false ? <span className={styles.label}>{displayLabel}</span> : null}

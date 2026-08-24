@@ -107,4 +107,38 @@ describe('CgSpinEdit', () => {
     fireEvent.keyDown(readOnly, { key: 'ArrowUp' });
     expect(readOnly).toHaveValue('2');
   });
+
+  it('repeats pointer holds, accelerates, and suppresses the generated click', () => {
+    vi.useFakeTimers();
+    render(<CgSpinEdit aria-label="Held quantity" defaultValue={0} max={100} />);
+    const input = screen.getByRole('spinbutton', { name: 'Held quantity' });
+    const increase = screen.getByRole('button', { name: 'Increase value' });
+    Object.defineProperty(increase, 'setPointerCapture', { configurable: true, value: vi.fn() });
+    fireEvent.pointerDown(increase, { button: 0, pointerId: 1 });
+    expect(input).toHaveValue('1');
+    act(() => vi.advanceTimersByTime(400));
+    expect(input).toHaveValue('2');
+    act(() => vi.advanceTimersByTime(360));
+    expect(input).toHaveValue('5');
+    fireEvent.pointerUp(increase, { pointerId: 1 });
+    fireEvent.click(increase);
+    expect(input).toHaveValue('5');
+    act(() => vi.advanceTimersByTime(1_000));
+    expect(input).toHaveValue('5');
+  });
+
+  it('can disable hold repetition while preserving single pointer and keyboard steps', () => {
+    vi.useFakeTimers();
+    render(<CgSpinEdit aria-label="Single quantity" defaultValue={0} repeatOnHold={false} />);
+    const input = screen.getByRole('spinbutton', { name: 'Single quantity' });
+    const increase = screen.getByRole('button', { name: 'Increase value' });
+    fireEvent.pointerDown(increase, { button: 0, pointerId: 1 });
+    act(() => vi.advanceTimersByTime(2_000));
+    fireEvent.pointerUp(increase, { pointerId: 1 });
+    fireEvent.click(increase);
+    expect(input).toHaveValue('1');
+    act(() => vi.advanceTimersByTime(0));
+    fireEvent.click(increase);
+    expect(input).toHaveValue('2');
+  });
 });

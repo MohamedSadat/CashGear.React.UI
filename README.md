@@ -1,6 +1,6 @@
 # `@cashgear/ui`
 
-CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phase 1–2 mirrors the foundational controls in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies.
+CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–3 mirror the foundational controls in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies and add browser-verified interaction behavior.
 
 ## Install and import
 
@@ -75,11 +75,48 @@ Inputs forward refs and native attributes such as `name`, `form`, `required`, `a
 
 Read-only checkbox, switch, and radio controls remain focusable but suppress state changes. Disabled controls use native disabled behavior.
 
+## ComboBox
+
+`CgComboBox<TItem>` is object-valued and uses stable keys for identity and native form serialization. The editable query is never submitted. Supply local `options` or remote `loadOptions`, but not both.
+
+```tsx
+interface Customer { id: number; name: string; city: string }
+
+<CgComboBox<Customer>
+  name="customerId"
+  form="order-form"
+  options={customers}
+  value={customer}
+  onValueChange={(next, { reason }) => setCustomer(next)}
+  getOptionKey={(item) => item.id}
+  getOptionLabel={(item) => item.name}
+  getOptionSearchText={(item) => `${item.name} ${item.city}`}
+  clearable
+  required
+/>
+```
+
+Remote loading receives a trimmed eligible query, monotonic request ID, and `AbortSignal`. Debounced work is aborted when superseded or unmounted, and stale results cannot replace a newer generation.
+
+```tsx
+<CgComboBox<Customer>
+  loadOptions={(query, { signal }) =>
+    fetch(`/customers?q=${encodeURIComponent(query)}`, { signal }).then((response) => response.json())
+  }
+  minimumSearchLength={2}
+  searchDelay={250}
+  getOptionKey={(item) => item.id}
+  getOptionLabel={(item) => item.name}
+/>
+```
+
+The visible input retains focus while the body-portal listbox opens, flips, shifts, and follows nested scrolling or viewport changes. Arabic digits/text and diacritic-insensitive locale matching are supported. Duplicate keys, conflicting local/remote sources, negative timing/length values, and invalid result limits throw clear errors. A scalar-key adapter is intentionally outside the current API.
+
 ## Numeric editors
 
 `CgNumericEdit` uses a `number | null` committed value. Invalid drafts such as `-` remain visible and internally invalid on blur/Enter without replacing the last committed value; `onInvalidValue` receives the draft. A trailing locale decimal such as `1.` remains visible while focused and commits as `1` on blur/Enter. Parsing strictly recognizes locale digits, separators, signs, and the configured currency/percent literals instead of stripping arbitrary characters. It supports grouping, precision, bounds, prefixes/suffixes, paste, and typed editor commands, and reformats when locale/format options change even when the numeric value is unchanged.
 
-`CgSpinEdit` adds accessible buttons and Arrow/Page stepping and steps from the current parseable draft before falling back to the committed/null-start policy. A null increment starts at `min` when supplied, otherwise 0; a null decrement starts at `max`, otherwise 0. Press-and-hold is intentionally deferred.
+`CgSpinEdit` adds accessible buttons and Arrow/Page stepping and steps from the current parseable draft before falling back to the committed/null-start policy. A null increment starts at `min` when supplied, otherwise 0; a null decrement starts at `max`, otherwise 0. Pointer press-and-hold repeats and accelerates by default; set `repeatOnHold={false}` for single pointer steps. Repeat timing is intentionally private.
 
 JavaScript numbers use IEEE-754 floating-point arithmetic. Do not use these editors as an arbitrary-precision accounting representation; keep minor units or a decimal value in the application when exact base-10 arithmetic is required.
 
@@ -103,14 +140,14 @@ JavaScript numbers use IEEE-754 floating-point arithmetic. Do not use these edit
 
 Eligibility uses the trimmed query length, but `onSearch` receives the original query—including surrounding spaces. `searchOnClear` defaults to `true` and applies equally to the clear button and opt-in Escape clearing. Cancellation, below-minimum input, clear, rejection, and completion all release duplicate-submit bookkeeping while request IDs remain monotonic.
 
-`CgLoadingPanel` supports inline, wrapper overlay, and portal-target modes, delayed display, minimum visible time, inert blocking, shading, dismissal, and topmost Escape ordering. It intentionally does not trap focus.
+`CgLoadingPanel` supports inline, wrapper overlay, and portal-target modes, delayed display, minimum visible time, inert blocking, shading, dismissal, topmost Escape ordering, and target geometry tracking. Focus containment remains off by default; `trapFocus` enables Tab cycling and focus return for blocking overlay/portal modes only.
 
 ## Public API
 
 Components:
 
 - `CgIcon`, `CgButton`, `CgField`
-- `CgTextBox`, `CgMemo`, `CgCheckBox`, `CgSwitch`
+- `CgTextBox`, `CgMemo`, `CgCheckBox`, `CgSwitch`, `CgComboBox`
 - `CgRadio`, `CgRadioGroup`
 - `CgNumericEdit`, `CgSpinEdit`, `CgSearchBox`
 - `CgLoadingPanel`, `CgProgressBar`
@@ -127,6 +164,10 @@ Use Node `^22.22.2 || ^24.15.0 || >=26.0.0`; this matches the locked jsdom requi
 | --- | --- |
 | `npm run storybook` | Run Storybook on port 6006 with theme, density, direction, and a11y controls |
 | `npm run build-storybook` | Create the static Storybook build |
+| `npm run test:browser` | Build Storybook and run all Playwright browser projects |
+| `npm run test:browser:semantic` | Run semantic and Axe checks in Chromium, Firefox, and WebKit |
+| `npm run test:browser:visual` | Compare canonical Chromium screenshots |
+| `npm run test:browser:update` | Regenerate Chromium screenshots on the current platform |
 | `npm run typecheck` | Strict TypeScript check for source, tests, and Storybook |
 | `npm run lint` | Type-aware ESLint and React Hooks rules |
 | `npm run test` | Semantic Vitest/Testing Library suite |
@@ -135,12 +176,14 @@ Use Node `^22.22.2 || ^24.15.0 || >=26.0.0`; this matches the locked jsdom requi
 | `npm run verify:package` | Verify exports, declarations/maps, CSS, React externalization, ESM import, and dry-run tarball |
 | `npm run verify` | Run all gates, including the static Storybook and package checks |
 
-Storybook's global toolbar switches light/dark, comfortable/compact, and LTR/RTL. Every Phase 1–2 component has its own story module with applicable controlled/uncontrolled, disabled, read-only, required/invalid, size, long/empty, loading, keyboard, and Arabic RTL scenarios. Each module records its Razor source and known difference. Use the accessibility panel for manual browser review; automated screenshots are a Phase 3 prerequisite.
+Install browser binaries once with `npx playwright install chromium firefox webkit`. Storybook's global toolbar switches light/dark, comfortable/compact, and LTR/RTL. Every component has its own story module with applicable controlled/uncontrolled, disabled, read-only, required/invalid, size, long/empty, loading, keyboard, and Arabic RTL scenarios. Each module records its Razor source and known difference. Storybook retains its accessibility panel; Playwright also runs Axe against canonical stories and fails serious or critical findings.
 
-The Phase 2 hardening verification on 2026-08-24 under Node 24.19 completed all gates: 9 Vitest files / 45 tests, 73 source modules scanned without relative-import cycles, library/declaration and static Storybook builds, and package verification with 17 runtime exports and a successful ESM dry-run import.
+Chromium screenshots in `tests/browser/__snapshots__` are canonical Windows/Node 24.19 baselines. Playwright snapshots are platform-specific; regenerate them on the same operating system used for comparison. Browser tests serve the prebuilt Storybook through a lifecycle-managed Vite preview server. No CI workflow is installed; browser gates run locally through `npm run verify`.
+
+The Phase 3 verification on 2026-08-24 under Node 24.19 passes 62 Vitest tests, 57 semantic/Axe browser tests across Chromium, Firefox, and WebKit, 37 Chromium visual tests comparing 40 snapshots, the 77-module cycle scan, library/declaration and static Storybook builds, and package verification with exactly 18 runtime exports and a successful ESM dry-run import.
 
 ## Packaging
 
 The library is ESM-only. Vite preserves modules for tree-shaking, keeps React external, emits declarations and declaration maps, and produces `dist/cashgear-ui.css`, exported only as `@cashgear/ui/styles.css`. `npm run verify:package` also runs `npm pack --dry-run` so the publish allow-list is checked before release.
 
-See [the parity ledger](docs/cgcomplib-react-parity.md) for the exact Razor HEAD/working-tree status, source/test/story paths, intentional differences, deferred advanced components, and Phase 3 prerequisites.
+See [the parity ledger](docs/cgcomplib-react-parity.md) for the original and current Razor snapshots, source/test/story paths, intentional differences, exact verification results, and deferred advanced components.

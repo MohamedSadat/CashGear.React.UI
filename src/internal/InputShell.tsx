@@ -1,8 +1,9 @@
+import { forwardRef } from 'react';
 import { cx } from '../utils';
 import styles from './InputShell.module.css';
 import type { InputShellProps } from './InputShell.types';
 
-export function InputShell({
+export const InputShell = forwardRef<HTMLDivElement, InputShellProps>(function InputShell({
   children,
   start,
   end,
@@ -12,10 +13,11 @@ export function InputShell({
   readOnly = false,
   className,
   ...props
-}: InputShellProps) {
+}: InputShellProps, ref) {
   return (
     <div
       {...props}
+      ref={ref}
       className={cx(styles.shell, className)}
       data-size={size}
       data-validation={validationState}
@@ -27,4 +29,4 @@ export function InputShell({
       {end ? <span className={styles.adornment}>{end}</span> : null}
     </div>
   );
-}
+});
