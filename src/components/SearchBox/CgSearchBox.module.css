@@ -1,2 +1,3 @@
 .root { display: grid; gap: var(--cg-space-1); }
+.minimum { color: var(--cg-color-warning); font: var(--cg-font-size-sm)/var(--cg-line-height) var(--cg-font-family); }
 .status { color: var(--cg-text-secondary); font: var(--cg-font-size-sm)/var(--cg-line-height) var(--cg-font-family); }

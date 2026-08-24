@@ -18,5 +18,5 @@ export interface CgButtonProps extends NativeButtonProps, CgBaseProps {
   loadingContent?: ReactNode;
   fullWidth?: boolean;
   type?: 'button' | 'submit' | 'reset';
-  onClick?: (event: MouseEvent<HTMLButtonElement>) => void | Promise<void>;
+  onClick?: (event: MouseEvent<HTMLButtonElement>) => void | PromiseLike<void>;
 }

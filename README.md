@@ -56,11 +56,11 @@ export function AccountEditor() {
 }
 ```
 
-Controls accept either `value`/`checked` plus a change callback, or `defaultValue`/`defaultChecked` for uncontrolled use. Do not switch modes during a component's lifetime; development builds warn when that happens. TextBox and Memo keep a separate draft and can commit on input, blur, or a debounce. Controlled external updates cancel pending debounce work.
+Controls accept either `value`/`checked` plus a change callback, or `defaultValue`/`defaultChecked` for uncontrolled use. Do not switch modes during a component's lifetime; development builds warn once when that happens, including under Strict Mode. TextBox and Memo keep a separate draft and can commit on input, blur, or a debounce. Controlled external updates cancel pending debounce work without replacing an active IME composition until composition ends.
 
 ## Native forms
 
-Inputs forward refs and native attributes such as `name`, `form`, `required`, `autoComplete`, and `aria-*`. Button supports `button`, `submit`, and `reset`. Uncontrolled controls restore their defaults on native form reset.
+Inputs forward refs and native attributes such as `name`, `form`, `required`, `autoComplete`, and `aria-*`. Button supports `button`, `submit`, and `reset`. Uncontrolled controls restore their defaults on native form reset, including controls associated to a non-ancestor form through `form="form-id"`. Standalone uncontrolled radios intentionally rely on native same-name grouping.
 
 ```tsx
 <form onSubmit={save}>
@@ -77,9 +77,9 @@ Read-only checkbox, switch, and radio controls remain focusable but suppress sta
 
 ## Numeric editors
 
-`CgNumericEdit` uses a `number | null` committed value and preserves incomplete drafts such as `-` and `1.` until blur or Enter. Parsing is based on `Intl.NumberFormat.formatToParts` and accepts Latin, Arabic-Indic, and Eastern Arabic digits. It supports decimal/currency/percent formatting, grouping, precision, bounds, prefixes/suffixes, and typed editor commands.
+`CgNumericEdit` uses a `number | null` committed value. Invalid drafts such as `-` remain visible and internally invalid on blur/Enter without replacing the last committed value; `onInvalidValue` receives the draft. A trailing locale decimal such as `1.` remains visible while focused and commits as `1` on blur/Enter. Parsing strictly recognizes locale digits, separators, signs, and the configured currency/percent literals instead of stripping arbitrary characters. It supports grouping, precision, bounds, prefixes/suffixes, paste, and typed editor commands, and reformats when locale/format options change even when the numeric value is unchanged.
 
-`CgSpinEdit` adds accessible buttons and Arrow/Page stepping. A null increment starts at `min` when supplied, otherwise 0; a null decrement starts at `max`, otherwise 0. Press-and-hold is intentionally deferred.
+`CgSpinEdit` adds accessible buttons and Arrow/Page stepping and steps from the current parseable draft before falling back to the committed/null-start policy. A null increment starts at `min` when supplied, otherwise 0; a null decrement starts at `max`, otherwise 0. Press-and-hold is intentionally deferred.
 
 JavaScript numbers use IEEE-754 floating-point arithmetic. Do not use these editors as an arbitrary-precision accounting representation; keep minor units or a decimal value in the application when exact base-10 arithmetic is required.
 
@@ -91,12 +91,17 @@ JavaScript numbers use IEEE-754 floating-point arithmetic. Do not use these edit
 <CgSearchBox
   query={query}
   onQueryChange={setQuery}
+  minimumLength={2}
+  minimumLengthMessage={(minimum) => `Enter at least ${minimum} characters`}
+  searchOnClear
   onSearch={async (text, { reason, requestId, signal }) => {
     const response = await fetch(`/search?q=${encodeURIComponent(text)}`, { signal });
     // requestId is monotonic; aborted/stale generations are not treated as current.
   }}
 />
 ```
+
+Eligibility uses the trimmed query length, but `onSearch` receives the original query—including surrounding spaces. `searchOnClear` defaults to `true` and applies equally to the clear button and opt-in Escape clearing. Cancellation, below-minimum input, clear, rejection, and completion all release duplicate-submit bookkeeping while request IDs remain monotonic.
 
 `CgLoadingPanel` supports inline, wrapper overlay, and portal-target modes, delayed display, minimum visible time, inert blocking, shading, dismissal, and topmost Escape ordering. It intentionally does not trap focus.
 
@@ -130,7 +135,9 @@ Use Node `^22.22.2 || ^24.15.0 || >=26.0.0`; this matches the locked jsdom requi
 | `npm run verify:package` | Verify exports, declarations/maps, CSS, React externalization, ESM import, and dry-run tarball |
 | `npm run verify` | Run all gates, including the static Storybook and package checks |
 
-Storybook's global toolbar switches light/dark, comfortable/compact, and LTR/RTL. Every Phase 1–2 component appears in the parity gallery with disabled/read-only/invalid/loading/Arabic scenarios where applicable and includes its Razor source and known difference. Use the accessibility panel for manual browser review; automated screenshots are a Phase 3 prerequisite.
+Storybook's global toolbar switches light/dark, comfortable/compact, and LTR/RTL. Every Phase 1–2 component has its own story module with applicable controlled/uncontrolled, disabled, read-only, required/invalid, size, long/empty, loading, keyboard, and Arabic RTL scenarios. Each module records its Razor source and known difference. Use the accessibility panel for manual browser review; automated screenshots are a Phase 3 prerequisite.
+
+The Phase 2 hardening verification on 2026-08-24 under Node 24.19 completed all gates: 9 Vitest files / 45 tests, 73 source modules scanned without relative-import cycles, library/declaration and static Storybook builds, and package verification with 17 runtime exports and a successful ESM dry-run import.
 
 ## Packaging
 

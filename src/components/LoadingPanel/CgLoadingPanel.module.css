@@ -1,6 +1,7 @@
 .wrapper { position: relative; }
 .wrappedContent.hidden { visibility: hidden; }
 .panel { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--cg-space-4); color: var(--cg-text); font: var(--cg-font-size-md)/var(--cg-line-height) var(--cg-font-family); }
+.panel[data-blocking='false'] { pointer-events: none; }
 .inline { position: static; display: inline-flex; padding: var(--cg-space-2); }
 .shading { background: color-mix(in srgb, var(--cg-surface) 78%, transparent); }
 .content { display: inline-flex; align-items: center; justify-content: center; gap: var(--cg-space-3); padding: var(--cg-space-3) var(--cg-space-4); background: var(--cg-surface-raised); border-radius: var(--cg-radius-md); box-shadow: var(--cg-shadow); }

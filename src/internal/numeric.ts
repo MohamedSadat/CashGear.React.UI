@@ -19,6 +19,9 @@ export interface NumericFormatOptions {
 }
 
 export function createNumberFormatter(options: NumericFormatOptions): Intl.NumberFormat {
+  if (options.style === 'currency' && !options.currency?.trim()) {
+    throw new TypeError('currency is required when formatStyle is "currency".');
+  }
   return new Intl.NumberFormat(options.locale, {
     style: options.style ?? 'decimal',
     currency: options.currency,
@@ -29,20 +32,40 @@ export function createNumberFormatter(options: NumericFormatOptions): Intl.Numbe
 }
 
 export function parseLocalizedNumber(text: string, formatter: Intl.NumberFormat, style: NumericFormatOptions['style']): number | null | undefined {
-  const trimmed = normalizeDigits(text.trim());
-  if (trimmed === '') return null;
-  const parts = formatter.formatToParts(-12345.6);
-  const group = parts.find((part) => part.type === 'group')?.value;
-  const decimal = parts.find((part) => part.type === 'decimal')?.value;
-  const minus = parts.find((part) => part.type === 'minusSign')?.value;
-  let normalized = trimmed.replace(/[\s\u00a0\u202f]/g, '');
-  if (group) normalized = normalized.split(group).join('');
-  if (decimal && decimal !== '.') normalized = normalized.split(decimal).join('.');
-  if (minus && minus !== '-') normalized = normalized.split(minus).join('-');
-  normalized = normalized.replace(/[^0-9+\-.]/g, '');
-  if (/^[+-]?$/.test(normalized) || /^[+-]?\.$/.test(normalized) || /^[+-]?\d+\.$/.test(normalized)) return undefined;
-  if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalized)) return undefined;
-  const parsed = Number(normalized);
+  let normalized = normalizeDigits(text.trim()).replace(/[\s\u00a0\u202f\u061c\u200e\u200f]/g, '');
+  if (normalized === '') return null;
+
+  const resolved = formatter.resolvedOptions();
+  const separatorFormatter = new Intl.NumberFormat(resolved.locale, {
+    numberingSystem: resolved.numberingSystem,
+    useGrouping: true,
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+  const parts = [
+    ...formatter.formatToParts(-12345.6),
+    ...formatter.formatToParts(12345.6),
+    ...separatorFormatter.formatToParts(-12345.6),
+  ];
+  const values = (type: Intl.NumberFormatPartTypes) =>
+    [...new Set(parts.filter((part) => part.type === type).map((part) =>
+      normalizeDigits(part.value).replace(/[\s\u00a0\u202f\u061c\u200e\u200f]/g, ''),
+    ).filter(Boolean))].sort((left, right) => right.length - left.length);
+  const replaceTokens = (tokens: ReadonlyArray<string>, replacement: string) => {
+    for (const token of tokens) normalized = normalized.split(token).join(replacement);
+  };
+
+  replaceTokens(values('currency'), '');
+  replaceTokens(values('percentSign'), '');
+  replaceTokens(values('literal'), '');
+  replaceTokens(values('group'), 'G');
+  replaceTokens(values('decimal'), 'D');
+  replaceTokens(values('minusSign'), '-');
+  replaceTokens(values('plusSign'), '+');
+
+  if (!/^[+-]?(?:\d+(?:G\d+)*(?:D\d*)?|D\d+)$/.test(normalized)) return undefined;
+  const canonical = normalized.split('G').join('').replace('D', '.');
+  const parsed = Number(canonical);
   if (!Number.isFinite(parsed)) return undefined;
   return style === 'percent' ? parsed / 100 : parsed;
 }

@@ -2,6 +2,8 @@ import { forwardRef, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useControllableState, useStableCallback } from '../../hooks';
 import { CgPortal, useOverlayStack } from '../../internal';
+import { acquireInert } from '../../internal/inert';
+import { assertNonNegative } from '../../internal/validation';
 import { cx } from '../../utils';
 import styles from './CgLoadingPanel.module.css';
 import type { CgLoadingPanelProps } from './CgLoadingPanel.types';
@@ -10,6 +12,8 @@ export const CgLoadingPanel = forwardRef<HTMLDivElement, CgLoadingPanelProps>(fu
   { children, visible, defaultVisible = false, onVisibleChange, mode = 'inline', target, text = 'Loading…', indicator = 'spinner', customIndicator, shading = true, blocking = true, showContent = true, showDelay = 0, minimumVisibleDuration = 0, dismissOnClick = false, dismissOnEscape = false, className, style, 'data-testid': testId, ...nativeProps },
   ref,
 ) {
+  assertNonNegative('showDelay', showDelay);
+  assertNonNegative('minimumVisibleDuration', minimumVisibleDuration);
   const [requested, setRequested] = useControllableState(visible, defaultVisible, 'CgLoadingPanel');
   const [displayed, setDisplayed] = useState(requested && showDelay <= 0);
   const shownAtRef = useRef(requested ? Date.now() : 0);
@@ -29,13 +33,11 @@ export const CgLoadingPanel = forwardRef<HTMLDivElement, CgLoadingPanelProps>(fu
 
   useEffect(() => {
     if (!displayed || !blocking || mode !== 'portal' || typeof document === 'undefined') return undefined;
-    const resolved = typeof target === 'string' ? document.querySelector(target) : target;
-    if (!resolved) return undefined;
-    const records = [...resolved.children]
+    const resolved = (typeof target === 'string' ? document.querySelector(target) : target) ?? document.body;
+    const releases = [...resolved.children]
       .filter((child) => !child.hasAttribute('data-cg-loading-overlay'))
-      .map((child) => ({ child, inert: child.hasAttribute('inert') }));
-    records.forEach(({ child }) => child.setAttribute('inert', ''));
-    return () => records.forEach(({ child, inert }) => { if (!inert) child.removeAttribute('inert'); });
+      .map((child) => acquireInert(child));
+    return () => releases.forEach((release) => release());
   }, [blocking, displayed, mode, target]);
 
   const visual: ReactNode = indicator === 'custom' ? customIndicator : (
@@ -52,6 +54,7 @@ export const CgLoadingPanel = forwardRef<HTMLDivElement, CgLoadingPanelProps>(fu
       role="status"
       aria-live="polite"
       aria-busy="true"
+      data-blocking={blocking}
       data-cg-loading-overlay=""
       data-testid={testId}
       onClick={(event) => { nativeProps.onClick?.(event); if (dismissOnClick && event.target === event.currentTarget) dismiss(); }}
@@ -60,8 +63,8 @@ export const CgLoadingPanel = forwardRef<HTMLDivElement, CgLoadingPanelProps>(fu
     </div>
   ) : null;
 
-  if (mode === 'inline') return <>{children}{panel}</>;
-  if (mode === 'portal') return <>{showContent ? children : null}<CgPortal target={target}>{panel}</CgPortal></>;
+  if (mode === 'inline') return <>{showContent || !displayed ? children : null}{panel}</>;
+  if (mode === 'portal') return <>{showContent || !displayed ? children : null}<CgPortal target={target}>{panel}</CgPortal></>;
   return (
     <div className={styles.wrapper} aria-busy={displayed || undefined}>
       <div className={cx(styles.wrappedContent, !showContent && displayed && styles.hidden)} inert={displayed && blocking ? true : undefined}>{children}</div>

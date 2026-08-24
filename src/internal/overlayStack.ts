@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useStableCallback } from '../hooks';
 
-interface OverlayEntry { id: number; dismiss?: () => void; }
+interface OverlayEntry { id: number; identity: object; dismiss?: () => void; }
 const overlays: OverlayEntry[] = [];
+const listeners = new Set<() => void>();
 let nextOverlayId = 0;
+let stackVersion = 0;
 let listeningDocument: Document | undefined;
 
 const onEscape = (event: KeyboardEvent) => {
@@ -23,19 +25,34 @@ function detachWhenEmpty() {
   listeningDocument = undefined;
 }
 
+const subscribe = (listener: () => void) => {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+};
+const getSnapshot = () => stackVersion;
+const getServerSnapshot = () => 0;
+const notify = () => {
+  stackVersion += 1;
+  listeners.forEach((listener) => listener());
+};
+
 export function useOverlayStack(active: boolean, dismiss?: () => void) {
-  const [identity] = useState(() => ({ id: ++nextOverlayId }));
+  const [identity] = useState(() => ({}));
   const stableDismiss = useStableCallback(dismiss);
+  useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   useEffect(() => {
     if (!active) return undefined;
-    const entry: OverlayEntry = { id: identity.id, dismiss: dismiss ? stableDismiss : undefined };
+    const entry: OverlayEntry = { id: ++nextOverlayId, identity, dismiss: dismiss ? stableDismiss : undefined };
     overlays.push(entry);
     attach(document);
+    notify();
     return () => {
       const index = overlays.findIndex((item) => item.id === entry.id);
       if (index >= 0) overlays.splice(index, 1);
       detachWhenEmpty();
+      notify();
     };
-  }, [active, dismiss, identity.id, stableDismiss]);
-  return { order: identity.id } as const;
+  }, [active, dismiss, identity, stableDismiss]);
+  const order = overlays.find((entry) => entry.identity === identity)?.id ?? 0;
+  return { order } as const;
 }

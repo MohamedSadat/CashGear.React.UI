@@ -57,5 +57,5 @@ export interface CgEditorButtonDescriptor<TValue = string> {
   visible?: boolean;
   preventFocusLoss?: boolean;
   preventDuplicateClicks?: boolean;
-  onPress?: (context: CgEditorButtonContext<TValue>) => void | Promise<void>;
+  onPress?: (context: CgEditorButtonContext<TValue>) => void | PromiseLike<void>;
 }

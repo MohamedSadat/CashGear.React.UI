@@ -21,7 +21,7 @@ export type { CgRadioProps } from './components/Radio';
 export { CgRadioGroup } from './components/RadioGroup';
 export type { CgRadioGroupProps, CgRadioOption, CgRadioRenderContext } from './components/RadioGroup';
 export { CgSearchBox } from './components/SearchBox';
-export type { CgSearchBoxProps, CgSearchContext, CgSearchMode, CgSearchReason } from './components/SearchBox';
+export type { CgMinimumLengthMessage, CgSearchBoxProps, CgSearchContext, CgSearchMode, CgSearchReason } from './components/SearchBox';
 export { CgSpinEdit } from './components/SpinEdit';
 export type { CgSpinEditProps } from './components/SpinEdit';
 export { CgSwitch } from './components/Switch';

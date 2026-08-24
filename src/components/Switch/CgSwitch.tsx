@@ -17,7 +17,14 @@ export const CgSwitch = forwardRef<HTMLInputElement, CgSwitchProps>(function CgS
   const ref = useMergedRefs(inputRef, forwardedRef);
   const descriptionId = description ? `${field.id}-description` : undefined;
   const describedBy = [field.describedBy, descriptionId].filter(Boolean).join(' ') || undefined;
-  useFormReset(inputRef, () => { setState(defaultChecked); onCheckedChange?.(defaultChecked); });
+  useFormReset(inputRef, () => {
+    if (checked !== undefined) {
+      if (inputRef.current) inputRef.current.checked = state;
+      return;
+    }
+    setState(defaultChecked);
+    onCheckedChange?.(defaultChecked);
+  });
   return (
     <label className={cx(choiceStyles.root, choiceStyles[field.validationState], className)} style={style} data-position={labelPosition} data-size={size} data-disabled={field.disabled || undefined} data-readonly={field.readOnly || undefined} data-testid={testId}>
       <span className={styles.track} aria-hidden="true"><span className={styles.thumb} data-checked={state || undefined} /></span>

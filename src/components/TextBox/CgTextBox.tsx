@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, CompositionEvent } from 'react';
 import { useControllableState, useDebouncedCallback, useFormReset, useMergedRefs, useStableCallback } from '../../hooks';
 import { EditorButton, InputShell, renderIcon, useFieldControl } from '../../internal';
+import { assertNonNegative } from '../../internal/validation';
 import type { CgEditorButtonDescriptor } from '../../types';
 import { cx } from '../../utils';
 import styles from './CgTextBox.module.css';
@@ -43,11 +44,13 @@ export const CgTextBox = forwardRef<HTMLInputElement, CgTextBoxProps>(function C
   },
   forwardedRef,
 ) {
+  assertNonNegative('debounceMs', debounceMs);
   const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy });
   const [committed, setCommitted] = useControllableState(value, defaultValue, 'CgTextBox');
   const [draft, setDraft] = useState(committed);
   const [revealed, setRevealed] = useState(false);
   const composingRef = useRef(false);
+  const pendingExternalRef = useRef<string | undefined>(undefined);
   const inputRef = useRef<HTMLInputElement>(null);
   const ref = useMergedRefs(inputRef, forwardedRef);
   const emit = useStableCallback((next: string, reason: CgTextChangeReason, event?: ChangeEvent<HTMLInputElement>) => {
@@ -61,11 +64,16 @@ export const CgTextBox = forwardRef<HTMLInputElement, CgTextBoxProps>(function C
     if (value === undefined || controlledRef.current === value) return;
     controlledRef.current = value;
     debounced.cancel();
+    if (composingRef.current) {
+      pendingExternalRef.current = value;
+      return;
+    }
     setDraft(value);
   }, [debounced, value]);
 
   useFormReset(inputRef, () => {
     debounced.cancel();
+    pendingExternalRef.current = undefined;
     const next = value ?? defaultValue;
     setDraft(next);
     if (value === undefined) emit(next, 'reset');
@@ -132,6 +140,12 @@ export const CgTextBox = forwardRef<HTMLInputElement, CgTextBoxProps>(function C
         }}
         onCompositionEnd={(event: CompositionEvent<HTMLInputElement>) => {
           composingRef.current = false;
+          if (pendingExternalRef.current !== undefined) {
+            setDraft(pendingExternalRef.current);
+            pendingExternalRef.current = undefined;
+            onCompositionEnd?.(event);
+            return;
+          }
           const next = event.currentTarget.value;
           if (commitMode === 'input') emit(next, 'input');
           else if (commitMode === 'debounced') debounced.schedule(next);

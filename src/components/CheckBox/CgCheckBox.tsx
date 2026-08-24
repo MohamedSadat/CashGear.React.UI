@@ -19,7 +19,17 @@ export const CgCheckBox = forwardRef<HTMLInputElement, CgCheckBoxProps>(function
   const descriptionId = description ? `${field.id}-description` : undefined;
   const describedBy = [field.describedBy, descriptionId].filter(Boolean).join(' ') || undefined;
   useEffect(() => { if (inputRef.current) inputRef.current.indeterminate = state === 'indeterminate'; }, [state]);
-  useFormReset(inputRef, () => { setState(defaultChecked); onCheckedChange?.(defaultChecked); });
+  useFormReset(inputRef, () => {
+    if (checked !== undefined) {
+      if (inputRef.current) {
+        inputRef.current.checked = state === true;
+        inputRef.current.indeterminate = state === 'indeterminate';
+      }
+      return;
+    }
+    setState(defaultChecked);
+    onCheckedChange?.(defaultChecked);
+  });
   const set = (next: CgCheckedState, event?: ChangeEvent<HTMLInputElement>) => { setState(next); onCheckedChange?.(next, event); };
   return (
     <label className={cx(choiceStyles.root, choiceStyles[field.validationState], className)} style={style} data-position={labelPosition} data-size={size} data-disabled={field.disabled || undefined} data-readonly={field.readOnly || undefined} data-testid={testId}>
@@ -38,11 +48,12 @@ export const CgCheckBox = forwardRef<HTMLInputElement, CgCheckBoxProps>(function
         aria-describedby={describedBy}
         aria-errormessage={field.errorMessageId}
         onClick={(event: MouseEvent<HTMLInputElement>) => {
-          if (field.readOnly || cycleIndeterminate) {
+          const cycled = cycleIndeterminate ? nextState(state) : state;
+          if (field.readOnly) {
             event.preventDefault();
             queueMicrotask(() => { if (inputRef.current) { inputRef.current.checked = state === true; inputRef.current.indeterminate = state === 'indeterminate'; } });
           }
-          if (!field.readOnly && cycleIndeterminate) set(nextState(state));
+          if (!field.readOnly && cycleIndeterminate) set(cycled);
           onClick?.(event);
         }}
         onChange={(event) => { onChange?.(event); if (!field.readOnly && !cycleIndeterminate) set(event.target.checked, event); }}

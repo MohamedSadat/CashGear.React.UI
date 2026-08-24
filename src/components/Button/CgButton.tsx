@@ -1,6 +1,7 @@
-import { forwardRef, useState } from 'react';
+import { forwardRef, useEffect, useRef, useState } from 'react';
 import type { MouseEvent } from 'react';
 import { renderIcon } from '../../internal';
+import { isPromiseLike } from '../../internal/async';
 import { cx } from '../../utils';
 import styles from './CgButton.module.css';
 import type { CgButtonProps } from './CgButton.types';
@@ -29,14 +30,37 @@ export const CgButton = forwardRef<HTMLButtonElement, CgButtonProps>(function Cg
   ref,
 ) {
   const [automaticLoading, setAutomaticLoading] = useState(false);
+  const automaticLoadingCountRef = useRef(0);
+  const mountedRef = useRef(true);
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
   const busy = loading || automaticLoading;
-  const blocked = disabled || (busy && suppressDuplicateClicks);
+  const blocked = disabled || ((busy || automaticLoadingCountRef.current > 0) && suppressDuplicateClicks);
   const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
-    if (blocked) { event.preventDefault(); event.stopPropagation(); return; }
+    if (disabled || (suppressDuplicateClicks && (busy || automaticLoadingCountRef.current > 0))) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     const result = onClick?.(event);
-    if (autoLoading && result instanceof Promise) {
-      setAutomaticLoading(true);
-      void result.finally(() => setAutomaticLoading(false)).catch(() => undefined);
+    if (isPromiseLike(result)) {
+      if (autoLoading) {
+        automaticLoadingCountRef.current += 1;
+        setAutomaticLoading(true);
+      }
+      void Promise.resolve(result).then(
+        () => {
+          if (!autoLoading) return;
+          automaticLoadingCountRef.current = Math.max(0, automaticLoadingCountRef.current - 1);
+          if (mountedRef.current && automaticLoadingCountRef.current === 0) setAutomaticLoading(false);
+        },
+        () => {
+          if (!autoLoading) return;
+          automaticLoadingCountRef.current = Math.max(0, automaticLoadingCountRef.current - 1);
+          if (mountedRef.current && automaticLoadingCountRef.current === 0) setAutomaticLoading(false);
+        },
+      );
     }
   };
   const content = busy && loadingContent !== undefined ? loadingContent : children;

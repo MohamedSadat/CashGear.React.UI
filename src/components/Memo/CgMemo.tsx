@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, CompositionEvent } from 'react';
 import { useControllableState, useDebouncedCallback, useFormReset, useMergedRefs, useStableCallback } from '../../hooks';
 import { EditorButton, InputShell, useFieldControl } from '../../internal';
+import { assertNonNegative, assertNonNegativeInteger, assertPositiveInteger } from '../../internal/validation';
 import type { CgEditorButtonDescriptor } from '../../types';
 import { cx } from '../../utils';
 import styles from './CgMemo.module.css';
@@ -43,11 +44,19 @@ export const CgMemo = forwardRef<HTMLTextAreaElement, CgMemoProps>(function CgMe
   },
   forwardedRef,
 ) {
+  assertNonNegative('debounceMs', debounceMs);
+  assertPositiveInteger('rows', rows);
+  if (maxRows !== undefined) {
+    assertPositiveInteger('maxRows', maxRows);
+    if (maxRows < rows) throw new RangeError('maxRows must be greater than or equal to rows.');
+  }
+  if (maxLength !== undefined) assertNonNegativeInteger('maxLength', maxLength);
   const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy });
   const initial = normalize(defaultValue);
   const [committed, setCommitted] = useControllableState(value === undefined ? undefined : normalize(value), initial, 'CgMemo');
   const [draft, setDraft] = useState(committed);
   const composingRef = useRef(false);
+  const pendingExternalRef = useRef<string | undefined>(undefined);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const ref = useMergedRefs(textareaRef, forwardedRef);
   const emit = useStableCallback((next: string, reason: CgMemoChangeReason, event?: ChangeEvent<HTMLTextAreaElement>) => {
@@ -69,7 +78,12 @@ export const CgMemo = forwardRef<HTMLTextAreaElement, CgMemoProps>(function CgMe
   useEffect(() => {
     resize();
     const element = textareaRef.current;
-    if (!element || resizeMode !== 'auto' || typeof ResizeObserver === 'undefined') return undefined;
+    if (!element) return undefined;
+    if (resizeMode !== 'auto') {
+      element.style.removeProperty('height');
+      return undefined;
+    }
+    if (typeof ResizeObserver === 'undefined') return undefined;
     const observer = new ResizeObserver(resize);
     observer.observe(element);
     return () => observer.disconnect();
@@ -79,10 +93,15 @@ export const CgMemo = forwardRef<HTMLTextAreaElement, CgMemoProps>(function CgMe
     if (value === undefined || controlledRef.current === value) return;
     controlledRef.current = value;
     debounced.cancel();
+    if (composingRef.current) {
+      pendingExternalRef.current = normalize(value);
+      return;
+    }
     setDraft(normalize(value));
   }, [debounced, value]);
   useFormReset(textareaRef, () => {
     debounced.cancel();
+    pendingExternalRef.current = undefined;
     const next = normalize(value ?? defaultValue);
     setDraft(next);
     if (value === undefined) emit(next, 'reset');
@@ -128,10 +147,22 @@ export const CgMemo = forwardRef<HTMLTextAreaElement, CgMemoProps>(function CgMe
           onChange={(event) => { const next = normalize(event.target.value); setDraft(next); onChange?.(event); if (!composingRef.current) commitInput(next, event); }}
           onBlur={(event) => { if (commitMode === 'blur') emit(draft, 'blur'); else if (commitMode === 'debounced') debounced.flush(); onBlur?.(event); }}
           onCompositionStart={(event: CompositionEvent<HTMLTextAreaElement>) => { composingRef.current = true; onCompositionStart?.(event); }}
-          onCompositionEnd={(event: CompositionEvent<HTMLTextAreaElement>) => { composingRef.current = false; const next = normalize(event.currentTarget.value); if (commitMode === 'input') emit(next, 'input'); else if (commitMode === 'debounced') debounced.schedule(next); onCompositionEnd?.(event); }}
+          onCompositionEnd={(event: CompositionEvent<HTMLTextAreaElement>) => {
+            composingRef.current = false;
+            if (pendingExternalRef.current !== undefined) {
+              setDraft(pendingExternalRef.current);
+              pendingExternalRef.current = undefined;
+              onCompositionEnd?.(event);
+              return;
+            }
+            const next = normalize(event.currentTarget.value);
+            if (commitMode === 'input') emit(next, 'input');
+            else if (commitMode === 'debounced') debounced.schedule(next);
+            onCompositionEnd?.(event);
+          }}
         />
       </InputShell>
-      {showCounter ? <div id={counterId} className={styles.counter} aria-live="polite">{counterFormatter ? counterFormatter(draft.length, maxLength) : maxLength ? `${draft.length} / ${maxLength}` : draft.length}</div> : null}
+      {showCounter ? <div id={counterId} className={styles.counter} aria-live="polite">{counterFormatter ? counterFormatter(draft.length, maxLength) : maxLength !== undefined ? `${draft.length} / ${maxLength}` : draft.length}</div> : null}
     </div>
   );
 });

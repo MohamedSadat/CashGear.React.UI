@@ -12,18 +12,21 @@ export function useAsyncOperation() {
   const mountedRef = useRef(true);
 
   const cancel = useCallback(() => {
-    controllerRef.current?.abort();
+    if (controllerRef.current) {
+      controllerRef.current.abort();
+      generationRef.current += 1;
+    }
     controllerRef.current = undefined;
     if (mountedRef.current) setPending(false);
   }, []);
 
   const run = useCallback(
-    async <T,>(operation: (context: CgAsyncOperationContext) => Promise<T>): Promise<T> => {
+    async <T,>(operation: (context: CgAsyncOperationContext) => PromiseLike<T>): Promise<T> => {
       controllerRef.current?.abort();
       const controller = new AbortController();
       controllerRef.current = controller;
       const generation = ++generationRef.current;
-      setPending(true);
+      if (mountedRef.current) setPending(true);
       try {
         return await operation({ signal: controller.signal, generation });
       } finally {
@@ -41,6 +44,8 @@ export function useAsyncOperation() {
     return () => {
       mountedRef.current = false;
       controllerRef.current?.abort();
+      if (controllerRef.current) generationRef.current += 1;
+      controllerRef.current = undefined;
     };
   }, []);
 
