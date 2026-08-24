@@ -1,84 +1,65 @@
-import { forwardRef } from 'react';
+import { forwardRef, useState } from 'react';
 import type { MouseEvent } from 'react';
-import { cx } from '../../utils/cx';
-import type { CgButtonProps } from './CgButton.types';
+import { renderIcon } from '../../internal';
+import { cx } from '../../utils';
 import styles from './CgButton.module.css';
+import type { CgButtonProps } from './CgButton.types';
 
-/**
- * `CgButton` — the standard CashGear action control.
- *
- * Conventions demonstrated here apply to every component in this library:
- * - the underlying DOM element's props are spread last-but-one, so consumers
- *   keep full access to native attributes (`form`, `name`, `aria-*`, …);
- * - props the component guarantees (`className`, `disabled`, `type`) are
- *   applied after the spread so they cannot be silently overridden;
- * - the `ref` points at the real `<button>`, which is what callers need for
- *   focus management, popovers and form libraries.
- */
 export const CgButton = forwardRef<HTMLButtonElement, CgButtonProps>(function CgButton(
   {
     children,
-    variant = 'secondary',
-    size = 'md',
+    intent = 'neutral',
+    appearance = intent === 'link' ? 'link' : 'solid',
+    size = 'medium',
+    icon,
+    iconPosition = 'start',
     loading = false,
+    autoLoading = true,
+    suppressDuplicateClicks = true,
+    loadingContent,
     disabled = false,
     fullWidth = false,
-    iconBefore,
-    iconAfter,
     type = 'button',
     className,
     style,
     onClick,
-    'data-testid': dataTestId,
+    'data-testid': testId,
     ...nativeProps
   },
   ref,
 ) {
-  const isInoperable = disabled || loading;
-
+  const [automaticLoading, setAutomaticLoading] = useState(false);
+  const busy = loading || automaticLoading;
+  const blocked = disabled || (busy && suppressDuplicateClicks);
   const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
-    // `loading` does not set the `disabled` attribute (that would drop the
-    // button out of the tab order mid-interaction and move focus), so clicks
-    // must be suppressed explicitly.
-    if (isInoperable) {
-      event.preventDefault();
-      event.stopPropagation();
-      return;
+    if (blocked) { event.preventDefault(); event.stopPropagation(); return; }
+    const result = onClick?.(event);
+    if (autoLoading && result instanceof Promise) {
+      setAutomaticLoading(true);
+      void result.finally(() => setAutomaticLoading(false)).catch(() => undefined);
     }
-    onClick?.(event);
   };
-
+  const content = busy && loadingContent !== undefined ? loadingContent : children;
   return (
     <button
       {...nativeProps}
       ref={ref}
       type={type}
-      className={cx(
-        styles.root,
-        styles[size],
-        styles[variant],
-        fullWidth && styles.fullWidth,
-        className,
-      )}
+      className={cx(styles.root, fullWidth && styles.fullWidth, className)}
       style={style}
       disabled={disabled}
-      aria-busy={loading || undefined}
-      aria-disabled={loading || undefined}
-      data-testid={dataTestId}
+      aria-busy={busy || undefined}
+      aria-disabled={blocked || undefined}
+      data-intent={intent}
+      data-appearance={appearance}
+      data-size={size}
+      data-testid={testId}
       onClick={handleClick}
     >
-      {loading ? <span className={styles.spinner} aria-hidden="true" /> : null}
-      {!loading && iconBefore ? (
-        <span className={styles.icon} aria-hidden="true">
-          {iconBefore}
-        </span>
-      ) : null}
-      <span className={styles.label}>{children}</span>
-      {iconAfter ? (
-        <span className={styles.icon} aria-hidden="true">
-          {iconAfter}
-        </span>
-      ) : null}
+      {busy ? <span className={styles.spinner} aria-hidden="true" /> : null}
+      {!busy && icon && iconPosition === 'start' ? <span className={styles.icon}>{renderIcon(icon)}</span> : null}
+      <span className={styles.label}>{content}</span>
+      {!busy && icon && iconPosition === 'end' ? <span className={styles.icon}>{renderIcon(icon)}</span> : null}
     </button>
   );
 });

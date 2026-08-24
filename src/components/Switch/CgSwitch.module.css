@@ -1,0 +1,7 @@
+.input { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; }
+.track { grid-column: 1; grid-row: 1; position: relative; inline-size: 2.2em; block-size: 1.2em; margin-block-start: 0.1em; background: var(--cg-border-strong); border-radius: 99rem; transition: background var(--cg-transition-fast); }
+.track:has(+ .input:checked) { background: var(--cg-accent); }
+.track:has(+ .input:focus-visible) { outline: var(--cg-focus-ring-width) solid var(--cg-focus-ring-color); outline-offset: var(--cg-focus-ring-offset); }
+.thumb { position: absolute; inset-block-start: 0.15em; inset-inline-start: 0.15em; inline-size: 0.9em; block-size: 0.9em; background: #fff; border-radius: 50%; transition: translate var(--cg-transition-fast); }
+.thumb[data-checked='true'] { translate: 1em 0; }
+:global([dir='rtl']) .thumb[data-checked='true'] { translate: -1em 0; }

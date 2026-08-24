@@ -1,2 +1,2 @@
 export { CgButton } from './CgButton';
-export type { CgButtonProps } from './CgButton.types';
+export type { CgButtonAppearance, CgButtonIconPosition, CgButtonProps } from './CgButton.types';

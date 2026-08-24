@@ -1,143 +1,143 @@
-import { forwardRef } from 'react';
-import type { ChangeEvent } from 'react';
-import { useCgId } from '../../hooks/useCgId';
-import { useControllableState } from '../../hooks/useControllableState';
-import { cx } from '../../utils/cx';
-import type { CgTextBoxProps } from './CgTextBox.types';
+import { forwardRef, useEffect, useRef, useState } from 'react';
+import type { ChangeEvent, CompositionEvent } from 'react';
+import { useControllableState, useDebouncedCallback, useFormReset, useMergedRefs, useStableCallback } from '../../hooks';
+import { EditorButton, InputShell, renderIcon, useFieldControl } from '../../internal';
+import type { CgEditorButtonDescriptor } from '../../types';
+import { cx } from '../../utils';
 import styles from './CgTextBox.module.css';
+import type { CgTextBoxProps, CgTextChangeReason } from './CgTextBox.types';
 
-const VALIDATION_CLASS = {
-  none: undefined,
-  error: 'error',
-  warning: 'warning',
-  success: 'success',
-} as const;
-
-/**
- * `CgTextBox` — single-line text entry.
- *
- * Accessibility contract:
- * - the `<label>` is wired to the input through a generated (or supplied) id;
- * - `message` is announced through `aria-errormessage` when the field is in
- *   error and through `aria-describedby` otherwise;
- * - `aria-invalid` and `aria-required` mirror the props;
- * - the focus ring is drawn on the field wrapper so prefix/suffix affixes are
- *   visibly part of the focused control.
- *
- * The forwarded `ref` points at the `<input>` — the element callers need for
- * `focus()`, selection and form-library registration.
- */
 export const CgTextBox = forwardRef<HTMLInputElement, CgTextBoxProps>(function CgTextBox(
   {
-    label,
     value,
     defaultValue = '',
     onValueChange,
     onChange,
-    size = 'md',
+    commitMode = 'input',
+    debounceMs = 300,
+    size = 'medium',
     validationState = 'none',
-    message,
-    required = false,
-    disabled = false,
-    readOnly = false,
     fullWidth = false,
     prefix,
     suffix,
+    leadingIcon,
+    trailingIcon,
+    buttons = [],
+    clearButton = 'never',
+    clearAriaLabel = 'Clear value',
+    passwordReveal = false,
+    revealAriaLabel = 'Show password',
     type = 'text',
     id,
+    required,
+    disabled,
+    readOnly,
     className,
     style,
-    'data-testid': dataTestId,
+    'data-testid': testId,
+    onBlur,
+    onCompositionStart,
+    onCompositionEnd,
+    'aria-describedby': ariaDescribedBy,
     ...nativeProps
   },
-  ref,
+  forwardedRef,
 ) {
-  const inputId = useCgId(id);
-  const messageId = `${inputId}-message`;
-  const hasError = validationState === 'error';
-  const hasMessage = message !== undefined && message !== null && message !== false;
+  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy });
+  const [committed, setCommitted] = useControllableState(value, defaultValue, 'CgTextBox');
+  const [draft, setDraft] = useState(committed);
+  const [revealed, setRevealed] = useState(false);
+  const composingRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const ref = useMergedRefs(inputRef, forwardedRef);
+  const emit = useStableCallback((next: string, reason: CgTextChangeReason, event?: ChangeEvent<HTMLInputElement>) => {
+    setCommitted(next);
+    onValueChange?.(next, { reason, event });
+  });
+  const debounced = useDebouncedCallback((next: string) => emit(next, 'debounce'), debounceMs);
+  const controlledRef = useRef(value);
 
-  const [currentValue, setCurrentValue] = useControllableState(value, defaultValue);
+  useEffect(() => {
+    if (value === undefined || controlledRef.current === value) return;
+    controlledRef.current = value;
+    debounced.cancel();
+    setDraft(value);
+  }, [debounced, value]);
 
-  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setCurrentValue(event.target.value);
-    onChange?.(event);
-    onValueChange?.(event.target.value, event);
+  useFormReset(inputRef, () => {
+    debounced.cancel();
+    const next = value ?? defaultValue;
+    setDraft(next);
+    if (value === undefined) emit(next, 'reset');
+  });
+
+  const commitFromInput = (next: string, event: ChangeEvent<HTMLInputElement>) => {
+    if (commitMode === 'input') emit(next, 'input', event);
+    else if (commitMode === 'debounced') debounced.schedule(next);
   };
+  const clear = () => {
+    debounced.cancel();
+    setDraft('');
+    emit('', 'clear');
+    inputRef.current?.focus();
+  };
+  const showClear = clearButton === 'always' || (clearButton === 'auto' && draft.length > 0);
+  const startButtons = buttons.filter((button) => (button.placement ?? 'end') === 'start');
+  const endButtons = buttons.filter((button) => (button.placement ?? 'end') === 'end');
+  const renderButtons = (items: ReadonlyArray<CgEditorButtonDescriptor<string>>) =>
+    items.map((button) => <EditorButton key={button.key} descriptor={button} value={draft} disabled={field.disabled || field.readOnly} />);
 
-  const describedBy = hasMessage && !hasError ? messageId : undefined;
-  const errorMessageId = hasMessage && hasError ? messageId : undefined;
+  const start = <>{renderButtons(startButtons)}{leadingIcon ? renderIcon(leadingIcon) : null}{prefix ? <span aria-hidden="true">{prefix}</span> : null}</>;
+  const end = <>{suffix ? <span aria-hidden="true">{suffix}</span> : null}{trailingIcon ? renderIcon(trailingIcon) : null}{showClear ? <EditorButton descriptor={{ key: 'clear', icon: 'clear', ariaLabel: clearAriaLabel, disabled: field.readOnly, onPress: clear }} value={draft} disabled={field.disabled} /> : null}{type === 'password' && passwordReveal ? <EditorButton descriptor={{ key: 'reveal', icon: revealed ? 'eye-off' : 'eye', ariaLabel: revealed ? 'Hide password' : revealAriaLabel, onPress: () => setRevealed((current) => !current) }} value={draft} disabled={field.disabled} /> : null}{renderButtons(endButtons)}</>;
 
   return (
-    <div
-      className={cx(
-        styles.root,
-        styles[size],
-        VALIDATION_CLASS[validationState] && styles[VALIDATION_CLASS[validationState]],
-        disabled && styles.disabled,
-        readOnly && styles.readOnly,
-        fullWidth && styles.fullWidth,
-        className,
-      )}
+    <InputShell
+      start={start}
+      end={end}
+      size={size}
+      validationState={field.validationState}
+      disabled={field.disabled}
+      readOnly={field.readOnly}
+      className={cx(fullWidth && styles.fullWidth, className)}
       style={style}
-      data-testid={dataTestId}
+      data-testid={testId}
     >
-      {label !== undefined ? (
-        <span className={styles.labelRow}>
-          {/* The required marker sits outside <label> on purpose: keeping it out
-              of the label's text content means `getByLabelText('Code')` and the
-              accessible name both stay exactly the label the consumer passed. */}
-          <label className={styles.label} htmlFor={inputId}>
-            {label}
-          </label>
-          {required ? (
-            <span className={styles.required} aria-hidden="true">
-              *
-            </span>
-          ) : null}
-        </span>
-      ) : null}
-
-      <div className={styles.field}>
-        {prefix ? (
-          <span className={styles.affix} aria-hidden="true">
-            {prefix}
-          </span>
-        ) : null}
-
-        <input
-          {...nativeProps}
-          ref={ref}
-          id={inputId}
-          type={type}
-          className={styles.input}
-          value={currentValue}
-          disabled={disabled}
-          readOnly={readOnly}
-          required={required}
-          aria-invalid={hasError || undefined}
-          aria-required={required || undefined}
-          aria-describedby={describedBy}
-          aria-errormessage={errorMessageId}
-          onChange={handleChange}
-        />
-
-        {suffix ? (
-          <span className={styles.affix} aria-hidden="true">
-            {suffix}
-          </span>
-        ) : null}
-      </div>
-
-      {hasMessage ? (
-        <span
-          id={messageId}
-          className={styles.message}
-          role={hasError ? 'alert' : undefined}
-        >
-          {message}
-        </span>
-      ) : null}
-    </div>
+      <input
+        {...nativeProps}
+        ref={ref}
+        id={field.id}
+        type={type === 'password' && revealed ? 'text' : type}
+        value={draft}
+        required={field.required}
+        disabled={field.disabled}
+        readOnly={field.readOnly}
+        aria-required={field.required || undefined}
+        aria-invalid={field.validationState === 'error' || undefined}
+        aria-describedby={field.describedBy}
+        aria-errormessage={field.errorMessageId}
+        onChange={(event) => {
+          const next = event.target.value;
+          setDraft(next);
+          onChange?.(event);
+          if (!composingRef.current) commitFromInput(next, event);
+        }}
+        onBlur={(event) => {
+          if (commitMode === 'blur') emit(draft, 'blur');
+          else if (commitMode === 'debounced') debounced.flush();
+          onBlur?.(event);
+        }}
+        onCompositionStart={(event: CompositionEvent<HTMLInputElement>) => {
+          composingRef.current = true;
+          onCompositionStart?.(event);
+        }}
+        onCompositionEnd={(event: CompositionEvent<HTMLInputElement>) => {
+          composingRef.current = false;
+          const next = event.currentTarget.value;
+          if (commitMode === 'input') emit(next, 'input');
+          else if (commitMode === 'debounced') debounced.schedule(next);
+          onCompositionEnd?.(event);
+        }}
+      />
+    </InputShell>
   );
 });

@@ -1,0 +1,5 @@
+.root { display: grid; gap: var(--cg-space-1); }
+.fullWidth { inline-size: 100%; }
+.shell { align-items: flex-start; }
+.shell textarea[data-resize='fixed'], .shell textarea[data-resize='auto'] { resize: none; }
+.counter { color: var(--cg-text-secondary); font: var(--cg-font-size-sm)/var(--cg-line-height) var(--cg-font-family); text-align: end; }

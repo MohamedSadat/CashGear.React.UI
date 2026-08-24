@@ -5,7 +5,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'coverage/**', 'node_modules/**'],
+    ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'storybook-static/**'],
   },
 
   js.configs.recommended,
@@ -51,12 +51,15 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-floating-promises': 'off',
+      '@typescript-eslint/require-await': 'off',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'off',
     },
   },
 
   // Node-side JavaScript config files (this file, and any future *.config.js).
   {
-    files: ['**/*.js'],
+    files: ['**/*.{js,mjs}'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',

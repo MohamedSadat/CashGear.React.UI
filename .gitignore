@@ -1,6 +1,7 @@
 node_modules/
 dist/
 coverage/
+storybook-static/
 *.tsbuildinfo
 
 # Local package tarballs produced by `npm pack`

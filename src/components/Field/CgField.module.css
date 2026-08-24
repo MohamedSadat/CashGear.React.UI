@@ -1,0 +1,32 @@
+.field {
+  display: grid;
+  gap: var(--cg-space-2);
+  color: var(--cg-text);
+  font-family: var(--cg-font-family);
+  font-size: var(--cg-font-size-md);
+  line-height: var(--cg-line-height);
+}
+
+.label {
+  color: var(--cg-text);
+  font-weight: var(--cg-font-weight-medium);
+}
+
+.required,
+[data-validation='error'] .message {
+  color: var(--cg-danger-text);
+}
+
+[data-validation='warning'] .message {
+  color: var(--cg-warning-text);
+}
+
+[data-validation='success'] .message {
+  color: var(--cg-success-text);
+}
+
+.description,
+.message {
+  color: var(--cg-text-secondary);
+  font-size: var(--cg-font-size-sm);
+}

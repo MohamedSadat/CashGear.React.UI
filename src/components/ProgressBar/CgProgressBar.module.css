@@ -1,0 +1,10 @@
+.container { display: grid; gap: var(--cg-space-1); color: var(--cg-text); font: var(--cg-font-size-sm)/var(--cg-line-height) var(--cg-font-family); }
+.track { --progress-color: var(--cg-accent); position: relative; overflow: hidden; inline-size: 100%; block-size: 0.55rem; background: var(--cg-surface-subtle); border-radius: 99rem; }
+.track[data-size='small'] { block-size: 0.3rem; }.track[data-size='large'] { block-size: 0.85rem; }
+.track[data-intent='success'] { --progress-color: var(--cg-success-text); }.track[data-intent='warning'] { --progress-color: var(--cg-warning-text); }.track[data-intent='danger'] { --progress-color: var(--cg-danger-text); }.track[data-intent='info'] { --progress-color: var(--cg-info-text); }
+.fill { position: absolute; inset-block: 0; inset-inline-start: 0; background: var(--progress-color); border-radius: inherit; transition: inline-size 180ms ease; }
+.indeterminate .fill { inline-size: 35%; animation: indeterminate 1.2s ease-in-out infinite; }
+.label { text-align: end; }
+@keyframes indeterminate { from { translate: -110% 0; } to { translate: 310% 0; } }
+:global([dir='rtl']) .indeterminate .fill { animation-direction: reverse; }
+@media (prefers-reduced-motion: reduce) { .fill { transition: none; }.indeterminate .fill { animation-duration: 2.4s; } }

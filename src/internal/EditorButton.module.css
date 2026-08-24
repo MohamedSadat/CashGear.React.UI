@@ -1,0 +1,17 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  gap: var(--cg-space-1);
+  min-inline-size: 2rem;
+  padding-inline: var(--cg-space-2);
+  color: inherit;
+  font: inherit;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.button:hover:not(:disabled) { background: var(--cg-hover); color: var(--cg-accent); }
+.button:focus-visible { outline: var(--cg-focus-ring-width) solid var(--cg-focus-ring-color); outline-offset: calc(-1 * var(--cg-focus-ring-width)); }
+.button:disabled { cursor: not-allowed; opacity: 0.5; }

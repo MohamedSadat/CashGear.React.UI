@@ -1,2 +1,2 @@
 export { CgTextBox } from './CgTextBox';
-export type { CgTextBoxProps, CgTextBoxType } from './CgTextBox.types';
+export type { CgTextBoxProps, CgTextBoxType, CgTextChangeReason, CgTextValueChange } from './CgTextBox.types';

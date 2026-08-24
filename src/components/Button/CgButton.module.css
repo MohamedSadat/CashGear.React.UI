@@ -1,156 +1,40 @@
 .root {
+  --button-color: var(--cg-text);
+  --button-bg: var(--cg-surface-subtle);
+  --button-border: var(--cg-border-strong);
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--cg-space-2);
-  box-sizing: border-box;
-  max-width: 100%;
-  padding: 0 var(--cg-control-padding-x);
-  border: var(--cg-border-width) solid transparent;
+  gap: var(--cg-control-gap);
+  min-block-size: var(--cg-control-height-medium);
+  padding-block: var(--cg-space-2);
+  padding-inline: var(--cg-control-padding-x);
+  color: var(--button-color);
+  font: var(--cg-font-weight-medium) var(--cg-font-size-md)/var(--cg-line-height) var(--cg-font-family);
+  background: var(--button-bg);
+  border: var(--cg-border-width) solid var(--button-border);
   border-radius: var(--cg-radius-md);
-  font-family: var(--cg-font-family);
-  font-size: var(--cg-font-size-md);
-  font-weight: var(--cg-font-weight-medium);
-  line-height: var(--cg-line-height);
-  white-space: nowrap;
   cursor: pointer;
-  user-select: none;
-  transition:
-    background-color var(--cg-transition-fast),
-    border-color var(--cg-transition-fast),
-    color var(--cg-transition-fast);
+  transition: filter var(--cg-transition-fast), background var(--cg-transition-fast);
 }
-
-/* Keyboard focus only — a mouse click should not leave a ring behind. */
-.root:focus-visible {
-  outline: var(--cg-focus-ring-width) solid var(--cg-focus-ring-color);
-  outline-offset: var(--cg-focus-ring-offset);
-}
-
-/* --- Sizes --------------------------------------------------------------- */
-.sm {
-  height: var(--cg-control-height-sm);
-  font-size: var(--cg-font-size-sm);
-}
-
-.md {
-  height: var(--cg-control-height-md);
-}
-
-.lg {
-  height: var(--cg-control-height-lg);
-  font-size: var(--cg-font-size-lg);
-  padding: 0 var(--cg-space-5);
-}
-
-/* --- Variants ------------------------------------------------------------ */
-.primary {
-  background-color: var(--cg-color-primary);
-  border-color: var(--cg-color-primary);
-  color: var(--cg-color-fg-on-accent);
-}
-
-.primary:hover:not(:disabled) {
-  background-color: var(--cg-color-primary-hover);
-  border-color: var(--cg-color-primary-hover);
-}
-
-.primary:active:not(:disabled) {
-  background-color: var(--cg-color-primary-active);
-  border-color: var(--cg-color-primary-active);
-}
-
-.secondary {
-  background-color: var(--cg-color-bg);
-  border-color: var(--cg-border-color);
-  color: var(--cg-color-fg);
-}
-
-.secondary:hover:not(:disabled) {
-  background-color: var(--cg-color-hover-bg);
-  border-color: var(--cg-border-color-strong);
-}
-
-.secondary:active:not(:disabled) {
-  background-color: var(--cg-color-active-bg);
-}
-
-.ghost {
-  background-color: transparent;
-  border-color: transparent;
-  color: var(--cg-color-primary);
-}
-
-.ghost:hover:not(:disabled) {
-  background-color: var(--cg-color-hover-bg);
-}
-
-.ghost:active:not(:disabled) {
-  background-color: var(--cg-color-active-bg);
-}
-
-.danger {
-  background-color: var(--cg-color-error);
-  border-color: var(--cg-color-error);
-  color: var(--cg-color-fg-on-accent);
-}
-
-.danger:hover:not(:disabled) {
-  filter: brightness(0.92);
-}
-
-.danger:active:not(:disabled) {
-  filter: brightness(0.85);
-}
-
-/* --- States -------------------------------------------------------------- */
-.root:disabled {
-  background-color: var(--cg-color-disabled-bg);
-  border-color: var(--cg-color-disabled-border);
-  color: var(--cg-color-disabled-fg);
-  cursor: not-allowed;
-  filter: none;
-}
-
-.fullWidth {
-  display: flex;
-  width: 100%;
-}
-
-.icon {
-  display: inline-flex;
-  align-items: center;
-  flex: 0 0 auto;
-}
-
-.label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* --- Loading spinner ------------------------------------------------------ */
-.spinner {
-  width: 1em;
-  height: 1em;
-  flex: 0 0 auto;
-  border: 2px solid currentcolor;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: cg-button-spin 600ms linear infinite;
-}
-
-@keyframes cg-button-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .root {
-    transition: none;
-  }
-
-  .spinner {
-    animation-duration: 2s;
-  }
-}
+.root[data-size='small'] { min-block-size: var(--cg-control-height-small); font-size: var(--cg-font-size-sm); }
+.root[data-size='large'] { min-block-size: var(--cg-control-height-large); font-size: var(--cg-font-size-lg); }
+.root[data-intent='primary'] { --button-bg: var(--cg-accent); --button-border: var(--cg-accent); --button-color: #fff; }
+.root[data-intent='secondary'] { --button-bg: var(--cg-text-secondary); --button-border: var(--cg-text-secondary); --button-color: #fff; }
+.root[data-intent='info'] { --button-bg: var(--cg-info-text); --button-border: var(--cg-info-text); --button-color: #fff; }
+.root[data-intent='success'] { --button-bg: var(--cg-success-text); --button-border: var(--cg-success-text); --button-color: #fff; }
+.root[data-intent='warning'] { --button-bg: var(--cg-warning-text); --button-border: var(--cg-warning-text); --button-color: #fff; }
+.root[data-intent='danger'] { --button-bg: var(--cg-danger-text); --button-border: var(--cg-danger-text); --button-color: #fff; }
+.root[data-appearance='outline'], .root[data-appearance='ghost'], .root[data-appearance='link'] { color: var(--button-bg); background: transparent; }
+.root[data-appearance='ghost'], .root[data-appearance='link'] { border-color: transparent; }
+.root[data-appearance='soft'] { color: var(--button-bg); background: color-mix(in srgb, var(--button-bg) 12%, var(--cg-surface)); border-color: transparent; }
+.root[data-appearance='link'] { min-block-size: auto; padding: 0; text-decoration: underline; }
+.root:hover:not(:disabled) { filter: brightness(0.93); }
+.root:focus-visible { outline: var(--cg-focus-ring-width) solid var(--cg-focus-ring-color); outline-offset: var(--cg-focus-ring-offset); }
+.root:disabled, .root[aria-disabled='true'] { cursor: not-allowed; opacity: 0.55; }
+.fullWidth { inline-size: 100%; }
+.icon, .label { display: inline-flex; align-items: center; }
+.spinner { inline-size: 1em; block-size: 1em; border: 0.15em solid currentColor; border-inline-end-color: transparent; border-radius: 50%; animation: spin 700ms linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 1400ms; } }

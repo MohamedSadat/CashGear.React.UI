@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 /** Setter accepted by {@link useControllableState}: a value or an updater. */
 export type CgStateUpdater<T> = T | ((current: T) => T);
@@ -23,10 +23,22 @@ export type CgStateUpdater<T> = T | ((current: T) => T);
 export function useControllableState<T>(
   controlledValue: T | undefined,
   defaultValue: T,
+  componentName = 'Component',
 ): [T, (next: CgStateUpdater<T>) => void] {
   const [uncontrolledValue, setUncontrolledValue] = useState<T>(defaultValue);
 
   const isControlled = controlledValue !== undefined;
+  const initialMode = useRef(isControlled);
+  const hasWarned = useRef(false);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV || initialMode.current === isControlled || hasWarned.current) return;
+    hasWarned.current = true;
+    console.error(
+      `${componentName} changed from ${initialMode.current ? 'controlled' : 'uncontrolled'} ` +
+        `to ${isControlled ? 'controlled' : 'uncontrolled'}. Keep the mode stable for the component lifetime.`,
+    );
+  }, [componentName, isControlled]);
   const value = isControlled ? controlledValue : uncontrolledValue;
 
   const setValue = useCallback(
