@@ -9,6 +9,7 @@ let stackVersion = 0;
 let listeningDocument: Document | undefined;
 
 const onEscape = (event: KeyboardEvent) => {
+  if (event.defaultPrevented) return;
   if (event.key === 'Escape') overlays.at(-1)?.dismiss?.();
 };
 

@@ -1,6 +1,6 @@
 # `@cashgear/ui`
 
-CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–5 mirror the foundational controls, ListBox, and TagBox surfaces in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies and add browser-verified interaction behavior.
+CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–6 mirror the foundational controls, ListBox, TagBox, and arbitrary-content DropDownBox surfaces in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies and add browser-verified interaction behavior.
 
 ## Install and import
 
@@ -203,6 +203,74 @@ Each selected key is submitted through an internal native multi-select, never th
 
 The React contract intentionally stores selected objects rather than Razor scalar keys. Custom key comparers, scalar-key adapters, and `ResolveValuesAsync` hydration remain deferred because selected objects carry their tag labels.
 
+## DropDownBox
+
+`CgDropDownBox<TValue>` is a typed read-only value editor that hosts arbitrary React content in an SSR-safe body portal. `null` is empty by default; `emptyValue`, `isEmptyValue`, and `isValueEqual` support application-specific value models while preserving `0` and `false` as normal values.
+
+Immediate mode commits hosted choices through the render context. The selected value controls display text, while the editable display input is never submitted:
+
+```tsx
+<CgDropDownBox<Customer>
+  name="customerId"
+  form="order-form"
+  value={customer}
+  onValueChange={setCustomer}
+  getDisplayText={(item) => `${item.code} - ${item.name}`}
+  isValueEqual={(left, right) => left?.id === right?.id}
+  serializeValue={(item) => String(item.id)}
+  clearable
+  required
+>
+  {(dropDown) => (
+    <CgListBox
+      aria-label="Customer choices"
+      items={customers}
+      value={dropDown.pendingValue ? [dropDown.pendingValue] : []}
+      onValueChange={(items, details) =>
+        dropDown.commitValue(items[0] ?? null, details.event)
+      }
+      getItemKey={(item) => item.id}
+      getItemLabel={(item) => item.name}
+    />
+  )}
+</CgDropDownBox>
+```
+
+Explicit mode snapshots the authoritative value when opening. Hosted controls edit `pendingValue`; Apply commits once, while Cancel, Escape, outside click, anchor scroll/loss, and accepted programmatic closes restore the committed snapshot. A cancelled close preserves both the popup and pending state.
+
+```tsx
+<CgDropDownBox<readonly Customer[]>
+  value={selectedCustomers}
+  onValueChange={setSelectedCustomers}
+  commitMode="explicit"
+  getDisplayText={(items) => items.map((item) => item.code).join(', ')}
+  isEmptyValue={(items) => !items?.length}
+  serializeValue={(items) => items.map((item) => String(item.id))}
+  renderFooter={(dropDown) => (
+    <>
+      <button type="button" onClick={() => dropDown.cancel()}>Cancel</button>
+      <button type="button" onClick={() => dropDown.apply()}>Apply</button>
+    </>
+  )}
+>
+  {(dropDown) => (
+    <CgTagBox
+      options={customers}
+      value={dropDown.pendingValue ?? []}
+      onValueChange={dropDown.setPendingValue}
+      getOptionKey={(item) => item.id}
+      getOptionLabel={(item) => item.name}
+    />
+  )}
+</CgDropDownBox>
+```
+
+Named primitive values serialize automatically. A named nonempty object or collection requires `serializeValue`, which may return one string or multiple strings. An internal select proxy handles nested/external forms, required validity, disabled exclusion, reset, and invalid-focus transfer to the visible input.
+
+Open/close state is controlled or uncontrolled. Editor click, F4, and Alt+ArrowDown open the popup; Escape, outside pointer, ancestor scroll, and anchor loss close it. `actionsRef` exposes open, close, toggle, clear, focus, reposition, and display-text commands. Cancellable `onBeforeOpen`/`onBeforeClose` receive `AbortSignal`; newer transitions and disposal abort stale work, while `onTransitionError` observes rejected lifecycle thenables.
+
+All twelve logical placements, editor/content/content-or-editor/explicit width modes, CSS size constraints, optional resize/scroll ownership, viewport flip/shift, nested scrolling, focus return, and stacked overlays are supported without focus trapping. Portal surfaces inherit the anchor's theme, density, and native direction.
+
 ## Numeric editors
 
 `CgNumericEdit` uses a `number | null` committed value. Invalid drafts such as `-` remain visible and internally invalid on blur/Enter without replacing the last committed value; `onInvalidValue` receives the draft. A trailing locale decimal such as `1.` remains visible while focused and commits as `1` on blur/Enter. Parsing strictly recognizes locale digits, separators, signs, and the configured currency/percent literals instead of stripping arbitrary characters. It supports grouping, precision, bounds, prefixes/suffixes, paste, and typed editor commands, and reformats when locale/format options change even when the numeric value is unchanged.
@@ -238,7 +306,7 @@ Eligibility uses the trimmed query length, but `onSearch` receives the original 
 Components:
 
 - `CgIcon`, `CgButton`, `CgField`
-- `CgTextBox`, `CgMemo`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgListBox`, `CgTagBox`
+- `CgTextBox`, `CgMemo`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgListBox`, `CgTagBox`, `CgDropDownBox`
 - `CgRadio`, `CgRadioGroup`
 - `CgNumericEdit`, `CgSpinEdit`, `CgSearchBox`
 - `CgLoadingPanel`, `CgProgressBar`
@@ -271,7 +339,7 @@ Install browser binaries once with `npx playwright install chromium firefox webk
 
 Chromium screenshots in `tests/browser/__snapshots__` are canonical Windows/Node 24.19 baselines. Playwright snapshots are platform-specific; regenerate them on the same operating system used for comparison. Browser tests serve the prebuilt Storybook through a lifecycle-managed Vite preview server. No CI workflow is installed; browser gates run locally through `npm run verify`.
 
-The Phase 5 Node 24.19 verification completed with 95 Vitest tests, 84 semantic/Axe browser tests, 49 Chromium visual tests comparing 55 Windows snapshots, and package verification of exactly 20 runtime exports across 399 packed files. See the parity ledger for the complete gate breakdown.
+The Phase 6 Node 24.19 verification completed with 110 Vitest tests, 99 semantic/Axe browser tests, 59 Chromium visual tests comparing 67 Windows snapshots, and package verification of exactly 21 runtime exports across 413 packed files. See the parity ledger for the complete gate breakdown.
 
 ## Packaging
 

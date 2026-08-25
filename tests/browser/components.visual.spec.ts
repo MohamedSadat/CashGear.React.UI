@@ -19,6 +19,7 @@ const primaryStories = [
   ['combo-box', 'phase-3-combobox--controlled-local-selection'],
   ['list-box', 'phase-4-listbox--default'],
   ['tag-box', 'phase-5-tagbox--default'],
+  ['drop-down-box', 'phase-6-dropdownbox--default'],
 ] as const;
 
 for (const [name, story] of primaryStories) {
@@ -46,6 +47,7 @@ const rtlStories = [
   ['combo-box', 'phase-3-combobox--arabic-rtl'],
   ['list-box', 'phase-4-listbox--arabic-rtl'],
   ['tag-box', 'phase-5-tagbox--arabic-rtl'],
+  ['drop-down-box', 'phase-6-dropdownbox--arabic-rtl'],
 ] as const;
 
 for (const [name, story] of rtlStories) {
@@ -63,6 +65,7 @@ const darkCompactStories = [
   ['progress-bar', 'phase-1-2-progressbar--determinate-sizes-and-intents'],
   ['list-box', 'phase-4-listbox--dark-compact'],
   ['tag-box', 'phase-5-tagbox--dark-compact'],
+  ['drop-down-box', 'phase-6-dropdownbox--dark-compact'],
 ] as const;
 
 for (const [name, story] of darkCompactStories) {
@@ -152,4 +155,58 @@ test('remote TagBox minimum, loading, results, and error states', async ({ page 
   await tagBox.fill('error');
   await expect(page.getByText('Unable to load results.')).toBeVisible();
   await expect(page).toHaveScreenshot('tag-box-remote-error.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
+
+test('open DropDownBox popup', async ({ page }) => {
+  await openStory(page, 'phase-6-dropdownbox--immediate-list-box-selection');
+  await page.getByRole('combobox', { name: 'Immediate customer' }).click();
+  await expect(page.getByRole('dialog', { name: 'Dropdown content' })).toBeVisible();
+  await expect(page).toHaveScreenshot('drop-down-box-open.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
+
+test('DropDownBox explicit pending state', async ({ page }) => {
+  await openStory(page, 'phase-6-dropdownbox--explicit-tag-box-selection');
+  await page.getByRole('combobox', { name: 'Explicit customer set' }).click();
+  const tagBox = page.getByRole('combobox', { name: 'Pending customers' });
+  await tagBox.fill('Contoso');
+  await page.getByRole('option', { name: /Contoso Retail/u }).click();
+  await tagBox.press('Escape');
+  await expect(page.getByText('Unapplied selection')).toBeVisible();
+  await expect(page).toHaveScreenshot('drop-down-box-explicit-pending.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
+
+for (const [state, story] of [
+  ['loading', 'phase-6-dropdownbox--loading-state'],
+  ['empty', 'phase-6-dropdownbox--empty-state'],
+  ['error', 'phase-6-dropdownbox--error-state'],
+] as const) {
+  test(`DropDownBox ${state} state`, async ({ page }) => {
+    await openStory(page, story);
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page).toHaveScreenshot(`drop-down-box-${state}.png`, { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+  });
+}
+
+test('DropDownBox custom and nested content', async ({ page }) => {
+  await openStory(page, 'phase-6-dropdownbox--custom-display-header-footer-and-buttons');
+  await page.getByRole('combobox', { name: 'Custom display and commands' }).click();
+  await expect(page).toHaveScreenshot('drop-down-box-custom.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+
+  await openStory(page, 'phase-6-dropdownbox--nested-popup');
+  const inputs = page.getByRole('combobox');
+  await inputs.first().click();
+  await inputs.nth(1).click();
+  await expect(page.getByRole('dialog')).toHaveCount(2);
+  await expect(page).toHaveScreenshot('drop-down-box-nested.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
+
+test('DropDownBox narrow resizable geometry', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 540 });
+  await openStory(page, 'phase-6-dropdownbox--narrow-viewport');
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page).toHaveScreenshot('drop-down-box-narrow.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await openStory(page, 'phase-6-dropdownbox--width-resize-and-placement');
+  await expect(page).toHaveScreenshot('drop-down-box-resizable.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
 });

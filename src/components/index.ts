@@ -1,6 +1,7 @@
 export * from './Button';
 export * from './CheckBox';
 export * from './ComboBox';
+export * from './DropDownBox';
 export * from './Field';
 export * from './Icon';
 export * from './LoadingPanel';

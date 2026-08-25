@@ -20,6 +20,7 @@ const canonicalStories = [
   'phase-3-combobox--controlled-local-selection',
   'phase-4-listbox--default',
   'phase-5-tagbox--default',
+  'phase-6-dropdownbox--default',
 ] as const;
 
 for (const story of canonicalStories) {
@@ -231,6 +232,116 @@ test('TagBox renders maximum selection, custom tags, dark density, and Arabic RT
   expect(await arabic.evaluate((element) => getComputedStyle(element).direction)).toBe('rtl');
   await arabic.fill('احمد');
   await expect(page.getByRole('option', { name: /أَحْمَد/u })).toHaveAttribute('aria-selected', 'true');
+});
+
+test('DropDownBox supports immediate pointer and keyboard commits, dismissal, and focus return', async ({ page }) => {
+  await openStory(page, 'phase-6-dropdownbox--immediate-list-box-selection');
+  const input = page.getByRole('combobox', { name: 'Immediate customer' });
+  await input.click();
+  const popup = page.getByRole('dialog', { name: 'Dropdown content' });
+  await expect(popup).toBeVisible();
+  await expect(input).toHaveAttribute('aria-controls', await popup.getAttribute('id') ?? 'missing');
+  await page.getByRole('option', { name: /Contoso Retail/u }).click();
+  await expect(input).toHaveValue('C-200 - Contoso Retail');
+  await expect(input).toBeFocused();
+
+  await input.press('F4');
+  await expect(popup).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(popup).toHaveCount(0);
+  await expect(input).toBeFocused();
+
+  await input.press('Alt+ArrowDown');
+  await expect(page.getByRole('dialog', { name: 'Dropdown content' })).toBeVisible();
+  await page.evaluate(() => document.dispatchEvent(new Event('scroll')));
+  await expect(page.getByRole('dialog', { name: 'Dropdown content' })).toHaveCount(0);
+});
+
+test('DropDownBox explicit mode applies once and cancels pending TagBox selections', async ({ page }) => {
+  await openStory(page, 'phase-6-dropdownbox--explicit-tag-box-selection');
+  const input = page.getByRole('combobox', { name: 'Explicit customer set' });
+  await input.click();
+  const tags = page.getByRole('combobox', { name: 'Pending customers' });
+  await tags.fill('Contoso');
+  await page.getByRole('option', { name: /Contoso Retail/u }).click();
+  await tags.press('Escape');
+  await page.getByRole('button', { name: 'Apply' }).click();
+  await expect(input).toHaveValue('C-100, C-200');
+
+  await input.click();
+  await page.getByRole('button', { name: /Remove C-200/u }).click();
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await expect(input).toHaveValue('C-100, C-200');
+  await expect(input).toBeFocused();
+});
+
+test('DropDownBox serializes external forms, resets, focuses invalid controls, and cancels async lifecycle work', async ({ page }) => {
+  await openStory(page, 'phase-6-dropdownbox--external-native-form');
+  const formInput = page.getByRole('combobox', { name: 'External form customer' });
+  await formInput.click();
+  await page.getByRole('option', { name: /Contoso Retail/u }).click();
+  await page.getByRole('button', { name: 'Submit customer' }).click();
+  await expect(page.getByLabel('Submitted customer key')).toHaveText('2');
+  await page.getByRole('button', { name: 'Reset customer' }).click();
+  await expect(formInput).toHaveValue('C-100 - Acme Manufacturing');
+
+  await openStory(page, 'phase-6-dropdownbox--required-invalid');
+  const required = page.getByRole('combobox', { name: 'Required dropdown customer' });
+  await page.getByRole('button', { name: 'Submit required dropdown' }).click();
+  await expect(required).toBeFocused();
+  await expect(required).toHaveAttribute('aria-invalid', 'true');
+
+  await openStory(page, 'phase-6-dropdownbox--async-lifecycle-cancellation');
+  const lifecycle = page.getByRole('combobox');
+  await page.getByRole('button', { name: 'Request open' }).click();
+  await expect(page.getByLabel('Lifecycle log')).toContainText('open cancelled');
+  await page.getByRole('button', { name: 'Request open' }).click();
+  await expect(page.getByRole('dialog', { name: 'Dropdown content' })).toBeVisible();
+  await expect(page.getByLabel('Lifecycle log')).toContainText('after open');
+  await lifecycle.press('Escape');
+  await expect(page.getByLabel('Lifecycle log')).toContainText('after close');
+});
+
+test('DropDownBox stacks nested popups and positions resizable, narrow, dark, and RTL surfaces', async ({ page }) => {
+  await openStory(page, 'phase-6-dropdownbox--nested-popup');
+  const inputs = page.getByRole('combobox');
+  await inputs.first().click();
+  await inputs.nth(1).click();
+  await expect(page.getByRole('dialog')).toHaveCount(2);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+
+  await openStory(page, 'phase-6-dropdownbox--width-resize-and-placement');
+  const resizable = page.getByRole('dialog', { name: 'Dropdown content' });
+  const editorBox = await page.getByRole('combobox', { name: 'Content width dropdown' }).boundingBox();
+  const popupBox = await resizable.boundingBox();
+  expect(popupBox?.width).toBeGreaterThanOrEqual(editorBox?.width ?? 0);
+  expect(await resizable.evaluate((element) => getComputedStyle(element).resize)).toBe('both');
+
+  await page.setViewportSize({ width: 360, height: 540 });
+  await openStory(page, 'phase-6-dropdownbox--narrow-viewport');
+  const narrowEditorBox = await page.getByRole('combobox', { name: 'Narrow viewport dropdown' }).boundingBox();
+  const narrowBox = await page.getByRole('dialog', { name: 'Dropdown content' }).boundingBox();
+  expect(narrowEditorBox).not.toBeNull();
+  expect(narrowEditorBox?.x ?? 0).toBeGreaterThanOrEqual(3);
+  expect((narrowEditorBox?.x ?? 0) + (narrowEditorBox?.width ?? 0)).toBeLessThanOrEqual(357);
+  expect(narrowBox).not.toBeNull();
+  expect(narrowBox?.x ?? 0).toBeGreaterThanOrEqual(3);
+  expect((narrowBox?.x ?? 0) + (narrowBox?.width ?? 0)).toBeLessThanOrEqual(357);
+
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await openStory(page, 'phase-6-dropdownbox--dark-compact', 'theme:dark;density:compact;direction:ltr');
+  await expect(page.getByRole('dialog', { name: 'Dropdown content' })).toHaveAttribute('data-cg-theme', 'dark');
+
+  await openStory(page, 'phase-6-dropdownbox--arabic-rtl', 'theme:light;density:comfortable;direction:rtl');
+  const arabic = page.getByRole('combobox', { name: 'العميل' });
+  const arabicPopup = page.getByRole('dialog', { name: 'محتوى القائمة' });
+  expect(await arabic.evaluate((element) => getComputedStyle(element).direction)).toBe('rtl');
+  const arabicEditorBox = await arabic.boundingBox();
+  const arabicPopupBox = await arabicPopup.boundingBox();
+  expect(Math.abs((arabicEditorBox?.x ?? 0) - (arabicPopupBox?.x ?? 0))).toBeLessThanOrEqual(2);
 });
 
 test('LoadingPanel contains and returns focus and covers an external target', async ({ page }) => {

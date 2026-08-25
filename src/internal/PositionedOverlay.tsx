@@ -5,6 +5,14 @@ import { CgPortal } from './CgPortal';
 
 const VIEWPORT_MARGIN = 4;
 
+export type PositionedOverlayPlacement =
+  | 'bottom-start' | 'bottom' | 'bottom-end'
+  | 'top-start' | 'top' | 'top-end'
+  | 'right-start' | 'right' | 'right-end'
+  | 'left-start' | 'left' | 'left-end';
+
+export type PositionedOverlayWidthMode = 'editor' | 'content' | 'contentOrEditor' | 'explicit';
+
 function viewportBounds() {
   const viewport = window.visualViewport;
   const left = viewport?.offsetLeft ?? 0;
@@ -19,13 +27,22 @@ function viewportBounds() {
 
 function observeGeometry(elements: ReadonlyArray<Element | null>, update: () => void) {
   const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(update);
+  const mutationObserver = typeof MutationObserver === 'undefined' ? undefined : new MutationObserver(update);
   elements.forEach((element) => { if (element) observer?.observe(element); });
+  if (typeof document !== 'undefined') {
+    mutationObserver?.observe(document.documentElement, {
+      attributes: true,
+      subtree: true,
+      attributeFilter: ['data-cg-theme', 'data-cg-density', 'dir'],
+    });
+  }
   window.addEventListener('resize', update);
   window.addEventListener('scroll', update, true);
   window.visualViewport?.addEventListener('resize', update);
   window.visualViewport?.addEventListener('scroll', update);
   return () => {
     observer?.disconnect();
+    mutationObserver?.disconnect();
     window.removeEventListener('resize', update);
     window.removeEventListener('scroll', update, true);
     window.visualViewport?.removeEventListener('resize', update);
@@ -33,22 +50,103 @@ function observeGeometry(elements: ReadonlyArray<Element | null>, update: () => 
   };
 }
 
+function syncPortalContext(anchor: HTMLElement, overlay: HTMLElement) {
+  const theme = anchor.closest<HTMLElement>('[data-cg-theme]')?.dataset.cgTheme;
+  const density = anchor.closest<HTMLElement>('[data-cg-density]')?.dataset.cgDensity;
+  const direction = getComputedStyle(anchor).direction;
+  if (theme && overlay.dataset.cgTheme !== theme) overlay.dataset.cgTheme = theme;
+  else if (!theme && overlay.dataset.cgTheme !== undefined) delete overlay.dataset.cgTheme;
+  if (density && overlay.dataset.cgDensity !== density) overlay.dataset.cgDensity = density;
+  else if (!density && overlay.dataset.cgDensity !== undefined) delete overlay.dataset.cgDensity;
+  if ((direction === 'rtl' || direction === 'ltr') && overlay.dir !== direction) overlay.dir = direction;
+}
+
 export interface PositionedOverlayProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
   anchorRef: RefObject<HTMLElement | null>;
   children: React.ReactNode;
-  maxHeight?: number;
+  placement?: PositionedOverlayPlacement;
+  widthMode?: PositionedOverlayWidthMode;
+  overlayWidth?: CSSProperties['width'];
+  overlayHeight?: CSSProperties['height'];
+  minWidth?: CSSProperties['minWidth'];
+  maxWidth?: CSSProperties['maxWidth'];
+  minHeight?: CSSProperties['minHeight'];
+  maxHeight?: CSSProperties['maxHeight'];
+  resizable?: boolean;
+  scrollable?: boolean;
+  revision?: number;
   onOutsidePointerDown?: () => void;
+  onReadyChange?: (ready: boolean) => void;
+  onAnchorLost?: () => void;
+  onAnchorScroll?: () => void;
+}
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.min(Math.max(value, minimum), Math.max(minimum, maximum));
+}
+
+function constrainedMaximum(value: CSSProperties['maxWidth'], available: number): CSSProperties['maxWidth'] {
+  if (value === undefined) return available;
+  if (typeof value === 'number') return Math.min(value, available);
+  return `min(${available}px, ${value})`;
+}
+
+function alignedOffset(
+  alignment: 'start' | 'center' | 'end',
+  anchorStart: number,
+  anchorSize: number,
+  overlaySize: number,
+  rtl: boolean,
+): number {
+  if (alignment === 'center') return anchorStart + (anchorSize - overlaySize) / 2;
+  const resolved = rtl ? (alignment === 'start' ? 'end' : 'start') : alignment;
+  return resolved === 'end' ? anchorStart + anchorSize - overlaySize : anchorStart;
+}
+
+function splitPlacement(placement: PositionedOverlayPlacement) {
+  const [side, suffix] = placement.split('-') as [string, string | undefined];
+  return { side, alignment: (suffix ?? 'center') as 'start' | 'center' | 'end' };
 }
 
 /** Private fixed-position popover used by editors. */
 export const PositionedOverlay = forwardRef<HTMLDivElement, PositionedOverlayProps>(function PositionedOverlay(
-  { anchorRef, children, maxHeight = 288, onOutsidePointerDown, style, ...props },
+  {
+    anchorRef,
+    children,
+    placement = 'bottom-start',
+    widthMode = 'editor',
+    overlayWidth,
+    overlayHeight,
+    minWidth,
+    maxWidth,
+    minHeight,
+    maxHeight = 288,
+    resizable = false,
+    scrollable,
+    revision = 0,
+    onOutsidePointerDown,
+    onReadyChange,
+    onAnchorLost,
+    onAnchorScroll,
+    style,
+    ...props
+  },
   forwardedRef,
 ) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const ref = useMergedRefs(overlayRef, forwardedRef);
   const [position, setPosition] = useState<CSSProperties>({ visibility: 'hidden' });
   const dismissOutside = useStableCallback(onOutsidePointerDown);
+  const notifyReady = useStableCallback(onReadyChange);
+  const notifyAnchorLost = useStableCallback(onAnchorLost);
+  const notifyAnchorScroll = useStableCallback(onAnchorScroll);
+  const readyRef = useRef(false);
+
+  const setReady = useCallback((ready: boolean) => {
+    if (readyRef.current === ready) return;
+    readyRef.current = ready;
+    notifyReady(ready);
+  }, [notifyReady]);
 
   useLayoutEffect(() => {
     const update = () => {
@@ -56,41 +154,129 @@ export const PositionedOverlay = forwardRef<HTMLDivElement, PositionedOverlayPro
       const overlay = overlayRef.current;
       if (!anchor || !overlay) {
         setPosition({ visibility: 'hidden' });
+        setReady(false);
         return;
       }
+      syncPortalContext(anchor, overlay);
       const anchorRect = anchor.getBoundingClientRect();
-      if (anchorRect.width <= 0 || anchorRect.height <= 0) {
+      if (!anchor.isConnected || anchorRect.width <= 0 || anchorRect.height <= 0) {
         setPosition({ visibility: 'hidden' });
+        setReady(false);
+        notifyAnchorLost();
         return;
       }
       const bounds = viewportBounds();
-      const below = Math.max(0, bounds.bottom - anchorRect.bottom - VIEWPORT_MARGIN);
-      const above = Math.max(0, anchorRect.top - bounds.top - VIEWPORT_MARGIN);
-      const desiredHeight = Math.min(maxHeight, Math.max(overlay.scrollHeight, 48));
-      const placeAbove = below < desiredHeight && above > below;
-      const availableHeight = Math.max(0, placeAbove ? above : below);
-      const renderedHeight = Math.min(desiredHeight, availableHeight);
-      const width = Math.min(anchorRect.width, Math.max(0, bounds.right - bounds.left - VIEWPORT_MARGIN * 2));
-      const left = Math.min(
-        Math.max(anchorRect.left, bounds.left + VIEWPORT_MARGIN),
-        Math.max(bounds.left + VIEWPORT_MARGIN, bounds.right - VIEWPORT_MARGIN - width),
-      );
-      const top = placeAbove
-        ? Math.max(bounds.top + VIEWPORT_MARGIN, anchorRect.top - renderedHeight)
-        : anchorRect.bottom;
+      const usesLegacyEditorSizing = scrollable === undefined
+        && widthMode === 'editor'
+        && placement === 'bottom-start'
+        && overlayWidth === undefined
+        && overlayHeight === undefined
+        && minWidth === undefined
+        && maxWidth === undefined
+        && minHeight === undefined
+        && !resizable
+        && typeof maxHeight === 'number';
+      if (usesLegacyEditorSizing) {
+        const below = Math.max(0, bounds.bottom - anchorRect.bottom - VIEWPORT_MARGIN);
+        const above = Math.max(0, anchorRect.top - bounds.top - VIEWPORT_MARGIN);
+        const desiredHeight = Math.min(maxHeight, Math.max(overlay.scrollHeight, 48));
+        const placeAbove = below < desiredHeight && above > below;
+        const availableHeight = Math.max(0, placeAbove ? above : below);
+        const renderedHeight = Math.min(desiredHeight, availableHeight);
+        const width = Math.min(anchorRect.width, Math.max(0, bounds.right - bounds.left - VIEWPORT_MARGIN * 2));
+        const left = Math.min(
+          Math.max(anchorRect.left, bounds.left + VIEWPORT_MARGIN),
+          Math.max(bounds.left + VIEWPORT_MARGIN, bounds.right - VIEWPORT_MARGIN - width),
+        );
+        const top = placeAbove
+          ? Math.max(bounds.top + VIEWPORT_MARGIN, anchorRect.top - renderedHeight)
+          : anchorRect.bottom;
+        setPosition({
+          position: 'fixed',
+          left,
+          top,
+          width,
+          maxHeight: renderedHeight,
+          visibility: renderedHeight > 0 ? 'visible' : 'hidden',
+        });
+        setReady(renderedHeight > 0);
+        return;
+      }
+      const { side: preferredSide, alignment } = splitPlacement(placement);
+      const vertical = preferredSide === 'top' || preferredSide === 'bottom';
+      const spaces = {
+        top: Math.max(0, anchorRect.top - bounds.top - VIEWPORT_MARGIN),
+        bottom: Math.max(0, bounds.bottom - anchorRect.bottom - VIEWPORT_MARGIN),
+        left: Math.max(0, anchorRect.left - bounds.left - VIEWPORT_MARGIN),
+        right: Math.max(0, bounds.right - anchorRect.right - VIEWPORT_MARGIN),
+      };
+      const opposite = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' } as const;
+      const naturalWidth = Math.max(overlay.getBoundingClientRect().width, Math.min(overlay.scrollWidth, bounds.right - bounds.left));
+      const naturalHeight = Math.max(overlay.getBoundingClientRect().height, Math.min(overlay.scrollHeight, bounds.bottom - bounds.top));
+      const desiredHeight = naturalHeight;
+      const desiredMain = vertical ? desiredHeight : naturalWidth;
+      const side = spaces[preferredSide as keyof typeof spaces] < desiredMain && spaces[opposite[preferredSide as keyof typeof opposite]] > spaces[preferredSide as keyof typeof spaces]
+        ? opposite[preferredSide as keyof typeof opposite]
+        : preferredSide;
+      const availableMain = spaces[side as keyof typeof spaces];
+      const availableWidth = Math.max(0, bounds.right - bounds.left - VIEWPORT_MARGIN * 2);
+      const availableHeight = Math.max(0, bounds.bottom - bounds.top - VIEWPORT_MARGIN * 2);
+      const measuredWidth = widthMode === 'editor'
+        ? Math.min(anchorRect.width, availableWidth)
+        : Math.min(naturalWidth, availableWidth);
+      const measuredHeight = Math.min(desiredHeight, availableHeight, vertical ? availableMain : availableHeight);
+      const rtl = getComputedStyle(anchor).direction === 'rtl';
+      let left = vertical
+        ? alignedOffset(alignment, anchorRect.left, anchorRect.width, measuredWidth, rtl)
+        : side === 'left' ? anchorRect.left - measuredWidth : anchorRect.right;
+      let top = vertical
+        ? side === 'top' ? anchorRect.top - measuredHeight : anchorRect.bottom
+        : alignedOffset(alignment, anchorRect.top, anchorRect.height, measuredHeight, false);
+      left = clamp(left, bounds.left + VIEWPORT_MARGIN, bounds.right - VIEWPORT_MARGIN - measuredWidth);
+      top = clamp(top, bounds.top + VIEWPORT_MARGIN, bounds.bottom - VIEWPORT_MARGIN - measuredHeight);
       setPosition({
         position: 'fixed',
         inset: 'auto',
         left,
         top,
-        width,
-        maxHeight: renderedHeight,
-        visibility: renderedHeight > 0 ? 'visible' : 'hidden',
+        width: widthMode === 'editor' ? measuredWidth : undefined,
+        minWidth:
+          widthMode === 'contentOrEditor'
+            ? typeof minWidth === 'number'
+              ? Math.max(anchorRect.width, minWidth)
+              : minWidth === undefined
+                ? anchorRect.width
+                : `max(${anchorRect.width}px, ${minWidth})`
+            : minWidth,
+        maxWidth: constrainedMaximum(maxWidth, vertical ? availableWidth : Math.min(availableWidth, availableMain)),
+        maxHeight: constrainedMaximum(maxHeight, vertical ? Math.min(availableHeight, availableMain) : availableHeight),
+        visibility: measuredWidth > 0 && measuredHeight > 0 ? 'visible' : 'hidden',
       });
+      setReady(measuredWidth > 0 && measuredHeight > 0);
     };
     update();
-    return observeGeometry([anchorRef.current, overlayRef.current], update);
-  }, [anchorRef, maxHeight]);
+    const cleanup = observeGeometry([anchorRef.current, overlayRef.current], update);
+    return () => {
+      cleanup();
+      setReady(false);
+    };
+  }, [anchorRef, maxHeight, maxWidth, minHeight, minWidth, notifyAnchorLost, overlayHeight, overlayWidth, placement, resizable, revision, scrollable, setReady, widthMode]);
+
+  useEffect(() => {
+    if (!onAnchorScroll) return undefined;
+    const onScroll = (event: Event) => {
+      const target = event.target;
+      if (target instanceof Node && overlayRef.current?.contains(target)) return;
+      if (target instanceof Element && anchorRef.current && !target.contains(anchorRef.current)) return;
+      notifyAnchorScroll();
+    };
+    document.addEventListener('scroll', onScroll, true);
+    window.visualViewport?.addEventListener('scroll', onScroll);
+    return () => {
+      document.removeEventListener('scroll', onScroll, true);
+      window.visualViewport?.removeEventListener('scroll', onScroll);
+    };
+  }, [anchorRef, notifyAnchorScroll, onAnchorScroll]);
 
   useEffect(() => {
     if (!onOutsidePointerDown) return undefined;
@@ -106,7 +292,19 @@ export const PositionedOverlay = forwardRef<HTMLDivElement, PositionedOverlayPro
 
   return (
     <CgPortal>
-      <div {...props} ref={ref} style={{ ...position, ...style }}>{children}</div>
+      <div
+        {...props}
+        ref={ref}
+        style={{
+          width: widthMode === 'explicit' ? overlayWidth : widthMode === 'content' || widthMode === 'contentOrEditor' ? 'max-content' : undefined,
+          height: overlayHeight,
+          minHeight,
+          resize: resizable ? 'both' : undefined,
+          overflow: scrollable === undefined ? undefined : scrollable ? 'auto' : resizable ? 'hidden' : 'visible',
+          ...position,
+          ...style,
+        }}
+      >{children}</div>
     </CgPortal>
   );
 });

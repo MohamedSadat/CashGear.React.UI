@@ -1,0 +1,134 @@
+.root {
+  position: relative;
+  inline-size: 20rem;
+  min-inline-size: 0;
+  color: var(--cg-text);
+}
+
+.fullWidth {
+  inline-size: 100%;
+}
+
+.control {
+  position: relative;
+}
+
+.input {
+  order: 100;
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  block-size: 100%;
+  overflow: hidden;
+  padding: 0 var(--cg-space-3);
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.input::placeholder {
+  color: var(--cg-text-secondary);
+  opacity: 1;
+}
+
+.displayTemplate {
+  position: absolute;
+  z-index: 1;
+  inset-block: 0;
+  inset-inline: 0;
+  display: flex;
+  align-items: center;
+  min-inline-size: 0;
+  overflow: hidden;
+  padding-inline: var(--cg-space-3) 5rem;
+  pointer-events: none;
+}
+
+.control:has(.displayTemplate) .input {
+  color: transparent;
+  caret-color: transparent;
+}
+
+.popup {
+  box-sizing: border-box;
+  min-block-size: 3rem;
+  overflow: hidden;
+  border: 1px solid var(--cg-border);
+  border-radius: var(--cg-radius-md);
+  background: var(--cg-surface);
+  color: var(--cg-text);
+  box-shadow: var(--cg-shadow);
+}
+
+.header,
+.footer {
+  padding: var(--cg-space-3);
+  background: var(--cg-surface-subtle);
+}
+
+.header {
+  border-block-end: 1px solid var(--cg-border);
+}
+
+.footer {
+  border-block-start: 1px solid var(--cg-border);
+}
+
+.body {
+  min-block-size: 0;
+}
+
+.state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 5rem;
+  gap: var(--cg-space-2);
+  padding: var(--cg-space-3);
+  color: var(--cg-text-secondary);
+  text-align: center;
+}
+
+.error {
+  color: var(--cg-danger-text);
+}
+
+.loading {
+  color: var(--cg-text-secondary);
+}
+
+.spinner {
+  inline-size: 1rem;
+  block-size: 1rem;
+  border: 2px solid color-mix(in srgb, currentcolor 28%, transparent);
+  border-block-start-color: currentcolor;
+  border-radius: 50%;
+  animation: cg-dropdownbox-spin 750ms linear infinite;
+}
+
+[data-density='comfortable'] .header,
+[data-density='comfortable'] .footer,
+[data-density='comfortable'] .state {
+  padding: var(--cg-space-4);
+}
+
+@keyframes cg-dropdownbox-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+    border-block-start-color: transparent;
+  }
+}
+
+@media (forced-colors: active) {
+  .popup {
+    border-color: CanvasText;
+  }
+}
