@@ -30,6 +30,8 @@ export { CgSpinEdit } from './components/SpinEdit';
 export type { CgSpinEditProps } from './components/SpinEdit';
 export { CgSwitch } from './components/Switch';
 export type { CgSwitchProps } from './components/Switch';
+export { CgTagBox } from './components/TagBox';
+export type { CgTagBoxChangeReason, CgTagBoxErrorMessage, CgTagBoxLoadContext, CgTagBoxMinimumLengthMessage, CgTagBoxOptionRenderContext, CgTagBoxProps, CgTagBoxSearchMode, CgTagBoxTagRenderContext, CgTagBoxValueChangeDetails } from './components/TagBox';
 export { CgTextBox } from './components/TextBox';
 export type { CgTextBoxProps, CgTextBoxType, CgTextChangeReason, CgTextValueChange } from './components/TextBox';
 

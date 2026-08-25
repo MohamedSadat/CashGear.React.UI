@@ -13,4 +13,5 @@ export * from './RadioGroup';
 export * from './SearchBox';
 export * from './SpinEdit';
 export * from './Switch';
+export * from './TagBox';
 export * from './TextBox';

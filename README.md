@@ -1,6 +1,6 @@
 # `@cashgear/ui`
 
-CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–4 mirror the foundational controls and full ListBox surface in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies and add browser-verified interaction behavior.
+CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–5 mirror the foundational controls, ListBox, and TagBox surfaces in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies and add browser-verified interaction behavior.
 
 ## Install and import
 
@@ -161,6 +161,48 @@ Columns use a typed descriptor array; rows may instead use `renderItem`. One non
 
 Each selected stable key is submitted through an internal native multi-select; the search query is never submitted. `name`, external `form` association, required validity, disabled exclusion, missing selected keys, native reset, and invalid-focus transfer to the visible listbox are supported. Duplicate item or column keys, multiple values in single mode, negative timing/overscan, nonpositive item sizes, and invalid Select All configurations throw clear errors.
 
+## TagBox
+
+`CgTagBox<TItem>` binds an object array and renders the selected values as removable tags around an input-focused ARIA combobox. Stable keys reconcile refreshed objects and serialize native form values; selected objects missing from the current option source remain visible.
+
+```tsx
+<CgTagBox<Customer>
+  name="customerIds"
+  form="campaign-form"
+  options={customers}
+  value={selectedCustomers}
+  onValueChange={(next, { addedItems, removedItems, reason }) => {
+    setSelectedCustomers(next);
+  }}
+  getOptionKey={(item) => item.id}
+  getOptionLabel={(item) => item.name}
+  getOptionSearchText={(item) => `${item.code} ${item.name} ${item.city}`}
+  maxSelectedItems={5}
+  clearable
+  required
+/>
+```
+
+Supply exactly one of local `options` or remote `loadOptions`. Local filtering is immediate. Remote loading receives the trimmed eligible query, a monotonic request ID, and an `AbortSignal`; the raw draft remains available through `onSearchQueryChange` and native `onChange`.
+
+```tsx
+<CgTagBox<Customer>
+  loadOptions={(query, { signal }) =>
+    fetch(`/customers?q=${encodeURIComponent(query)}`, { signal }).then((response) => response.json())
+  }
+  minimumSearchLength={2}
+  searchDelay={250}
+  getOptionKey={(item) => item.id}
+  getOptionLabel={(item) => item.name}
+/>
+```
+
+Arrow keys, Home/End, Enter, Escape, Tab, outside clicks, and empty-query Backspace follow the Razor interaction model. IME drafts do not start searches until composition ends. Contains/starts-with matching supports locale, Arabic, and diacritic folding. Maximum selection disables only unselected options; existing selections remain removable.
+
+Each selected key is submitted through an internal native multi-select, never through the editable query. External `form` association, native reset, required validation, disabled exclusion, invalid-focus transfer, custom option/tag rendering, dark/compact density, and RTL are supported. Duplicate option keys and invalid source/timing/limit combinations throw clear errors.
+
+The React contract intentionally stores selected objects rather than Razor scalar keys. Custom key comparers, scalar-key adapters, and `ResolveValuesAsync` hydration remain deferred because selected objects carry their tag labels.
+
 ## Numeric editors
 
 `CgNumericEdit` uses a `number | null` committed value. Invalid drafts such as `-` remain visible and internally invalid on blur/Enter without replacing the last committed value; `onInvalidValue` receives the draft. A trailing locale decimal such as `1.` remains visible while focused and commits as `1` on blur/Enter. Parsing strictly recognizes locale digits, separators, signs, and the configured currency/percent literals instead of stripping arbitrary characters. It supports grouping, precision, bounds, prefixes/suffixes, paste, and typed editor commands, and reformats when locale/format options change even when the numeric value is unchanged.
@@ -196,7 +238,7 @@ Eligibility uses the trimmed query length, but `onSearch` receives the original 
 Components:
 
 - `CgIcon`, `CgButton`, `CgField`
-- `CgTextBox`, `CgMemo`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgListBox`
+- `CgTextBox`, `CgMemo`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgListBox`, `CgTagBox`
 - `CgRadio`, `CgRadioGroup`
 - `CgNumericEdit`, `CgSpinEdit`, `CgSearchBox`
 - `CgLoadingPanel`, `CgProgressBar`
@@ -229,7 +271,7 @@ Install browser binaries once with `npx playwright install chromium firefox webk
 
 Chromium screenshots in `tests/browser/__snapshots__` are canonical Windows/Node 24.19 baselines. Playwright snapshots are platform-specific; regenerate them on the same operating system used for comparison. Browser tests serve the prebuilt Storybook through a lifecycle-managed Vite preview server. No CI workflow is installed; browser gates run locally through `npm run verify`.
 
-The Phase 4 verification on 2026-08-25 under Node 24.19 passes 81 Vitest tests, 69 semantic/Axe browser tests across Chromium, Firefox, and WebKit, 43 Chromium visual tests comparing 46 snapshots, the 82-module cycle scan, library/declaration and static Storybook builds, and package verification with exactly 19 runtime exports and a successful ESM dry-run import.
+The Phase 5 Node 24.19 verification completed with 95 Vitest tests, 84 semantic/Axe browser tests, 49 Chromium visual tests comparing 55 Windows snapshots, and package verification of exactly 20 runtime exports across 399 packed files. See the parity ledger for the complete gate breakdown.
 
 ## Packaging
 

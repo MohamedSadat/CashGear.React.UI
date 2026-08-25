@@ -21,6 +21,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'CgSearchBox',
   'CgSpinEdit',
   'CgSwitch',
+  'CgTagBox',
   'CgTextBox',
   'cx',
   'useCgId',

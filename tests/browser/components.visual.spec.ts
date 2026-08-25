@@ -18,6 +18,7 @@ const primaryStories = [
   ['progress-bar', 'phase-1-2-progressbar--determinate-sizes-and-intents'],
   ['combo-box', 'phase-3-combobox--controlled-local-selection'],
   ['list-box', 'phase-4-listbox--default'],
+  ['tag-box', 'phase-5-tagbox--default'],
 ] as const;
 
 for (const [name, story] of primaryStories) {
@@ -44,6 +45,7 @@ const rtlStories = [
   ['loading-panel', 'phase-1-2-loadingpanel--indicators-and-inline'],
   ['combo-box', 'phase-3-combobox--arabic-rtl'],
   ['list-box', 'phase-4-listbox--arabic-rtl'],
+  ['tag-box', 'phase-5-tagbox--arabic-rtl'],
 ] as const;
 
 for (const [name, story] of rtlStories) {
@@ -60,6 +62,7 @@ const darkCompactStories = [
   ['loading-panel', 'phase-1-2-loadingpanel--indicators-and-inline'],
   ['progress-bar', 'phase-1-2-progressbar--determinate-sizes-and-intents'],
   ['list-box', 'phase-4-listbox--dark-compact'],
+  ['tag-box', 'phase-5-tagbox--dark-compact'],
 ] as const;
 
 for (const [name, story] of darkCompactStories) {
@@ -117,4 +120,36 @@ test('ListBox virtual window', async ({ page }) => {
     }
   });
   await expect(page).toHaveScreenshot('list-box-virtual.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
+
+test('open TagBox popup', async ({ page }) => {
+  await openStory(page, 'phase-5-tagbox--local-search-and-keyboard');
+  await page.getByRole('combobox', { name: 'Search customers' }).press('ArrowDown');
+  await expect(page.getByRole('listbox')).toBeVisible();
+  await expect(page).toHaveScreenshot('tag-box-open.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
+
+test('TagBox maximum and custom tags', async ({ page }) => {
+  await openStory(page, 'phase-5-tagbox--maximum-and-custom-tags');
+  await page.getByRole('combobox', { name: 'Approval recipients' }).press('ArrowDown');
+  await expect(page).toHaveScreenshot('tag-box-maximum-custom.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
+
+test('remote TagBox minimum, loading, results, and error states', async ({ page }) => {
+  await openStory(page, 'phase-5-tagbox--remote-loading-minimum-and-error');
+  const tagBox = page.getByRole('combobox', { name: 'Remote customers' });
+
+  await tagBox.fill('c');
+  await expect(page.getByText('Type at least 2 characters to search.')).toBeVisible();
+  await expect(page).toHaveScreenshot('tag-box-remote-minimum.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+
+  await tagBox.fill('contoso');
+  await expect(page.getByText('Loading…')).toBeVisible();
+  await expect(page).toHaveScreenshot('tag-box-remote-loading.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+  await expect(page.getByRole('option', { name: /Contoso Retail/u })).toBeVisible();
+  await expect(page).toHaveScreenshot('tag-box-remote-results.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+
+  await tagBox.fill('error');
+  await expect(page.getByText('Unable to load results.')).toBeVisible();
+  await expect(page).toHaveScreenshot('tag-box-remote-error.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
 });

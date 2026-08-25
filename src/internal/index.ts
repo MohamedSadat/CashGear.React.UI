@@ -7,4 +7,5 @@ export { useFocusReturn } from './useFocusReturn';
 export { useOverlayStack } from './overlayStack';
 export { PositionedOverlay, useResolvedTarget, useTargetCoverStyle } from './PositionedOverlay';
 export { createListBoxTextFragments, listBoxKeyToken, listBoxTextMatches, normalizeListBoxSearch, toCssLength } from './listBox';
+export { normalizeTagBoxSearch, tagBoxKeyToken, tagBoxTextMatches } from './tagBox';
 export { useVirtualWindow } from './useVirtualWindow';

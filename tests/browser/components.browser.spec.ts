@@ -19,6 +19,7 @@ const canonicalStories = [
   'phase-1-2-progressbar--determinate-sizes-and-intents',
   'phase-3-combobox--controlled-local-selection',
   'phase-4-listbox--default',
+  'phase-5-tagbox--default',
 ] as const;
 
 for (const story of canonicalStories) {
@@ -149,6 +150,87 @@ test('ListBox renders columns, virtual windows, touch targets, dark mode, and Ar
   expect(await arabic.evaluate((element) => getComputedStyle(element).direction)).toBe('rtl');
   await expect(arabic.getByRole('option', { name: /أَحْمَد/u })).toBeVisible();
   await expect(page.getByRole('searchbox', { name: 'بحث المستودعات' })).toHaveValue('احمد');
+});
+
+test('TagBox supports keyboard, pointer, removal, ARIA ownership, and controlled objects', async ({ page }) => {
+  await openStory(page, 'phase-5-tagbox--controlled-and-uncontrolled');
+  const input = page.getByRole('combobox', { name: 'Controlled customers', exact: true });
+  await input.fill('Contoso');
+  const option = page.getByRole('option', { name: /Contoso Retail/u });
+  await expect(option.locator('xpath=..')).toHaveAttribute('role', 'listbox');
+  await option.click();
+  await expect(page.getByLabel('Selected customer codes')).toContainText('C-200');
+  await expect(input).toBeFocused();
+  await input.press('ArrowDown');
+  await input.press('End');
+  await expect(input).toHaveAttribute('aria-activedescendant', /option-/u);
+  await input.press('Enter');
+  await input.press('Backspace');
+  await input.press('ArrowDown');
+  await page.locator('body').click({ position: { x: 8, y: 8 } });
+  await expect(input).not.toHaveAttribute('aria-controls', /.+/u);
+  await input.press('ArrowDown');
+  await input.press('Escape');
+  await expect(input).not.toHaveAttribute('aria-controls', /.+/u);
+});
+
+test('TagBox handles remote minimum, loading, error recovery, and selection', async ({ page }) => {
+  await openStory(page, 'phase-5-tagbox--remote-loading-minimum-and-error');
+  const input = page.getByRole('combobox', { name: 'Remote customers' });
+  await input.fill('c');
+  await expect(page.getByText('Type at least 2 characters to search.')).toBeVisible();
+  await input.fill('contoso');
+  await expect(page.getByText('Loading…')).toBeVisible();
+  await page.getByRole('option', { name: /Contoso Retail/u }).click();
+  await expect(page.getByRole('button', { name: /Remove C-200/u })).toBeVisible();
+  await input.fill('error');
+  await expect(page.getByText('Unable to load results.')).toBeVisible();
+  await input.fill('north');
+  await expect(page.getByRole('option', { name: /Northwind Traders/u })).toBeVisible();
+});
+
+test('TagBox submits and resets forms, focuses invalid input, and rejects controlled proposals', async ({ page }) => {
+  await openStory(page, 'phase-5-tagbox--native-forms');
+  const formInput = page.getByRole('combobox', { name: 'Form customers' });
+  await formInput.fill('Contoso');
+  await page.getByRole('option', { name: /Contoso Retail/u }).click();
+  await formInput.press('Escape');
+  await page.getByRole('button', { name: 'Submit selections' }).click();
+  await expect(page.getByLabel('Submitted customer keys')).toHaveText('1, 2');
+  await page.getByRole('button', { name: 'Reset selections' }).click();
+  await expect(page.getByRole('button', { name: /Remove C-100/u })).toHaveCount(1);
+  await expect(page.getByRole('button', { name: /Remove C-200/u })).toHaveCount(0);
+
+  await openStory(page, 'phase-5-tagbox--required-native-form');
+  const required = page.getByRole('combobox', { name: 'Required form customers' });
+  await page.getByRole('button', { name: 'Submit required tags' }).click();
+  await expect(required).toBeFocused();
+  await expect(required).toHaveAttribute('aria-invalid', 'true');
+
+  await openStory(page, 'phase-5-tagbox--rejected-controlled-fixture');
+  const rejected = page.getByRole('combobox', { name: 'Authoritative customers' });
+  await rejected.fill('Contoso');
+  await page.getByRole('option', { name: /Contoso Retail/u }).click();
+  await expect(page.getByRole('button', { name: /Remove C-100/u })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Remove C-200/u })).toHaveCount(0);
+  await expect(page.getByLabel('Attempted customers')).toContainText('Contoso Retail');
+});
+
+test('TagBox renders maximum selection, custom tags, dark density, and Arabic RTL', async ({ page }) => {
+  await openStory(page, 'phase-5-tagbox--maximum-and-custom-tags');
+  const maximum = page.getByRole('combobox', { name: 'Approval recipients' });
+  await maximum.press('ArrowDown');
+  await expect(page.getByRole('option', { name: /Northwind Traders/u })).toHaveAttribute('aria-disabled', 'true');
+  await expect(page.getByText('Unavailable').first()).toBeVisible();
+
+  await openStory(page, 'phase-5-tagbox--dark-compact', 'theme:dark;density:compact;direction:ltr');
+  await expect(page.locator('[data-cg-theme="dark"]')).toBeVisible();
+
+  await openStory(page, 'phase-5-tagbox--arabic-rtl', 'theme:light;density:comfortable;direction:rtl');
+  const arabic = page.getByRole('combobox', { name: 'العملاء' });
+  expect(await arabic.evaluate((element) => getComputedStyle(element).direction)).toBe('rtl');
+  await arabic.fill('احمد');
+  await expect(page.getByRole('option', { name: /أَحْمَد/u })).toHaveAttribute('aria-selected', 'true');
 });
 
 test('LoadingPanel contains and returns focus and covers an external target', async ({ page }) => {
