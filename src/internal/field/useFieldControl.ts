@@ -24,6 +24,7 @@ export function useFieldControl(options: FieldControlOptions) {
     disabled: Boolean(options.disabled || field?.disabled),
     readOnly: Boolean(options.readOnly || field?.readOnly),
     validationState,
+    labelId: field?.labelId,
     describedBy: mergeAriaIds(options.describedBy, field?.descriptionId, field?.messageId),
     errorMessageId: validationState === 'error' ? field?.messageId : undefined,
   } as const;

@@ -1,0 +1,96 @@
+.root {
+  display: inline-grid;
+  gap: var(--cg-space-3);
+  inline-size: min(100%, 30rem);
+  min-inline-size: 14rem;
+  color: var(--cg-text);
+  font: var(--cg-font-size-md)/var(--cg-line-height) var(--cg-font-family);
+}
+.fullWidth { display: grid; inline-size: 100%; }
+.viewport {
+  min-block-size: 5rem;
+  block-size: var(--cg-listbox-height);
+  max-block-size: var(--cg-listbox-max-height);
+  overflow: auto;
+  background: var(--cg-surface);
+  border: var(--cg-border-style);
+  border-radius: var(--cg-radius-md);
+}
+.root[data-validation='error'] .viewport { border-color: var(--cg-danger-text); }
+.root[data-readonly='true'] .viewport { background: var(--cg-surface-subtle); }
+.root[data-disabled='true'] { color: var(--cg-disabled-text); }
+.root[data-disabled='true'] .viewport { background: var(--cg-disabled-bg); border-color: var(--cg-disabled-border); }
+.listbox { min-inline-size: max-content; outline: none; }
+.listbox:focus-visible { outline: var(--cg-focus-ring-width) solid var(--cg-focus-ring-color); outline-offset: calc(-1 * var(--cg-focus-ring-width)); }
+.header, .option { display: grid; align-items: center; min-inline-size: 100%; }
+.header {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  min-block-size: var(--cg-listbox-item-size);
+  padding-inline: var(--cg-space-3);
+  font-weight: var(--cg-font-weight-medium);
+  background: var(--cg-surface-subtle);
+  border-block-end: var(--cg-border-style);
+}
+.headerCell, .cell { min-inline-size: 0; padding-inline: var(--cg-space-3); }
+.headerCell[data-align='center'], .cell[data-align='center'] { text-align: center; }
+.headerCell[data-align='end'], .cell[data-align='end'] { text-align: end; }
+.option {
+  box-sizing: border-box;
+  min-block-size: var(--cg-listbox-item-size);
+  padding-block: var(--cg-space-2);
+  padding-inline: var(--cg-space-3);
+  cursor: pointer;
+  border-block-end: 1px solid color-mix(in srgb, var(--cg-border) 55%, transparent);
+}
+.option:hover { background: var(--cg-hover); }
+.option[data-selected='true'] { background: var(--cg-selected); }
+.option[data-active='true'] { outline: 2px solid color-mix(in srgb, var(--cg-accent) 65%, transparent); outline-offset: -2px; }
+.option[data-disabled='true'] { color: var(--cg-disabled-text); cursor: not-allowed; }
+.optionCheck { pointer-events: none; }
+.optionCheck label { padding: 0; }
+.label { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; }
+.option mark { color: inherit; background: var(--cg-warning-soft); border-radius: 2px; }
+.group {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-block-size: var(--cg-listbox-item-size);
+  padding-inline: var(--cg-space-4);
+  color: var(--cg-text-secondary);
+  font-weight: var(--cg-font-weight-medium);
+  background: var(--cg-surface-subtle);
+  border-block-end: var(--cg-border-style);
+}
+.groupCount { font-size: var(--cg-font-size-sm); }
+.selectAll { display: flex; align-items: center; justify-content: space-between; gap: var(--cg-space-4); }
+.selectAll > span { color: var(--cg-text-secondary); font-size: var(--cg-font-size-sm); }
+.state { padding: var(--cg-space-5); color: var(--cg-text-secondary); text-align: center; background: var(--cg-surface-subtle); border-radius: var(--cg-radius-md); }
+.spinner {
+  display: inline-block;
+  inline-size: 0.85rem;
+  block-size: 0.85rem;
+  margin-inline-end: var(--cg-space-3);
+  vertical-align: -0.1rem;
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: 50%;
+  animation: cg-listbox-spin 700ms linear infinite;
+}
+.formProxy, .visuallyHidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+.small { --cg-listbox-item-size: 2rem; }
+.medium { --cg-listbox-item-size: 2.5rem; }
+.large { --cg-listbox-item-size: 3rem; }
+@keyframes cg-listbox-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 1600ms; } }

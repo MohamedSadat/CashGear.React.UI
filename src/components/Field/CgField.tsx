@@ -21,19 +21,20 @@ export function CgField({
   'data-testid': testId,
 }: CgFieldProps) {
   const id = useCgId(controlId);
+  const labelId = label ? `${id}-label` : undefined;
   const descriptionId = description ? `${id}-description` : undefined;
   const message = errorMessage ?? validationMessage;
   const messageId = message ? `${id}-message` : undefined;
   const effectiveValidation = errorMessage ? 'error' : validationState;
   const context = useMemo(
-    () => ({ controlId: id, descriptionId, messageId, required, disabled, readOnly, validationState: effectiveValidation }),
-    [descriptionId, disabled, effectiveValidation, id, messageId, readOnly, required],
+    () => ({ controlId: id, labelId, descriptionId, messageId, required, disabled, readOnly, validationState: effectiveValidation }),
+    [descriptionId, disabled, effectiveValidation, id, labelId, messageId, readOnly, required],
   );
 
   return (
     <div className={cx(styles.field, className)} style={style} data-validation={effectiveValidation} data-testid={testId}>
       {label ? (
-        <label className={styles.label} htmlFor={id}>
+        <label id={labelId} className={styles.label} htmlFor={id}>
           {label}
           {required ? <span className={styles.required} aria-hidden="true"> *</span> : null}
         </label>

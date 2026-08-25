@@ -1,6 +1,6 @@
 # `@cashgear/ui`
 
-CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–3 mirror the foundational controls in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies and add browser-verified interaction behavior.
+CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–4 mirror the foundational controls and full ListBox surface in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies and add browser-verified interaction behavior.
 
 ## Install and import
 
@@ -112,6 +112,55 @@ Remote loading receives a trimmed eligible query, monotonic request ID, and `Abo
 
 The visible input retains focus while the body-portal listbox opens, flips, shifts, and follows nested scrolling or viewport changes. Arabic digits/text and diacritic-insensitive locale matching are supported. Duplicate keys, conflicting local/remote sources, negative timing/length values, and invalid result limits throw clear errors. A scalar-key adapter is intentionally outside the current API.
 
+## ListBox
+
+`CgListBox<TItem>` binds an object array and uses `getItemKey` for stable identity, selection reconciliation, and native form serialization. Single and multiple selection support native-style pointer modifiers, keyboard ranges, disabled-item skipping, checkboxes, and filtered tri-state Select All.
+
+```tsx
+interface Warehouse { id: number; code: string; name: string; region: string }
+
+<CgListBox<Warehouse>
+  name="warehouseIds"
+  form="transfer-form"
+  items={warehouses}
+  value={selectedWarehouses}
+  onValueChange={(next, { addedItems, removedItems, reason }) => {
+    setSelectedWarehouses(next);
+  }}
+  getItemKey={(item) => item.id}
+  getItemLabel={(item) => `${item.code} - ${item.name}`}
+  getItemSearchText={(item) => `${item.code} ${item.name} ${item.region}`}
+  selectionMode="multiple"
+  showCheckboxes
+  showSelectAll
+  searchable
+  required
+/>
+```
+
+Search is locally controlled or uncontrolled and debounces by 250 ms by default. It supports contains/starts-with/equals matching, all-words/any-word/exact parsing, locale-aware Arabic and diacritic folding, application filtering, searchable columns, safe `<mark>` fragments, and IME-safe drafts. Select All affects only currently visible, enabled items and preserves selections hidden by search or filtering.
+
+Columns use a typed descriptor array; rows may instead use `renderItem`. One non-collapsible group level follows first-appearance order. `renderMode="entire"` permits variable-height templates, while `renderMode="virtual"` uses the private fixed-row virtualizer and therefore requires a stable `itemSize` when custom sizing is needed.
+
+```tsx
+<CgListBox
+  items={warehouses}
+  getItemKey={(item) => item.id}
+  getItemLabel={(item) => item.name}
+  columns={[
+    { key: 'code', header: 'Code', getValue: (item) => item.code, width: 110 },
+    { key: 'name', header: 'Warehouse', getValue: (item) => item.name },
+    { key: 'region', header: 'Region', getValue: (item) => item.region, alignment: 'end' },
+  ]}
+  getItemGroupKey={(item) => item.region}
+  renderMode="virtual"
+  itemSize={40}
+  height={320}
+/>
+```
+
+Each selected stable key is submitted through an internal native multi-select; the search query is never submitted. `name`, external `form` association, required validity, disabled exclusion, missing selected keys, native reset, and invalid-focus transfer to the visible listbox are supported. Duplicate item or column keys, multiple values in single mode, negative timing/overscan, nonpositive item sizes, and invalid Select All configurations throw clear errors.
+
 ## Numeric editors
 
 `CgNumericEdit` uses a `number | null` committed value. Invalid drafts such as `-` remain visible and internally invalid on blur/Enter without replacing the last committed value; `onInvalidValue` receives the draft. A trailing locale decimal such as `1.` remains visible while focused and commits as `1` on blur/Enter. Parsing strictly recognizes locale digits, separators, signs, and the configured currency/percent literals instead of stripping arbitrary characters. It supports grouping, precision, bounds, prefixes/suffixes, paste, and typed editor commands, and reformats when locale/format options change even when the numeric value is unchanged.
@@ -147,7 +196,7 @@ Eligibility uses the trimmed query length, but `onSearch` receives the original 
 Components:
 
 - `CgIcon`, `CgButton`, `CgField`
-- `CgTextBox`, `CgMemo`, `CgCheckBox`, `CgSwitch`, `CgComboBox`
+- `CgTextBox`, `CgMemo`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgListBox`
 - `CgRadio`, `CgRadioGroup`
 - `CgNumericEdit`, `CgSpinEdit`, `CgSearchBox`
 - `CgLoadingPanel`, `CgProgressBar`
@@ -180,7 +229,7 @@ Install browser binaries once with `npx playwright install chromium firefox webk
 
 Chromium screenshots in `tests/browser/__snapshots__` are canonical Windows/Node 24.19 baselines. Playwright snapshots are platform-specific; regenerate them on the same operating system used for comparison. Browser tests serve the prebuilt Storybook through a lifecycle-managed Vite preview server. No CI workflow is installed; browser gates run locally through `npm run verify`.
 
-The Phase 3 verification on 2026-08-24 under Node 24.19 passes 62 Vitest tests, 57 semantic/Axe browser tests across Chromium, Firefox, and WebKit, 37 Chromium visual tests comparing 40 snapshots, the 77-module cycle scan, library/declaration and static Storybook builds, and package verification with exactly 18 runtime exports and a successful ESM dry-run import.
+The Phase 4 verification on 2026-08-25 under Node 24.19 passes 81 Vitest tests, 69 semantic/Axe browser tests across Chromium, Firefox, and WebKit, 43 Chromium visual tests comparing 46 snapshots, the 82-module cycle scan, library/declaration and static Storybook builds, and package verification with exactly 19 runtime exports and a successful ESM dry-run import.
 
 ## Packaging
 

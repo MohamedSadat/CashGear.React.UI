@@ -1,4 +1,4 @@
-# CG.CompLib → `@cashgear/ui` Phase 1–3 parity
+# CG.CompLib → `@cashgear/ui` Phase 1–4 parity
 
 ## Reference snapshot
 
@@ -93,6 +93,51 @@ Phase 3 retained the original `5cc83289` snapshot above and re-audited the same 
 ?? CG.CompLib.Tests/PartnerSelectorMigrationTests.cs
 ```
 
+## Phase 4 reference refresh
+
+Phase 4 builds on the clean React baseline `db9e9c92e34bfdb0f5a05fb34df0b68723adaf17` and retains both prior Razor snapshots. The ListBox comparison used the current read-only Razor tree at the same Phase 3 HEAD. Its exact status was captured before implementation and was unchanged by the initial post-implementation audit.
+
+- Reference HEAD: `759c030706f0e67f0a50305eafaaef8895587830`
+- Reference captured: 2026-08-25
+- ListBox evidence: `CG.CompLib/Comp/Inputs/CgListBox.razor`, `.razor.cs`, `.razor.css`, `.razor.js`, `CgListBoxTypes.cs`, `CgListBoxColumn.cs`, `CgListBoxAccessors.cs`, and `CgListBox.md`; `CG.CompLib.Tests/CgListBoxTests.cs` and `CgListBoxBrowserTests.cs`; `CG.CompLib.Demo/Components/Pages/ListBoxDemo.razor` and `.razor.css`.
+- `git status --short` before implementation and at the initial completion audit:
+
+```text
+ M CashGear.App/Components/Comp/CustomersListExComp.razor
+ M CashGear.App/Components/Comp/Sales/SalesAgentsComp.razor
+ M CashGear.App/Components/Comp/VendorsListComp.razor
+ M CashGear.App/Components/Pages/Accounting/AddLedgerAccountPage.razor
+ M CashGear.App/Components/Pages/Accounting/CustPayment/EditCustPaymentComp.razor
+ M CashGear.App/Components/Pages/Accounting/LrdgerJournalPages/AddLedgerJournalPage.razor
+ M CashGear.App/Components/Pages/Accounting/LrdgerJournalPages/EditLedgerJournalPage.razor
+ M CashGear.App/Components/Pages/Accounting/LrdgerJournalPages/EditLedgerJournalPage.razor.cs
+ M CashGear.App/Components/Pages/Accounting/LrdgerJournalPages/EditLedgerJournalPage.razor.css
+ M CashGear.App/Components/Pages/Accounting/LrdgerJournalPages/GLJournalsComp.razor
+ M CashGear.App/Components/Pages/Accounting/Reports/AccountBoard.razor
+ M CashGear.App/Components/Pages/Accounting/Reports/CustPayments.razor
+ M CashGear.App/Components/Pages/Accounting/Reports/LedgertransPage.razor
+ M CashGear.App/Components/Pages/Accounting/Reports/TrialBalancePage.razor
+ M CashGear.App/Components/Pages/Accounting/VendPayment/VendPaymentsComp.razor
+ M CashGear.App/Components/Pages/CMMSPages/CMWorkOrderPage.razor
+ M CashGear.App/Components/Pages/CMMSPages/CMWorkOrderPage.razor.cs
+ M CashGear.App/Components/Pages/CustPages/CustTransPage.razor
+ M CashGear.App/Components/Pages/Production/ProdOrder/AddProdOrderPage.razor
+ M CashGear.App/Components/Pages/Projects/AddProject.razor
+ M CashGear.App/Components/Pages/Retail/RetailOrder/EditRatailOrderPage.razor.cs
+ M CashGear.App/Components/Pages/Sales/OrderPlace/AddOrderProducts.razor
+ M CashGear.App/Components/Pages/Sales/OrderPlace/AddOrderProducts.razor.cs
+ M CashGear.App/Components/Pages/Sales/Reports/SalesAgentTransPage.razor
+ M CashGear.App/Components/Pages/Sales/SalesOrderSearchPage.razor
+ D CashGear.App/Components/ProdComp/ProdOrderUpdateComp.razor
+ D CashGear.App/Components/SalesComp/CustTransHeaderComp.razor
+ D CashGear.App/Components/SalesComp/OrderDetailsComp.razor
+ D CashGear.App/Components/SalesComp/OrderHeaderComp.razor
+ M CashGear.App/Components/_Imports.razor
+?? .claude/settings.local.json
+?? CG.CompLib.Tests/AccountingPageCgMigrationTests.cs
+?? CG.CompLib.Tests/PartnerSelectorMigrationTests.cs
+```
+
 ## Implemented inventory
 
 “Mirrored” means the user-visible contract is carried across with React/native-DOM adaptations. “Partially mirrored” identifies a deliberate Phase 2 omission. “New React implementation” has no exact Razor component.
@@ -106,6 +151,7 @@ Phase 3 retained the original `5cc83289` snapshot above and re-audited the same 
 | `CgMemo` | Mirrored | `CG.CompLib/Comp/Inputs/CgMemo.*`; `CG.CompLib.Demo/Components/Pages/MemoDemo.razor` | `src/components/Memo/*` | `tests/memo.test.tsx` | `src/components/Memo/CgMemo.stories.tsx` | Native textarea resizing plus `ResizeObserver` replaces the DevExpress implementation. |
 | `CgCheckBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgCheckBox.*`; `CG.CompLib.Demo/Components/Pages/CheckBoxDemo.razor` | `src/components/CheckBox/*` | `tests/choice-controls.test.tsx` | `src/components/CheckBox/CgCheckBox.stories.tsx` | Boolean/`indeterminate` only; C# numeric/string mappings are intentionally omitted. |
 | `CgComboBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgComboBox.*`; `CG.CompLib.Demo/Components/Pages/ComboBoxDemo.razor` | `src/components/ComboBox/*`, `src/internal/PositionedOverlay.tsx` | `tests/combo-box.test.tsx`, `tests/browser/components.browser.spec.ts` | `src/components/ComboBox/CgComboBox.stories.tsx` | Object-valued selection uses required stable keys for identity and form serialization. Scalar-key adapters remain deferred. |
+| `CgListBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgListBox.*`, `CgListBoxTypes.cs`, `CgListBoxColumn.cs`, `CgListBoxAccessors.cs`; `CG.CompLib.Demo/Components/Pages/ListBoxDemo.razor` | `src/components/ListBox/*`, `src/internal/listBox.ts`, `src/internal/useVirtualWindow.ts` | `tests/list-box.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/ListBox/CgListBox.stories.tsx` | Object-array binding and stable keys replace Razor field accessors. Fixed-row virtualization is dependency-free; remote loading/paging and richer data-grid operations remain deferred. |
 | `CgSwitch` | Mirrored | `CG.CompLib/Comp/Inputs/CgCheckBox.*` switch mode | `src/components/Switch/*` | `tests/choice-controls.test.tsx` | `src/components/Switch/CgSwitch.stories.tsx` | Extracted as a separate two-state component. The source has no pending state, so React does not add one. |
 | `CgRadio` | Mirrored | `CG.CompLib/Comp/Inputs/CgRadio.*`; `CG.CompLib.Demo/Components/Pages/RadioDemo.razor` | `src/components/Radio/*` | `tests/choice-controls.test.tsx` | `src/components/Radio/CgRadio.stories.tsx` | Native grouping is preserved for uncontrolled same-name radios; typed string/number values replace C# conversion. |
 | `CgRadioGroup` | Mirrored | `CG.CompLib/Comp/Inputs/CgRadioGroup.*`; `CG.CompLib.Demo/Components/Pages/RadioDemo.razor` | `src/components/RadioGroup/*` | `tests/choice-controls.test.tsx` | `src/components/RadioGroup/CgRadioGroup.stories.tsx` | Generic React options replace reflection-based field-name mapping. |
@@ -116,6 +162,16 @@ Phase 3 retained the original `5cc83289` snapshot above and re-audited the same 
 | `CgProgressBar` | New React implementation | No exact source | `src/components/ProgressBar/*` | `tests/loading-progress.test.tsx` | `src/components/ProgressBar/CgProgressBar.stories.tsx` | Native React progress semantics, logical RTL fill, and reduced-motion support. |
 
 The shared hook/primitives layer is covered in `tests/foundation.test.tsx`. The exact runtime export allow-list is guarded by `tests/public-api.test.ts`.
+
+## Phase 4 ListBox behavior
+
+- Object selections preserve stable key identity across refreshed item objects and retain selected objects whose keys are temporarily absent. Uncontrolled selections silently adopt key-equivalent refreshed objects.
+- Single/multiple pointer selection, Ctrl/Meta toggles, Shift ranges, additive Ctrl/Meta+Shift ranges, checkbox-row toggles, Ctrl/Meta+A, Home/End/Page and Arrow navigation, and disabled-item skipping mirror the Razor interaction model. Read-only mode retains navigation while suppressing selection.
+- Application filtering precedes controlled/uncontrolled debounced local search. Contains/starts-with/equals conditions, all-words/any-word/exact parsing, Arabic/locale and diacritic folding, safe highlight fragments, and searchable columns are supported with IME-safe drafts.
+- Filtered tri-state Select All changes only enabled visible items and preserves hidden selections. One non-collapsible group level follows first appearance; group separators never enter option indexes, ranges, or selection.
+- Typed column descriptors, row/cell/group templates, loading/empty/no-results content, entire rendering, and a private fixed-row virtual window cover the display contract. Entire mode is the variable-height template path.
+- The focusable native `HTMLDivElement` exposes listbox semantics and ARIA active ownership. Selected stable keys use a hidden native multi-select form proxy with `name`, external `form`, required validity, disabled exclusion, missing-key serialization, native reset, and invalid-focus transfer.
+- Unit, semantic browser, Axe, and canonical Windows Chromium visual coverage live at the exact test and story paths listed above. No runtime or development dependency was added.
 
 ## Phase 3 browser and interaction behavior
 
@@ -137,28 +193,27 @@ The shared hook/primitives layer is covered in `tests/foundation.test.tsx`. The 
 
 ## Verification result
 
-Verified on 2026-08-24 with Node 24.19 from the Phase 3 working tree:
+Verified on 2026-08-25 with Node 24.19 from the uncommitted Phase 4 working tree:
 
 | Command/gate | Result |
 | --- | --- |
 | `npm run typecheck` | Passed (strict TypeScript 6) |
 | `npm run lint` | Passed |
-| `npm run test` | Passed: 10 files, 62 tests |
-| `npm run check:cycles` | Passed: 77 source modules, no relative-import cycles |
-| `npm run build:lib` | Passed: 74 transformed modules; declarations/maps and `dist/cashgear-ui.css` emitted |
+| `npm run test` | Passed: 11 files, 81 tests |
+| `npm run check:cycles` | Passed: 82 source modules, no relative-import cycles |
+| `npm run build:lib` | Passed: 79 transformed modules; declarations/maps and `dist/cashgear-ui.css` emitted |
 | `npm run build-storybook` | Passed with Storybook 10.5.10 |
-| `npm run test:browser:built` | Passed: 57 semantic/Axe tests (19 each in Chromium, Firefox, and WebKit) plus 37 Chromium visual tests comparing 40 Windows snapshots |
-| `npm run verify:package` | Passed: 18 runtime exports, 356 packed files, React externalization/declarations/styles/dry-run ESM import verified |
+| `npm run test:browser:built` | Passed: 69 semantic/Axe tests (23 each in Chromium, Firefox, and WebKit) plus 43 Chromium visual tests comparing 46 Windows snapshots |
+| `npm run verify:package` | Passed: 19 runtime exports, 380 packed files, React externalization/declarations/styles/dry-run ESM import verified |
 | `npm run verify` | Passed end to end |
 
 ## Deferred inventory
 
-These rows are evidence only. No React API or implementation is included in Phase 1–3.
+These rows are evidence only. No React API or implementation is included in Phase 1–4.
 
 | Planned component | Razor evidence | Status |
 | --- | --- | --- |
 | Scalar-key ComboBox adapter | No separate Razor component; adapter would sit above `CgComboBox<TItem>` | Deferred |
-| ListBox | `CG.CompLib/Comp/Inputs/CgListBox.*` | Deferred |
 | TagBox | `CG.CompLib/Comp/Inputs/CgTagBox.*` | Deferred |
 | DropDownBox | `CG.CompLib/Comp/Inputs/CgDropDownBox.*` | Deferred |
 | ContextMenu | Working-tree `CG.CompLib/Comp/ContextMenu/CgContextMenu.*` | Deferred |
@@ -175,5 +230,6 @@ These rows are evidence only. No React API or implementation is included in Phas
 
 - Decide on a decimal/arbitrary-precision value model before using numeric editors for accounting amounts that cannot tolerate IEEE-754 rounding.
 - A scalar-only `CgKeyComboBox`/key adapter is not part of the object-valued Phase 3 API.
+- ListBox remote loading/paging, drag/drop, sorting, column resizing, editing, nested groups, summaries, and export are intentionally outside Phase 4.
 - Browser gates are local; this phase intentionally adds no GitHub Actions workflow. Chromium snapshots must be compared and regenerated on the same platform.
 - Start each deferred advanced control with a fresh Razor working-tree audit because several reference components are currently uncommitted.

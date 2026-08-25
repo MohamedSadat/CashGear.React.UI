@@ -18,6 +18,7 @@ const canonicalStories = [
   'phase-1-2-loadingpanel--controlled-blocking-overlay',
   'phase-1-2-progressbar--determinate-sizes-and-intents',
   'phase-3-combobox--controlled-local-selection',
+  'phase-4-listbox--default',
 ] as const;
 
 for (const story of canonicalStories) {
@@ -75,6 +76,79 @@ test('ComboBox supports Arabic folding, native forms, reset, and rejected contro
   await page.getByRole('option', { name: /Contoso/u }).click();
   await expect(rejected).toHaveValue('C-100 - Acme Manufacturing');
   await expect(page.getByLabel('Attempted selection')).toHaveText('Contoso Retail');
+});
+
+test('ListBox supports keyboard navigation, modifier ranges, Ctrl+A, and pointer selection', async ({ page }) => {
+  await openStory(page, 'phase-4-listbox--controlled-and-uncontrolled');
+  const listbox = page.getByRole('listbox', { name: 'Controlled warehouses' });
+  await listbox.focus();
+  await listbox.press('End');
+  await listbox.press(' ');
+  await expect(page.getByLabel('Selected warehouse codes')).toHaveText('AR-01');
+  await listbox.press('Shift+Home');
+  await expect(page.getByLabel('Selected warehouse codes')).toHaveText('CAI-01, GIZ-01, ALX-01, ASW-01, AR-01');
+  await listbox.press('Control+a');
+  await expect(listbox.getByRole('option', { name: /CAI-02/u })).toHaveAttribute('aria-disabled', 'true');
+  await listbox.getByRole('option', { name: /GIZ-01/u }).click({ modifiers: ['Control'] });
+  await expect(page.getByLabel('Selected warehouse codes')).not.toContainText('GIZ-01');
+  await listbox.press('Home');
+  await listbox.press('PageDown');
+  await expect(listbox).toHaveAttribute('aria-activedescendant', /option-/u);
+});
+
+test('ListBox clears search, selects the filtered set, and submits and resets native forms', async ({ page }) => {
+  await openStory(page, 'phase-4-listbox--checkboxes-and-filtered-select-all');
+  const search = page.getByRole('searchbox', { name: 'Search list' });
+  const listbox = page.getByRole('listbox', { name: 'Filtered warehouse selection' });
+  await expect(listbox.getByRole('option')).toHaveCount(2);
+  await page.getByRole('checkbox', { name: 'Select all visible items' }).click();
+  await expect(listbox.getByRole('option', { name: /CAI-01/u })).toHaveAttribute('aria-selected', 'true');
+  await expect(listbox.getByRole('option', { name: /CAI-02/u })).toHaveAttribute('aria-selected', 'false');
+  await search.press('Escape');
+  await expect(search).toHaveValue('');
+  await expect(listbox.getByRole('option')).toHaveCount(6);
+  await expect(listbox.getByRole('option', { name: /ALX-01/u })).toHaveAttribute('aria-selected', 'true');
+
+  await openStory(page, 'phase-4-listbox--native-forms');
+  const formList = page.getByRole('listbox', { name: 'Form warehouses' });
+  await formList.getByRole('option', { name: /GIZ-01/u }).click();
+  await page.getByRole('button', { name: 'Submit selection' }).click();
+  await expect(page.getByLabel('Submitted warehouse keys')).toHaveText('1, 3');
+  await page.getByRole('button', { name: 'Reset selection' }).click();
+  await expect(formList.getByRole('option', { name: /CAI-01/u })).toHaveAttribute('aria-selected', 'true');
+  await expect(formList.getByRole('option', { name: /GIZ-01/u })).toHaveAttribute('aria-selected', 'false');
+
+  await openStory(page, 'phase-4-listbox--required-native-form');
+  const requiredList = page.getByRole('listbox', { name: 'Required form warehouses' });
+  await page.getByRole('button', { name: 'Submit required list' }).click();
+  await expect(requiredList).toBeFocused();
+  await expect(requiredList).toHaveAttribute('aria-invalid', 'true');
+});
+
+test('ListBox renders columns, virtual windows, touch targets, dark mode, and Arabic RTL', async ({ page }) => {
+  await openStory(page, 'phase-4-listbox--columns-groups-and-templates');
+  const columns = page.getByRole('listbox', { name: 'Warehouse columns and groups' });
+  await expect(page.getByText('Code', { exact: true })).toBeVisible();
+  await expect(columns.getByRole('separator')).toHaveCount(5);
+
+  await openStory(page, 'phase-4-listbox--virtual-large-data');
+  const virtual = page.getByRole('listbox', { name: 'Virtual warehouses' });
+  expect(await virtual.getByRole('option').count()).toBeLessThan(1_000);
+  const firstBox = await virtual.getByRole('option').first().boundingBox();
+  expect(firstBox?.height).toBeGreaterThanOrEqual(40);
+  await virtual.focus();
+  await virtual.press('End');
+  await expect(virtual).toHaveAttribute('aria-activedescendant', /option-999$/u);
+  await expect(virtual.getByRole('option', { name: /WH-1000/u })).toBeVisible();
+
+  await openStory(page, 'phase-4-listbox--dark-compact', 'theme:dark;density:compact;direction:ltr');
+  await expect(page.locator('[data-cg-theme="dark"]')).toBeVisible();
+
+  await openStory(page, 'phase-4-listbox--arabic-rtl', 'theme:light;density:comfortable;direction:rtl');
+  const arabic = page.getByRole('listbox', { name: 'المستودعات' });
+  expect(await arabic.evaluate((element) => getComputedStyle(element).direction)).toBe('rtl');
+  await expect(arabic.getByRole('option', { name: /أَحْمَد/u })).toBeVisible();
+  await expect(page.getByRole('searchbox', { name: 'بحث المستودعات' })).toHaveValue('احمد');
 });
 
 test('LoadingPanel contains and returns focus and covers an external target', async ({ page }) => {

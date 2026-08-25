@@ -3,6 +3,7 @@ import type { CgValidationState } from '../../types';
 
 export interface CgFieldContextValue {
   controlId: string;
+  labelId?: string;
   descriptionId?: string;
   messageId?: string;
   required: boolean;

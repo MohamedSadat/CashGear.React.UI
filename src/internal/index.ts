@@ -6,3 +6,5 @@ export { useFieldControl } from './field';
 export { useFocusReturn } from './useFocusReturn';
 export { useOverlayStack } from './overlayStack';
 export { PositionedOverlay, useResolvedTarget, useTargetCoverStyle } from './PositionedOverlay';
+export { createListBoxTextFragments, listBoxKeyToken, listBoxTextMatches, normalizeListBoxSearch, toCssLength } from './listBox';
+export { useVirtualWindow } from './useVirtualWindow';

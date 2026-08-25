@@ -4,6 +4,7 @@ export * from './ComboBox';
 export * from './Field';
 export * from './Icon';
 export * from './LoadingPanel';
+export * from './ListBox';
 export * from './Memo';
 export * from './NumericEdit';
 export * from './ProgressBar';

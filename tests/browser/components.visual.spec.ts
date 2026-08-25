@@ -17,6 +17,7 @@ const primaryStories = [
   ['loading-panel', 'phase-1-2-loadingpanel--controlled-blocking-overlay'],
   ['progress-bar', 'phase-1-2-progressbar--determinate-sizes-and-intents'],
   ['combo-box', 'phase-3-combobox--controlled-local-selection'],
+  ['list-box', 'phase-4-listbox--default'],
 ] as const;
 
 for (const [name, story] of primaryStories) {
@@ -42,6 +43,7 @@ const rtlStories = [
   ['progress-bar', 'phase-1-2-progressbar--arabic-rtl'],
   ['loading-panel', 'phase-1-2-loadingpanel--indicators-and-inline'],
   ['combo-box', 'phase-3-combobox--arabic-rtl'],
+  ['list-box', 'phase-4-listbox--arabic-rtl'],
 ] as const;
 
 for (const [name, story] of rtlStories) {
@@ -57,6 +59,7 @@ const darkCompactStories = [
   ['combo-box', 'phase-3-combobox--states-and-validation'],
   ['loading-panel', 'phase-1-2-loadingpanel--indicators-and-inline'],
   ['progress-bar', 'phase-1-2-progressbar--determinate-sizes-and-intents'],
+  ['list-box', 'phase-4-listbox--dark-compact'],
 ] as const;
 
 for (const [name, story] of darkCompactStories) {
@@ -90,4 +93,28 @@ test('remote ComboBox minimum, loading, results, and error states', async ({ pag
   await comboBox.fill('error');
   await expect(page.getByText('Unable to load results.')).toBeVisible();
   await expect(page).toHaveScreenshot('combo-box-remote-error.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
+
+test('ListBox columns and groups', async ({ page }) => {
+  await openStory(page, 'phase-4-listbox--columns-groups-and-templates');
+  await expect(page).toHaveScreenshot('list-box-columns-groups.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
+
+test('ListBox filtered Select All', async ({ page }) => {
+  await openStory(page, 'phase-4-listbox--checkboxes-and-filtered-select-all');
+  await page.getByRole('checkbox', { name: 'Select all visible items' }).click();
+  await expect(page).toHaveScreenshot('list-box-filtered-select-all.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
+
+test('ListBox virtual window', async ({ page }) => {
+  await openStory(page, 'phase-4-listbox--virtual-large-data');
+  const listbox = page.getByRole('listbox', { name: 'Virtual warehouses' });
+  await listbox.evaluate((element) => {
+    const viewport = element.parentElement;
+    if (viewport) {
+      viewport.scrollTop = 12_000;
+      viewport.dispatchEvent(new Event('scroll'));
+    }
+  });
+  await expect(page).toHaveScreenshot('list-box-virtual.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
 });
