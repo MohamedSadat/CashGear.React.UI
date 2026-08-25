@@ -20,6 +20,7 @@ const primaryStories = [
   ['list-box', 'phase-4-listbox--default'],
   ['tag-box', 'phase-5-tagbox--default'],
   ['drop-down-box', 'phase-6-dropdownbox--default'],
+  ['key-combo-box', 'phase-7-keycombobox--default'],
 ] as const;
 
 for (const [name, story] of primaryStories) {

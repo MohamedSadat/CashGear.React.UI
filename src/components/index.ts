@@ -4,6 +4,7 @@ export * from './ComboBox';
 export * from './DropDownBox';
 export * from './Field';
 export * from './Icon';
+export * from './KeyComboBox';
 export * from './LoadingPanel';
 export * from './ListBox';
 export * from './Memo';

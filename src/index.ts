@@ -12,6 +12,8 @@ export { CgField } from './components/Field';
 export type { CgFieldProps } from './components/Field';
 export { CgIcon } from './components/Icon';
 export type { CgIconProps } from './components/Icon';
+export { CgKeyComboBox } from './components/KeyComboBox';
+export type { CgKeyComboBoxProps, CgKeyComboBoxValueChangeDetails } from './components/KeyComboBox';
 export { CgLoadingPanel } from './components/LoadingPanel';
 export type { CgLoadingIndicator, CgLoadingPanelMode, CgLoadingPanelProps } from './components/LoadingPanel';
 export { CgListBox } from './components/ListBox';

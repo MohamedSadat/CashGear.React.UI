@@ -14,7 +14,7 @@ const customers: Customer[] = [
 const getLabel = (item: Customer) => `${item.code} - ${item.name}`;
 const getKey = (item: Customer) => item.id;
 const source = 'CG.CompLib/Comp/Inputs/CgComboBox.*; CG.CompLib.Demo/Components/Pages/ComboBoxDemo.razor';
-const difference = 'Object-valued selection uses required stable keys for identity and native form serialization; the scalar CgKeyComboBox adapter remains deferred.';
+const difference = 'Object-valued selection uses required stable keys for identity and native form serialization; use the Phase 7 CgKeyComboBox adapter when application state stores only the scalar key.';
 const meta: Meta = { title: 'Phase 3/ComboBox', component: CgComboBox, parameters: parityParameters(source, difference) };
 export default meta;
 type Story = StoryObj;

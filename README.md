@@ -1,6 +1,6 @@
 # `@cashgear/ui`
 
-CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–6 mirror the foundational controls, ListBox, TagBox, and arbitrary-content DropDownBox surfaces in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies and add browser-verified interaction behavior.
+CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–7 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, and arbitrary-content DropDownBox in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies and add browser-verified interaction behavior.
 
 ## Install and import
 
@@ -110,7 +110,40 @@ Remote loading receives a trimmed eligible query, monotonic request ID, and `Abo
 />
 ```
 
-The visible input retains focus while the body-portal listbox opens, flips, shifts, and follows nested scrolling or viewport changes. Arabic digits/text and diacritic-insensitive locale matching are supported. Duplicate keys, conflicting local/remote sources, negative timing/length values, and invalid result limits throw clear errors. A scalar-key adapter is intentionally outside the current API.
+The visible input retains focus while the body-portal listbox opens, flips, shifts, and follows nested scrolling or viewport changes. Arabic digits/text and diacritic-insensitive locale matching are supported. Duplicate keys, conflicting local/remote sources, negative timing/length values, and invalid result limits throw clear errors.
+
+## KeyComboBox
+
+`CgKeyComboBox<TItem, TValue>` is the scalar-key adapter for models that store an id or code instead of the selected object. `TValue` is a `string` or `number`; `null` is empty and `0` remains a valid key. Filtering, loading, keyboard, ARIA, popup positioning, validation, form serialization, and reset behavior come from `CgComboBox`.
+
+```tsx
+interface Customer { id: number; name: string }
+
+<CgKeyComboBox<Customer, number>
+  name="customerId"
+  options={customers}
+  value={customerId}
+  onValueChange={(nextId, { selectedItem }) => {
+    setCustomerId(nextId);
+    setCustomer(selectedItem);
+  }}
+  getOptionKey={(item) => item.id}
+  getOptionLabel={(item) => item.name}
+/>
+```
+
+Keys resolve from local `options` first, then `selectedItem`, then the last item selected through the editor. Supply `selectedItem` when a controlled initial key is not in the local source, including remote or paged data. Without it the editor and native form value are empty, and a required editor is invalid. `isValueEqual` customizes key matching; for example, account codes can compare case-insensitively. There is intentionally no async key resolver.
+
+```tsx
+<CgKeyComboBox<Customer, number>
+  loadOptions={loadCustomers}
+  value={customerId}
+  selectedItem={loadedCustomer}
+  onValueChange={setCustomerId}
+  getOptionKey={(item) => item.id}
+  getOptionLabel={(item) => item.name}
+/>
+```
 
 ## ListBox
 
@@ -306,7 +339,7 @@ Eligibility uses the trimmed query length, but `onSearch` receives the original 
 Components:
 
 - `CgIcon`, `CgButton`, `CgField`
-- `CgTextBox`, `CgMemo`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgListBox`, `CgTagBox`, `CgDropDownBox`
+- `CgTextBox`, `CgMemo`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgKeyComboBox`, `CgListBox`, `CgTagBox`, `CgDropDownBox`
 - `CgRadio`, `CgRadioGroup`
 - `CgNumericEdit`, `CgSpinEdit`, `CgSearchBox`
 - `CgLoadingPanel`, `CgProgressBar`
@@ -339,7 +372,7 @@ Install browser binaries once with `npx playwright install chromium firefox webk
 
 Chromium screenshots in `tests/browser/__snapshots__` are canonical Windows/Node 24.19 baselines. Playwright snapshots are platform-specific; regenerate them on the same operating system used for comparison. Browser tests serve the prebuilt Storybook through a lifecycle-managed Vite preview server. No CI workflow is installed; browser gates run locally through `npm run verify`.
 
-The Phase 6 Node 24.19 verification completed with 110 Vitest tests, 99 semantic/Axe browser tests, 59 Chromium visual tests comparing 67 Windows snapshots, and package verification of exactly 21 runtime exports across 413 packed files. See the parity ledger for the complete gate breakdown.
+The Phase 7 Node 24.19 verification completed with 120 Vitest tests, 105 semantic/Axe browser tests, 60 Chromium visual tests comparing 68 Windows snapshots, and package verification of exactly 22 runtime exports across 424 packed files. Firefox's headless software renderer could not start on this host; its complete 35-test project passed in headed mode. See the parity ledger for the exact gate breakdown.
 
 ## Packaging
 

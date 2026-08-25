@@ -12,6 +12,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'CgDropDownBox',
   'CgField',
   'CgIcon',
+  'CgKeyComboBox',
   'CgListBox',
   'CgLoadingPanel',
   'CgMemo',

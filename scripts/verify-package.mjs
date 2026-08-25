@@ -19,7 +19,7 @@ assert.match(js, /from\s+["']react(?:\/jsx-runtime)?["']/, 'React imports should
 assert.doesNotMatch(js, /react\.production|minified React error/i, 'React implementation appears bundled');
 
 const runtime = await import(`${pathToFileURL(join(root, 'dist/index.js')).href}?verify=${Date.now()}`);
-const expected = ['CgButton', 'CgCheckBox', 'CgComboBox', 'CgDropDownBox', 'CgField', 'CgIcon', 'CgListBox', 'CgLoadingPanel', 'CgMemo', 'CgNumericEdit', 'CgProgressBar', 'CgRadio', 'CgRadioGroup', 'CgSearchBox', 'CgSpinEdit', 'CgSwitch', 'CgTagBox', 'CgTextBox', 'cx', 'useCgId', 'useControllableState'];
+const expected = ['CgButton', 'CgCheckBox', 'CgComboBox', 'CgDropDownBox', 'CgField', 'CgIcon', 'CgKeyComboBox', 'CgListBox', 'CgLoadingPanel', 'CgMemo', 'CgNumericEdit', 'CgProgressBar', 'CgRadio', 'CgRadioGroup', 'CgSearchBox', 'CgSpinEdit', 'CgSwitch', 'CgTagBox', 'CgTextBox', 'cx', 'useCgId', 'useControllableState'];
 assert.deepEqual(Object.keys(runtime).sort(), expected.sort());
 
 const npmCli = process.env.npm_execpath;

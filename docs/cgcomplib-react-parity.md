@@ -1,4 +1,4 @@
-# CG.CompLib → `@cashgear/ui` Phase 1–5 parity
+# CG.CompLib → `@cashgear/ui` Phase 1–7 parity
 
 ## Reference snapshot
 
@@ -257,6 +257,27 @@ The read-only repository advanced externally during Phase 6. The completion audi
 
 No Phase 6 command wrote to, committed in, or reverted `CGWebApp`; the `51b2f53` start audit remains the DropDownBox implementation reference and the later `34f3248` audit records external completion state.
 
+## Phase 7 reference refresh
+
+Phase 7 builds on the clean React baseline `a3b88cc1c28721bad741b4ba22e55ef70be2a5c5` and retains every earlier snapshot. The scalar-key adapter comparison used the current read-only Razor tree below; Phase 7 did not modify it.
+
+- Reference HEAD: `34f3248766a39ac66b6f63c9c31821e3f9190681`
+- Reference captured: 2026-08-25
+- KeyComboBox evidence: `CG.CompLib/Comp/Inputs/CgKeyComboBox.razor` and `.razor.cs`; `CG.CompLib/Comp/Inputs/README.md`; `CG.CompLib.Tests/CgKeyComboBoxTests.cs`; `CG.CompLib.Demo/Components/Pages/Home.razor`.
+- `git status --short` at capture:
+
+```text
+ M CG.CompLib.Tests/CgSearchBoxBrowserTests.cs
+ M CG.CompLib.Tests/CgSearchBoxTests.cs
+ M CG.CompLib/Comp/Inputs/CgSearchBox.md
+ M CG.CompLib/Comp/Inputs/CgSearchBox.razor.cs
+ M CG.CompLib/Comp/Inputs/CgSearchBox.razor.js
+ M CashGear.App/Components/Pages/Sales/SalesOrderSearchPage.razor
+?? .claude/settings.local.json
+```
+
+The completion audit observed the same reference HEAD. External work had additionally modified `CashGear.App/Components/Comp/GL/UpdateJournalLineComp.razor` and `CashGear.App/Components/Pages/Purch/PO/PurchOrdersPage.razor`; no Phase 7 command wrote to, committed in, or reverted `CGWebApp`.
+
 ## Implemented inventory
 
 “Mirrored” means the user-visible contract is carried across with React/native-DOM adaptations. “Partially mirrored” identifies a deliberate Phase 2 omission. “New React implementation” has no exact Razor component.
@@ -269,7 +290,8 @@ No Phase 6 command wrote to, committed in, or reverted `CGWebApp`; the `51b2f53`
 | `CgTextBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgTextBox.*`; `CG.CompLib.Demo/Components/Pages/TextBoxDemo.razor` | `src/components/TextBox/*` | `tests/text-box.test.tsx`, `tests/foundation.test.tsx` | `src/components/TextBox/CgTextBox.stories.tsx` | Labels/messages move to `CgField`; IME drafts and native events/attributes are retained. |
 | `CgMemo` | Mirrored | `CG.CompLib/Comp/Inputs/CgMemo.*`; `CG.CompLib.Demo/Components/Pages/MemoDemo.razor` | `src/components/Memo/*` | `tests/memo.test.tsx` | `src/components/Memo/CgMemo.stories.tsx` | Native textarea resizing plus `ResizeObserver` replaces the DevExpress implementation. |
 | `CgCheckBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgCheckBox.*`; `CG.CompLib.Demo/Components/Pages/CheckBoxDemo.razor` | `src/components/CheckBox/*` | `tests/choice-controls.test.tsx` | `src/components/CheckBox/CgCheckBox.stories.tsx` | Boolean/`indeterminate` only; C# numeric/string mappings are intentionally omitted. |
-| `CgComboBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgComboBox.*`; `CG.CompLib.Demo/Components/Pages/ComboBoxDemo.razor` | `src/components/ComboBox/*`, `src/internal/PositionedOverlay.tsx` | `tests/combo-box.test.tsx`, `tests/browser/components.browser.spec.ts` | `src/components/ComboBox/CgComboBox.stories.tsx` | Object-valued selection uses required stable keys for identity and form serialization. Scalar-key adapters remain deferred. |
+| `CgComboBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgComboBox.*`; `CG.CompLib.Demo/Components/Pages/ComboBoxDemo.razor` | `src/components/ComboBox/*`, `src/internal/PositionedOverlay.tsx` | `tests/combo-box.test.tsx`, `tests/browser/components.browser.spec.ts` | `src/components/ComboBox/CgComboBox.stories.tsx` | Object-valued selection uses required stable keys for identity and form serialization; `CgKeyComboBox` adapts scalar-key models. |
+| `CgKeyComboBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgKeyComboBox.*`; `CG.CompLib.Demo/Components/Pages/Home.razor` | `src/components/KeyComboBox/*` | `tests/key-combo-box.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/KeyComboBox/CgKeyComboBox.stories.tsx` | React keys are strings or finite numbers, `null` is the explicit empty value, and `selectedItem` provides synchronous off-page hydration. |
 | `CgListBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgListBox.*`, `CgListBoxTypes.cs`, `CgListBoxColumn.cs`, `CgListBoxAccessors.cs`; `CG.CompLib.Demo/Components/Pages/ListBoxDemo.razor` | `src/components/ListBox/*`, `src/internal/listBox.ts`, `src/internal/useVirtualWindow.ts` | `tests/list-box.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/ListBox/CgListBox.stories.tsx` | Object-array binding and stable keys replace Razor field accessors. Fixed-row virtualization is dependency-free; remote loading/paging and richer data-grid operations remain deferred. |
 | `CgTagBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgTagBox.*`; `CG.CompLib.Demo/Components/Pages/TagBoxDemo.razor` | `src/components/TagBox/*`, `src/internal/tagBox.ts`, `src/internal/PositionedOverlay.tsx` | `tests/tag-box.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/TagBox/CgTagBox.stories.tsx` | Object-array binding replaces Razor scalar keys. Custom comparers and `ResolveValuesAsync` hydration remain deferred because selected objects carry labels. |
 | `CgDropDownBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgDropDownBox.*`, `CgDropDownBoxTypes.cs`; `CG.CompLib.Demo/Components/Pages/DropDownBoxDemo.razor` | `src/components/DropDownBox/*`, `src/internal/PositionedOverlay.tsx`, `src/internal/overlayStack.ts` | `tests/drop-down-box.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/DropDownBox/CgDropDownBox.stories.tsx` | React render contexts host arbitrary content; a native select proxy and explicit object serializer replace Blazor `EditContext` integration. The body portal replaces the browser manual-popover top layer and deliberately adds no focus trap. |
@@ -283,6 +305,14 @@ No Phase 6 command wrote to, committed in, or reverted `CGWebApp`; the `51b2f53`
 | `CgProgressBar` | New React implementation | No exact source | `src/components/ProgressBar/*` | `tests/loading-progress.test.tsx` | `src/components/ProgressBar/CgProgressBar.stories.tsx` | Native React progress semantics, logical RTL fill, and reduced-motion support. |
 
 The shared hook/primitives layer is covered in `tests/foundation.test.tsx`. The exact runtime export allow-list is guarded by `tests/public-api.test.ts`.
+
+## Phase 7 KeyComboBox behavior
+
+- The adapter binds a `string | number | null` key while reusing ComboBox filtering, remote cancellation, keyboard interaction, ARIA ownership, portal positioning, validation, and form behavior without new CSS or overlay code.
+- Controlled and default keys resolve against local options first, `selectedItem` second, and the last accepted user selection third. Local replacement objects refresh the caption without emitting a key change; unmatched keys render empty and remain invalid when required.
+- `Object.is` is the default key comparison and `isValueEqual` supports application-specific identity. Zero remains a valid numeric key, clearing emits `null`, and uncontrolled reset emits the default key.
+- `onValueChange` reports the scalar key plus the current and previous item/key context. Controlled parent rejection remains authoritative, and an accepted remote selection is retained even when it is absent from a local source.
+- Unit, cross-browser semantic/Axe, native form, controlled rejection, and one canonical Windows Chromium primary snapshot cover the adapter-specific contract. Inherited visual states remain covered by ComboBox baselines.
 
 ## Phase 6 DropDownBox behavior
 
@@ -333,27 +363,29 @@ The shared hook/primitives layer is covered in `tests/foundation.test.tsx`. The 
 
 ## Verification result
 
-Verified on 2026-08-25 with Node 24.19 from the uncommitted Phase 6 working tree:
+Verified on 2026-08-25 with Node 24.19 from the uncommitted Phase 7 working tree:
 
 | Command/gate | Result |
 | --- | --- |
 | `npm run typecheck` | Passed (strict TypeScript 6) |
 | `npm run lint` | Passed |
-| `npm run test` | Passed: 13 files, 110 tests |
-| `npm run check:cycles` | Passed: 89 source modules, no relative-import cycles |
-| `npm run build:lib` | Passed: 86 transformed modules; declarations/maps and `dist/cashgear-ui.css` emitted |
-| `npm run build-storybook` | Passed with Storybook 10.5.10; 138 transformed modules |
-| `npm run test:browser:built` | Passed: 99 semantic/Axe tests (33 each in Chromium, Firefox, and WebKit) plus 59 Chromium visual tests comparing 67 Windows snapshots; 158 total |
-| `npm run verify:package` | Passed: 21 runtime exports, 413 packed files, React externalization/declarations/styles/dry-run ESM import verified |
-| `npm run verify` | Passed end to end |
+| `npm run test` | Passed: 14 files, 120 tests |
+| `npm run check:cycles` | Passed: 92 source modules, no relative-import cycles |
+| `npm run build:lib` | Passed: 88 transformed modules; declarations/maps and `dist/cashgear-ui.css` emitted |
+| `npm run build-storybook` | Passed with Storybook 10.5.10; 141 transformed modules |
+| Chromium semantic/Axe | Passed: 35 tests |
+| Firefox semantic/Axe | Passed: 35 tests with `--headed`; the default headless launch timed out before tests with Mozilla `RenderCompositorSWGL failed mapping default framebuffer` |
+| WebKit semantic/Axe | Passed: 35 tests |
+| Chromium visual | Passed: 60 tests comparing 68 Windows snapshots |
+| `npm run verify:package` | Passed: 22 runtime exports, 424 packed files, React externalization/declarations/styles/dry-run ESM import verified |
+| `npm run verify` | Every source/build/package gate passed; the monolithic headless browser step was interrupted by the Firefox launcher issue above, then completed through the equivalent headed Firefox and headless Chromium/WebKit projects |
 
 ## Deferred inventory
 
-These rows are evidence only. No React API or implementation is included in Phase 1–6.
+These rows are evidence only. No React API or implementation is included in Phase 1–7.
 
 | Planned component | Razor evidence | Status |
 | --- | --- | --- |
-| Scalar-key ComboBox adapter | No separate Razor component; adapter would sit above `CgComboBox<TItem>` | Deferred |
 | ContextMenu | Working-tree `CG.CompLib/Comp/ContextMenu/CgContextMenu.*` | Deferred |
 | DateEdit | `CG.CompLib/Comp/Inputs/CgDateEdit.*` | Deferred |
 | Calendar | Calendar surface inside `CG.CompLib/Comp/Inputs/CgDateEdit.*`; no standalone `CgCalendar` found | Deferred |
@@ -367,7 +399,6 @@ These rows are evidence only. No React API or implementation is included in Phas
 ## Remaining gaps
 
 - Decide on a decimal/arbitrary-precision value model before using numeric editors for accounting amounts that cannot tolerate IEEE-754 rounding.
-- A scalar-only `CgKeyComboBox`/key adapter is not part of the object-valued Phase 3 API.
 - TagBox intentionally binds selected objects; scalar-key adapters, custom key comparers, and selected-key hydration remain deferred.
 - DropDownBox intentionally leaves remote data ownership, hosted Grid/TreeView/DateRangePicker implementations, browser top-layer popovers, and focus trapping to callers or later component phases.
 - ListBox remote loading/paging, drag/drop, sorting, column resizing, editing, nested groups, summaries, and export are intentionally outside Phase 4.

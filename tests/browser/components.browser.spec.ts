@@ -21,6 +21,7 @@ const canonicalStories = [
   'phase-4-listbox--default',
   'phase-5-tagbox--default',
   'phase-6-dropdownbox--default',
+  'phase-7-keycombobox--default',
 ] as const;
 
 for (const story of canonicalStories) {
@@ -78,6 +79,35 @@ test('ComboBox supports Arabic folding, native forms, reset, and rejected contro
   await page.getByRole('option', { name: /Contoso/u }).click();
   await expect(rejected).toHaveValue('C-100 - Acme Manufacturing');
   await expect(page.getByLabel('Attempted selection')).toHaveText('Contoso Retail');
+});
+
+test('KeyComboBox binds scalar keys, submits and resets forms, and rejects controlled proposals', async ({ page }) => {
+  await openStory(page, 'phase-7-keycombobox--default');
+  const controlled = page.getByRole('combobox', { name: 'Customer id' });
+  await controlled.fill('Northwind');
+  await controlled.press('ArrowDown');
+  await controlled.press('Enter');
+  await expect(controlled).toHaveValue('C-300 - Northwind Traders');
+  await expect(page.getByLabel('Bound customer id')).toHaveText('3');
+
+  await openStory(page, 'phase-7-keycombobox--native-form');
+  const formInput = page.getByRole('combobox', { name: 'Form customer key' });
+  await formInput.fill('Contoso');
+  await formInput.press('ArrowDown');
+  await formInput.press('Enter');
+  const form = formInput.locator('xpath=ancestor::form');
+  await form.evaluate((element: HTMLFormElement) => element.requestSubmit());
+  await expect(page.getByLabel('Submitted customer id')).toHaveText('2');
+  await form.evaluate((element: HTMLFormElement) => element.reset());
+  await expect(formInput).toHaveValue('C-100 - Acme Manufacturing');
+
+  await openStory(page, 'phase-7-keycombobox--rejected-controlled-fixture');
+  const rejected = page.getByRole('combobox', { name: 'Authoritative customer key' });
+  await rejected.fill('Contoso');
+  await rejected.press('ArrowDown');
+  await rejected.press('Enter');
+  await expect(rejected).toHaveValue('C-100 - Acme Manufacturing');
+  await expect(page.getByLabel('Attempted customer id')).toHaveText('2');
 });
 
 test('ListBox supports keyboard navigation, modifier ranges, Ctrl+A, and pointer selection', async ({ page }) => {
