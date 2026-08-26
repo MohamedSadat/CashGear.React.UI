@@ -7,10 +7,10 @@ import choiceStyles from '../Choice.module.css';
 import type { CgRadioProps } from './CgRadio.types';
 
 function CgRadioInner<TValue extends string | number>(
-  { value, checked, defaultChecked = false, onCheckedChange, onChange, label, description, labelPosition = 'end', size = 'medium', readOnly, validationState = 'none', id, required, disabled, className, style, 'data-testid': testId, onClick, 'aria-describedby': ariaDescribedBy, ...nativeProps }: CgRadioProps<TValue>,
+  { value, checked, defaultChecked = false, onCheckedChange, onChange, label, description, labelPosition = 'end', size = 'medium', readOnly, validationState = 'none', id, required, disabled, className, style, 'data-testid': testId, onClick, 'aria-describedby': ariaDescribedBy, 'aria-label': ariaLabel, 'aria-labelledby': ariaLabelledBy, ...nativeProps }: CgRadioProps<TValue>,
   forwardedRef: React.ForwardedRef<HTMLInputElement>,
 ) {
-  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy });
+  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
   const inputRef = useRef<HTMLInputElement>(null);
   const ref = useMergedRefs(inputRef, forwardedRef);
   const descriptionId = description ? `${field.id}-description` : undefined;
@@ -32,6 +32,8 @@ function CgRadioInner<TValue extends string | number>(
         required={field.required}
         disabled={field.disabled}
         aria-readonly={field.readOnly || undefined}
+        aria-label={field.ariaLabel}
+        aria-labelledby={field.labelledBy}
         aria-invalid={field.validationState === 'error' || undefined}
         aria-describedby={describedBy}
         aria-errormessage={field.errorMessageId}

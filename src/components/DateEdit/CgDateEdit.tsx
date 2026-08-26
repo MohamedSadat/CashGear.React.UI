@@ -147,6 +147,8 @@ function CgDateEditInner(
     onBlur,
     onKeyDown,
     'aria-describedby': ariaDescribedBy,
+    'aria-label': ariaLabel,
+    'aria-labelledby': ariaLabelledBy,
     ...nativeProps
   }: CgDateEditProps,
   forwardedRef: React.ForwardedRef<HTMLInputElement>,
@@ -163,7 +165,7 @@ function CgDateEditInner(
   if (maxDate !== undefined && maximum === null) throw new Error('CgDateEdit maxDate must be a valid canonical YYYY-MM-DD date.');
   if (minimum && maximum && compareCivilDates(minimum, maximum) > 0) throw new Error('CgDateEdit minDate must not be later than maxDate.');
 
-  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy });
+  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
   const inputElementRef = useRef<HTMLInputElement>(null);
   const controlRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -525,6 +527,8 @@ function CgDateEditInner(
           type="text"
           role="combobox"
           aria-haspopup="dialog"
+          aria-label={field.ariaLabel}
+          aria-labelledby={field.labelledBy}
           aria-expanded={isOpen && overlayReady}
           aria-controls={isOpen && overlayReady ? popupId : undefined}
           aria-disabled={field.disabled || undefined}

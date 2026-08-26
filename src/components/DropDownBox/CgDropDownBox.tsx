@@ -140,6 +140,8 @@ function CgDropDownBoxInner<TValue>(
     style,
     'data-testid': testId,
     'aria-describedby': ariaDescribedBy,
+    'aria-label': ariaLabel,
+    'aria-labelledby': ariaLabelledBy,
     onClick,
     onFocus,
     onBlur,
@@ -153,7 +155,7 @@ function CgDropDownBoxInner<TValue>(
   }
   if (!requiredErrorMessage.trim()) throw new Error('CgDropDownBox requiredErrorMessage cannot be empty.');
 
-  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy });
+  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
   const inputRef = useRef<HTMLInputElement>(null);
   const controlRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -520,6 +522,8 @@ function CgDropDownBoxInner<TValue>(
           type="text"
           role="combobox"
           aria-haspopup="dialog"
+          aria-label={field.ariaLabel}
+          aria-labelledby={field.labelledBy}
           aria-expanded={isOpen && overlayReady}
           aria-controls={isOpen && overlayReady ? popupId : undefined}
           aria-busy={effectiveLoading || undefined}

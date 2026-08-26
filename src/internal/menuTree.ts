@@ -1,6 +1,5 @@
 import type { MenuDescriptor, MenuNode, NormalizeMenuOptions } from './menuTypes';
-
-const ALLOWED_SCHEMES = new Set(['http:', 'https:', 'mailto:', 'tel:']);
+import { validateSafeUrl } from './routeMatch';
 
 function keyOf(value: string | undefined, componentName: string): string {
   const key = value?.trim();
@@ -9,18 +8,7 @@ function keyOf(value: string | undefined, componentName: string): string {
 }
 
 export function validateMenuUrl(value: string | undefined, componentName = 'Menu'): string | undefined {
-  if (value === undefined) return undefined;
-  const url = value.trim();
-  if (!url) return undefined;
-  const compact = [...url].filter((character) => {
-    const code = character.charCodeAt(0);
-    return code > 32 && code !== 127 && !(code >= 128 && code <= 159) && !/\s/u.test(character);
-  }).join('');
-  const scheme = /^([a-z][a-z\d+.-]*):/i.exec(compact)?.[1]?.toLowerCase();
-  if (scheme && !ALLOWED_SCHEMES.has(`${scheme}:`)) {
-    throw new Error(`${componentName} URL uses unsafe or unsupported scheme '${scheme}'.`);
-  }
-  return url;
+  return validateSafeUrl(value, componentName);
 }
 
 function cloneNode<TData>(

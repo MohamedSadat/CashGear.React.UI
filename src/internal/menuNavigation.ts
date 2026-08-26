@@ -1,31 +1,17 @@
 import type { MenuNode } from './menuTypes';
-
-function normalizedLocation(value: string): URL {
-  return new URL(value, typeof window === 'undefined' ? 'https://cashgear.invalid/' : window.location.href);
-}
+import { routeMatchScore } from './routeMatch';
 
 export function findRouteMenuItem<TData>(
   nodes: ReadonlyArray<MenuNode<TData>>,
   currentLocation: string,
 ): MenuNode<TData> | undefined {
-  const current = normalizedLocation(currentLocation);
   let best: MenuNode<TData> | undefined;
   let score = -1;
   const visit = (items: ReadonlyArray<MenuNode<TData>>) => {
     for (const item of items) {
       if (item.href) {
-        const target = new URL(item.href, current.href);
-        if (target.origin === current.origin) {
-          const exact = current.pathname === target.pathname
-            && (!target.search || current.search === target.search)
-            && (!target.hash || current.hash === target.hash);
-          const prefix = current.pathname === target.pathname
-            || current.pathname.startsWith(`${target.pathname.replace(/\/$/, '')}/`);
-          if ((item.routeMatch === 'exact' ? exact : prefix)) {
-            const candidate = target.pathname.length * 4 + (target.search ? 2 : 0) + (target.hash ? 1 : 0);
-            if (candidate > score) { best = item; score = candidate; }
-          }
-        }
+        const candidate = routeMatchScore(item.href, currentLocation, item.routeMatch, { allowAbsolute: true });
+        if (candidate > score) { best = item; score = candidate; }
       }
       visit(item.children);
     }

@@ -191,6 +191,44 @@ for (const [state, story] of [
   });
 }
 
+for (const [name, story, globals, narrow] of [
+  ['phase-12-tree-basic', 'phase-12-treeview--nested-descriptors', undefined, false],
+  ['phase-12-tree-selected-expanded', 'phase-12-treeview--selected-expanded', undefined, false],
+  ['phase-12-tree-recursive-mixed', 'phase-12-treeview--recursive-checking', undefined, false],
+  ['phase-12-tree-filtered', 'phase-12-treeview--filtering', undefined, false],
+  ['phase-12-tree-disabled-readonly', 'phase-12-treeview--disabled-read-only', undefined, false],
+  ['phase-12-tree-dark-compact', 'phase-12-treeview--dark-compact', 'theme:dark;density:compact;direction:ltr', false],
+  ['phase-12-tree-arabic-rtl-narrow', 'phase-12-treeview--arabic-rtl', 'theme:light;density:comfortable;direction:rtl', true],
+  ['phase-12-tree-empty', 'phase-12-treeview--empty-tree', undefined, false],
+] as const) {
+  test(`${name} visual`, async ({ page }) => {
+    if (narrow) await page.setViewportSize({ width: 390, height: 680 });
+    await openStory(page, story, globals);
+    await expect(page).toHaveScreenshot(`${name}.png`, { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+  });
+}
+
+for (const [name, story, globals, narrow] of [
+  ['phase-13-grid-basic', 'phase-13-grid--basic-local', undefined, false],
+  ['phase-13-grid-grouping', 'phase-13-grid--local-grouping', undefined, false],
+  ['phase-13-grid-dark', 'phase-13-grid--dark-theme', 'theme:dark;density:compact;direction:ltr', false],
+  ['phase-13-grid-rtl-narrow', 'phase-13-grid--arabic-rtl-narrow', 'theme:light;density:comfortable;direction:rtl', true],
+  ['phase-13-grid-error', 'phase-13-grid--error-state', undefined, false],
+] as const) {
+  test(`${name} visual`, async ({ page }) => {
+    if (narrow) await page.setViewportSize({ width: 480, height: 720 });
+    await openStory(page, story, globals);
+    await expect(page).toHaveScreenshot(`${name}.png`, { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+  });
+}
+
+test('phase-12-tree-context-menu visual', async ({ page }) => {
+  await openStory(page, 'phase-12-treeview--context-menus');
+  await page.locator('[data-node-key="products"]').click({ button: 'right' });
+  await expect(page.getByRole('menu')).toBeVisible();
+  await expect(page).toHaveScreenshot('phase-12-tree-context-menu.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
+
 test('DropDownBox custom and nested content', async ({ page }) => {
   await openStory(page, 'phase-6-dropdownbox--custom-display-header-footer-and-buttons');
   await page.getByRole('combobox', { name: 'Custom display and commands' }).click();
@@ -273,6 +311,48 @@ for (const [name, story, globals, narrow] of [
     await expect(page).toHaveScreenshot(`${name}.png`, { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
   });
 }
+
+for (const [name, story, globals, narrow] of [
+  ['phase-11-tabs-top', 'phase-11-tabs--controlled-closable-reorderable', undefined, false],
+  ['phase-11-tabs-vertical', 'phase-11-tabs--vertical', undefined, false],
+  ['phase-11-tabs-overflow-buttons', 'phase-11-tabs--overflow-buttons', undefined, false],
+  ['phase-11-tabs-closable-reorderable', 'phase-11-tabs--controlled-closable-reorderable', undefined, false],
+  ['phase-11-tabs-dark', 'phase-11-tabs--dark-compact', 'theme:dark;density:compact;direction:ltr', false],
+  ['phase-11-tabs-arabic-rtl', 'phase-11-tabs--arabic-rtl', 'theme:light;density:comfortable;direction:rtl', true],
+  ['phase-11-stepper-horizontal', 'phase-11-stepper--controlled-horizontal', undefined, false],
+  ['phase-11-stepper-vertical', 'phase-11-stepper--vertical', undefined, false],
+  ['phase-11-stepper-validation', 'phase-11-stepper--validation-optional-skipped', undefined, false],
+  ['phase-11-stepper-optional-skipped', 'phase-11-stepper--validation-optional-skipped', undefined, false],
+  ['phase-11-stepper-narrow-scroll', 'phase-11-stepper--narrow-scroll', undefined, true],
+  ['phase-11-stepper-rtl', 'phase-11-stepper--arabic-rtl', 'theme:light;density:comfortable;direction:rtl', true],
+  ['phase-11-accordion-disclosure', 'phase-11-accordion--controlled-disclosure', undefined, false],
+  ['phase-11-accordion-tree', 'phase-11-accordion--nested-tree', undefined, false],
+  ['phase-11-accordion-filtered', 'phase-11-accordion--filtered', undefined, false],
+  ['phase-11-accordion-dark', 'phase-11-accordion--dark-compact', 'theme:dark;density:compact;direction:ltr', false],
+  ['phase-11-accordion-rtl-narrow', 'phase-11-accordion--arabic-rtl-narrow', 'theme:light;density:comfortable;direction:rtl', true],
+  ['phase-11-form-standard', 'phase-11-formlayout--standard-responsive', undefined, false],
+  ['phase-11-form-horizontal-captions', 'phase-11-formlayout--horizontal-captions', undefined, false],
+  ['phase-11-form-stacked-captions', 'phase-11-formlayout--narrow-stacked', undefined, true],
+  ['phase-11-form-collapsible-group', 'phase-11-formlayout--nested-collapsible-group', undefined, false],
+  ['phase-11-form-tabbed', 'phase-11-formlayout--tabbed-sections', undefined, false],
+  ['phase-11-form-popup', 'phase-11-formlayout--popup-container', undefined, true],
+  ['phase-11-form-window', 'phase-11-formlayout--window-container', undefined, true],
+  ['phase-11-form-dark-compact', 'phase-11-formlayout--dark-compact', 'theme:dark;density:compact;direction:ltr', false],
+  ['phase-11-form-rtl', 'phase-11-formlayout--arabic-rtl', 'theme:light;density:comfortable;direction:rtl', true],
+] as const) {
+  test(`${name} visual`, async ({ page }) => {
+    if (narrow) await page.setViewportSize({ width: 420, height: 720 });
+    await openStory(page, story, globals);
+    await expect(page).toHaveScreenshot(`${name}.png`, { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+  });
+}
+
+test('phase-11-accordion-lazy-error visual', async ({ page }) => {
+  await openStory(page, 'phase-11-accordion--lazy-failure');
+  await page.getByRole('button', { name: 'Remote children' }).click();
+  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page).toHaveScreenshot('phase-11-accordion-lazy-error.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
 
 test('Phase 10 Menu horizontal navigation', async ({ page }) => {
   await openStory(page, 'phase-10-menu--horizontal-navigation');

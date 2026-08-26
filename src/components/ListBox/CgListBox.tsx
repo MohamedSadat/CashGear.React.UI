@@ -137,7 +137,7 @@ function CgListBoxInner<TItem>(
     }
     return columns.filter((column) => column.visible !== false);
   }, [columns]);
-  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy });
+  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
   const listRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const formProxyRef = useRef<HTMLSelectElement>(null);
@@ -452,7 +452,7 @@ function CgListBoxInner<TItem>(
       : visibleRecords.length === 0
         ? (renderNoResults ? typeof renderNoResults === 'function' ? renderNoResults(committedSearch) : renderNoResults : noResultsMessage)
         : null;
-  const labelledBy = ariaLabelledBy ?? (ariaLabel ? undefined : field.labelId);
+  const labelledBy = field.labelledBy;
   const renderFragments = (fragments: ReturnType<typeof createListBoxTextFragments>) => fragments.map((fragment, index) => fragment.isMatch
     ? <mark key={index}>{fragment.text}</mark>
     : <span key={index}>{fragment.text}</span>);

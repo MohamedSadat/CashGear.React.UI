@@ -40,6 +40,8 @@ export const CgMemo = forwardRef<HTMLTextAreaElement, CgMemoProps>(function CgMe
     onCompositionStart,
     onCompositionEnd,
     'aria-describedby': ariaDescribedBy,
+    'aria-label': ariaLabel,
+    'aria-labelledby': ariaLabelledBy,
     ...nativeProps
   },
   forwardedRef,
@@ -51,7 +53,7 @@ export const CgMemo = forwardRef<HTMLTextAreaElement, CgMemoProps>(function CgMe
     if (maxRows < rows) throw new RangeError('maxRows must be greater than or equal to rows.');
   }
   if (maxLength !== undefined) assertNonNegativeInteger('maxLength', maxLength);
-  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy });
+  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
   const initial = normalize(defaultValue);
   const [committed, setCommitted] = useControllableState(value === undefined ? undefined : normalize(value), initial, 'CgMemo');
   const [draft, setDraft] = useState(committed);
@@ -140,6 +142,8 @@ export const CgMemo = forwardRef<HTMLTextAreaElement, CgMemoProps>(function CgMe
           disabled={field.disabled}
           readOnly={field.readOnly}
           aria-required={field.required || undefined}
+          aria-label={field.ariaLabel}
+          aria-labelledby={field.labelledBy}
           aria-invalid={field.validationState === 'error' || undefined}
           aria-describedby={describedBy}
           aria-errormessage={field.errorMessageId}

@@ -1,6 +1,6 @@
 # `@cashgear/ui`
 
-CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–10 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, Flyout, Popup, Window, MaskedInput, Menu, ContextMenu, button menus, and Toolbar in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies and add browser-verified interaction behavior.
+CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–12 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, Flyout, Popup, Window, MaskedInput, command surfaces, descriptor-based navigation, responsive layout, FormLayout, and standalone TreeView families in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies and add browser-verified interaction behavior.
 
 ## Install and import
 
@@ -384,6 +384,102 @@ const menuItems = [
 
 Button menus compose `CgButton`, `CgFlyout`, and the same menu surface. `CgDropDownButton` is only a trigger; `CgSplitButton` isolates the primary action/form contract from its toggle. Arbitrary content uses dialog semantics and receives `close()` and `reposition()`. Toolbar dispatches commands, links, custom content, dropdowns, and split buttons across logical start/end rails, then adapts full text → adaptive text → icon-only → deterministic one-at-a-time overflow through a container `ResizeObserver`.
 
+## Descriptor navigation and FormLayout
+
+Phase 11 adds keyed, immutable descriptor surfaces for Tabs, Stepper, Accordion, and FormLayout tabs. Keys are required nonempty strings and controlled props remain authoritative: user interaction proposes state through callbacks, while collection reconciliation emits a single non-user correction when the authoritative key disappears. Async guards and close/load lifecycles receive `AbortSignal`; replacement work aborts stale generations and errors use the component-specific observer.
+
+```tsx
+<CgTabs
+  tabs={[
+    { key: 'summary', text: 'Summary', content: <Summary /> },
+    { key: 'lines', text: 'Lines', content: <Lines />, closable: true },
+  ]}
+  activeKey={activeTab}
+  onActiveKeyChange={setActiveTab}
+  contentMode="on-demand"
+/>
+
+<CgStepper
+  steps={steps}
+  selectedKey={currentStep}
+  onSelectedKeyChange={setCurrentStep}
+  beforeSelectionChange={({ signal }) => validateStep(signal)}
+/>
+```
+
+`CgTabs` supplies manual keyboard activation, logical RTL arrows, close proposals, pointer reordering, four header positions, retained on-demand panels, overflow controls, and imperative focus/activation/scroll actions. `CgStepper` defaults to linear horizontal progress, evaluates current/target/global guards in order, presents optional/validation/skipped/completed status text, and exposes asynchronous navigation actions. `CgAccordion` accepts either nested descriptors or a flat `parentKey` collection, supports disclosure or tree semantics, controlled expansion/selection/filtering, safe route matching, transient filtered expansion, cached abortable lazy loading, and retained on-demand content.
+
+`CgLayoutBreakpoint` and `useCgLayoutBreakpoint` expose the exact named bands `x-small`, `small`, `medium`, `large`, and `x-large`, or an inclusive custom integer range. SSR and hydration start from `defaultMatches` before reconciling with `matchMedia`; named boundaries are 575/576, 767/768, 991/992, and 1199/1200 pixels.
+
+```tsx
+<CgFormLayout captionPosition="horizontal" captionWidth="10rem">
+  <CgFormLayoutItem caption="Customer" xs={12} md={6}>
+    <CgTextBox value={customer} onValueChange={setCustomer} />
+  </CgFormLayoutItem>
+  <CgFormLayoutGroup caption="Delivery" collapsible>
+    {/* Nested layout items */}
+  </CgFormLayoutGroup>
+</CgFormLayout>
+```
+
+FormLayout is real React composition through private context rather than declaration inspection or registration. Its root, group bodies, and tab panels establish inline-size containers; spans switch at 576, 768, 992, 1200, and 1400 pixels, while side captions become a two-track layout at 560 pixels. A caption is a native label only with `captionFor`; otherwise compatible CashGear fields consume private caption context after explicit ARIA and `CgField` names. Collapsed group bodies remain mounted and hidden, and `CgFormLayoutTabs` uses key-oriented descriptor tabs with retained on-demand content by default. No `CgFormLayoutTabPage` compatibility marker is exported.
+
+## TreeView
+
+`CgTreeView<TItem>` uses immutable keyed descriptors. Supply either nested `children` or one flat collection with `parentKey`; mixing the two forms, duplicate/empty keys, missing parents, cycles, self-parenting, and excessive depth are configuration errors. Caller descriptors are never mutated, and state is preserved by stable key when nodes reorder.
+
+```tsx
+const nodes = [
+  {
+    key: 'products',
+    text: 'Products',
+    children: [
+      { key: 'hardware', text: 'Hardware' },
+      { key: 'software', text: 'Software', searchText: 'applications' },
+    ],
+  },
+] as const;
+
+<CgTreeView
+  nodes={nodes}
+  checkMode="recursive"
+  defaultExpandedKeys={new Set(['products'])}
+  showFilterPanel
+  contextMenuAreas="all"
+  aria-label="Product catalog"
+/>
+```
+
+Selection, expansion, checking, and filtering are independently controlled or uncontrolled. Recursive checking applies to the complete normalized model—even while filtered—and derives checked/mixed ancestors without changing disabled or non-checkable descendants. Filtering retains matching ancestors and transiently expands their paths; clearing it restores committed expansion exactly. Rich React labels need `searchText` or a custom filter predicate because highlighting is built from safe text fragments rather than HTML.
+
+The component owns `tree`/`treeitem`/`group` structure, one roving tab stop, complete physical Left/Right tree navigation in LTR and RTL, selection/check/expansion semantics, and stable instance-scoped DOM IDs. Read-only trees remain navigable. Node and empty-area menus reuse `CgContextMenu`; opening one never selects a node, and commands revalidate their target before execution. `CgTreeViewActions` exposes focus, selection, expansion, checking, ancestor expansion, and scrolling operations. TreeList, lazy loading, virtualization, drag-and-drop, and inline editing remain deliberately outside this component.
+
+## Grid
+
+`CgGrid<TItem>` is a descriptor-driven data grid for local arrays or abortable async providers. Columns require stable `fieldId` identities and explicit typed accessors; `keySelector` supplies stable scalar row identity. The version-8 serializable state carries paging, search, sorting, filters, key selection, focus, column layout, grouping, and remote expansion paths.
+
+```tsx
+const columns: ReadonlyArray<CgGridColumnDescriptor<Invoice>> = [
+  { type: 'text', fieldId: 'customer', accessor: row => row.customer, searchable: true },
+  { type: 'number', fieldId: 'amount', accessor: row => row.amount },
+];
+
+<CgGrid
+  data={invoices}
+  columns={columns}
+  keySelector={row => row.id}
+  selectionMode="multiple"
+  allowGrouping
+  allowColumnChooser
+/>
+```
+
+Local processing is search, filter, total summaries, stable sorting, grouping, then paging. Filters are nested serializable trees and retain caller-owned conditions when the filter row changes. Provider requests use the same stable field IDs and add `rows`, `groupNodes`, and `groupItems` modes with typed group paths, cancellation, sequencing, retained refresh errors, and authoritative summaries.
+
+`CgGridActions<TItem>` exposes refresh, state, focus, selection, grouping, detail, CRUD, layout, and XLSX operations. Popup CRUD uses isolated caller-created models, explicit immutable editor setters, validation results, async confirmation callbacks, and caller-owned persistence. Named views use an injected `CgGridViewStore`; `CgGridBrowserViewStore` is a personal localStorage implementation and server applications can provide secured role/company stores. Local XLSX generation returns bytes before any optional SSR-guarded browser download.
+
+The React adaptation deliberately does not expose Razor child registration, SQL/EF/Dapper stores, or Blazor lifecycle concepts. Inline/cell/batch editing, virtualization, automatic columns, transactional inference, custom aggregates, generic HTTP adapters, LookUpGrid, TreeList, and DateRangePicker remain deferred.
+
 ## MaskedInput
 
 `CgMaskedInput` follows TextBox's `value`, `defaultValue`, and `onValueChange` convention, uses `''` as empty, and forwards its `HTMLInputElement` ref plus native events and attributes. Masks are Unicode-aware: `0`, `L`, `A`, and `*` are required digit/letter/alphanumeric slots; `9`, `l`, `a`, and `?` are optional; backslash escapes the next code point. Empty masks and trailing escapes are configuration errors.
@@ -439,11 +535,13 @@ Components:
 - `CgTextBox`, `CgMemo`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgKeyComboBox`, `CgListBox`, `CgTagBox`, `CgDropDownBox`, `CgDateEdit`
 - `CgFlyout`, `CgPopup`, `CgWindow`, `CgMaskedInput`
 - `CgMenu`, `CgContextMenu`, `CgDropDownButton`, `CgSplitButton`, `CgToolbar`
+- `CgLayoutBreakpoint`, `CgTabs`, `CgStepper`, `CgAccordion`, `CgTreeView`, `CgGrid`
+- `CgFormLayout`, `CgFormLayoutItem`, `CgFormLayoutGroup`, `CgFormLayoutTabs`
 - `CgRadio`, `CgRadioGroup`
 - `CgNumericEdit`, `CgSpinEdit`, `CgSearchBox`
 - `CgLoadingPanel`, `CgProgressBar`
 
-Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, the `CgDateEdit` contracts, the shared overlay contracts, and each Phase 9–10 component's descriptors, props, actions, reasons, lifecycle details, and render/state contexts. Private menu and adaptive-layout engine types are not exported. There is intentionally no universal component-state interface.
+Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, the `CgDateEdit` contracts, the shared overlay contracts, and each descriptor component's props, actions, lifecycle details, and render/state contexts. Private menu, adaptive-layout, and TreeView normalization/check/filter engines are not exported. There is intentionally no universal component-state interface.
 
 The public hooks are `useControllableState`, `useCgId`, and `useCgContextMenuTarget`; `cx` is the public class-name utility. All other primitives and hooks are private implementation details.
 

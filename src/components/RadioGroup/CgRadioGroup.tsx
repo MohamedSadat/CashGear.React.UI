@@ -8,10 +8,10 @@ import styles from './CgRadioGroup.module.css';
 import type { CgRadioGroupProps } from './CgRadioGroup.types';
 
 function CgRadioGroupInner<TValue extends string | number>(
-  { options, value, defaultValue, onValueChange, legend, orientation = 'vertical', wrap = true, size = 'medium', readOnly = false, validationState = 'none', direction = 'auto', renderOption, name, form, id, required, disabled, className, style, 'data-testid': testId, 'aria-describedby': ariaDescribedBy, ...nativeProps }: CgRadioGroupProps<TValue>,
+  { options, value, defaultValue, onValueChange, legend, orientation = 'vertical', wrap = true, size = 'medium', readOnly = false, validationState = 'none', direction = 'auto', renderOption, name, form, id, required, disabled, className, style, 'data-testid': testId, 'aria-describedby': ariaDescribedBy, 'aria-label': ariaLabel, 'aria-labelledby': ariaLabelledBy, ...nativeProps }: CgRadioGroupProps<TValue>,
   forwardedRef: React.ForwardedRef<HTMLFieldSetElement>,
 ) {
-  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy });
+  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
   const generatedName = useCgId(name);
   const groupName = name ?? `${generatedName}-radio`;
   const [selected, setSelected] = useControllableState(value, defaultValue, 'CgRadioGroup');
@@ -44,7 +44,7 @@ function CgRadioGroupInner<TValue extends string | number>(
     }
   };
   return (
-    <fieldset {...nativeProps} ref={ref} id={field.id} form={form} className={cx(styles.group, className)} style={style} disabled={field.disabled} aria-readonly={field.readOnly || undefined} aria-invalid={field.validationState === 'error' || undefined} aria-describedby={field.describedBy} aria-errormessage={field.errorMessageId} data-orientation={orientation} data-wrap={wrap || undefined} data-testid={testId}>
+    <fieldset {...nativeProps} ref={ref} id={field.id} form={form} className={cx(styles.group, className)} style={style} disabled={field.disabled} aria-label={field.ariaLabel} aria-labelledby={field.labelledBy} aria-readonly={field.readOnly || undefined} aria-invalid={field.validationState === 'error' || undefined} aria-describedby={field.describedBy} aria-errormessage={field.errorMessageId} data-orientation={orientation} data-wrap={wrap || undefined} data-testid={testId}>
       {legend ? <legend className={styles.legend}>{legend}{field.required ? <span aria-hidden="true"> *</span> : null}</legend> : null}
       <div className={styles.options}>
         {options.map((option, index) => {

@@ -70,6 +70,8 @@ function CgTagBoxInner<TItem>(
     style,
     'data-testid': testId,
     'aria-describedby': ariaDescribedBy,
+    'aria-label': ariaLabel,
+    'aria-labelledby': ariaLabelledBy,
     onFocus,
     onBlur,
     onKeyDown,
@@ -89,7 +91,7 @@ function CgTagBoxInner<TItem>(
     throw new Error('CgTagBox requires exactly one of options or loadOptions.');
   }
 
-  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy });
+  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
   const inputRef = useRef<HTMLInputElement>(null);
   const controlRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -517,6 +519,8 @@ function CgTagBoxInner<TItem>(
             className={styles.input}
             role="combobox"
             aria-autocomplete="list"
+            aria-label={field.ariaLabel}
+            aria-labelledby={field.labelledBy}
             aria-haspopup="listbox"
             aria-expanded={open}
             aria-controls={open ? listboxId : undefined}

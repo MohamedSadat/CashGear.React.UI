@@ -10,7 +10,7 @@ import styles from './CgNumericEdit.module.css';
 import type { CgNumericChangeReason, CgNumericEditProps } from './CgNumericEdit.types';
 
 export const CgNumericEdit = forwardRef<HTMLInputElement, CgNumericEditProps>(function CgNumericEdit(
-  { value, defaultValue = null, onValueChange, onChange, onInvalidValue, locale, formatStyle = 'decimal', currency, precision, useGrouping = true, min, max, step, allowNegative = true, prefix, suffix, buttons = [], size = 'medium', validationState = 'none', fullWidth = false, id, required, disabled, readOnly, className, style, 'data-testid': testId, onBlur, onFocus, onKeyDown, 'aria-describedby': ariaDescribedBy, ...nativeProps },
+  { value, defaultValue = null, onValueChange, onChange, onInvalidValue, locale, formatStyle = 'decimal', currency, precision, useGrouping = true, min, max, step, allowNegative = true, prefix, suffix, buttons = [], size = 'medium', validationState = 'none', fullWidth = false, id, required, disabled, readOnly, className, style, 'data-testid': testId, onBlur, onFocus, onKeyDown, 'aria-describedby': ariaDescribedBy, 'aria-label': ariaLabel, 'aria-labelledby': ariaLabelledBy, ...nativeProps },
   forwardedRef,
 ) {
   assertFinite('value', value);
@@ -22,7 +22,7 @@ export const CgNumericEdit = forwardRef<HTMLInputElement, CgNumericEditProps>(fu
   }
   if (precision !== undefined) assertNonNegativeInteger('precision', precision);
   if (step !== undefined) assertPositive('step', step);
-  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy });
+  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
   const formatter = useMemo(() => createNumberFormatter({ locale, style: formatStyle, currency, precision, useGrouping }), [currency, formatStyle, locale, precision, useGrouping]);
   const format = useCallback((next: number | null) => next === null ? '' : formatter.format(next), [formatter]);
   const [committed, setCommitted] = useControllableState(value, defaultValue, 'CgNumericEdit');
@@ -77,6 +77,8 @@ export const CgNumericEdit = forwardRef<HTMLInputElement, CgNumericEditProps>(fu
         readOnly={field.readOnly}
         data-step={step}
         aria-required={field.required || undefined}
+        aria-label={field.ariaLabel}
+        aria-labelledby={field.labelledBy}
         aria-invalid={draftInvalid || field.validationState === 'error' || undefined}
         aria-describedby={field.describedBy}
         aria-errormessage={field.errorMessageId}

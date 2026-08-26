@@ -66,6 +66,8 @@ function CgComboBoxInner<TItem>(
     style,
     'data-testid': testId,
     'aria-describedby': ariaDescribedBy,
+    'aria-label': ariaLabel,
+    'aria-labelledby': ariaLabelledBy,
     onFocus,
     onBlur,
     onKeyDown,
@@ -83,7 +85,7 @@ function CgComboBoxInner<TItem>(
     throw new Error('CgComboBox accepts either options or loadOptions, not both.');
   }
 
-  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy });
+  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
   const inputRef = useRef<HTMLInputElement>(null);
   const controlRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -408,6 +410,8 @@ function CgComboBoxInner<TItem>(
           className={styles.input}
           role="combobox"
           aria-autocomplete="list"
+          aria-label={field.ariaLabel}
+          aria-labelledby={field.labelledBy}
           aria-haspopup="listbox"
           aria-expanded={open}
           aria-controls={open ? listboxId : undefined}

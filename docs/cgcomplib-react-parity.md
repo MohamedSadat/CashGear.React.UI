@@ -397,6 +397,95 @@ Phase 10 builds on the clean React baseline `fc6b7139424844f013b94870f141507583d
 
 The completion audit observed the same `517e7eba58cdbcd6ad3f29087837c6ce8895ad2a` HEAD and the exact same status block above. No Phase 10 command wrote to, committed in, formatted, cleaned, reverted, or restored the Razor repository.
 
+## Phase 11 reference refresh
+
+Phase 11 builds on the clean React baseline `d198cd666834c06fde5d60147b51b52c679678e0` and retains every earlier snapshot. LayoutBreakpoint, Tabs, Stepper, Accordion, and FormLayout comparison used the read-only Razor tree below. Baseline Node 24.19 checks passed immediately before editing: strict typecheck, lint, 23 Vitest files/205 tests, cycle analysis across 138 source modules, library build, and package verification of 33 runtime exports across 648 packed files.
+
+- Reference HEAD: `517e7eba58cdbcd6ad3f29087837c6ce8895ad2a`
+- Reference captured immediately before implementation: 2026-08-26
+- LayoutBreakpoint evidence: `CG.CompLib/Comp/Layout/CgLayoutBreakpoint.*`; `CG.CompLib.Tests/CgLayoutBreakpointTests.cs` and `CgLayoutBreakpointBrowserTests.cs`; `CG.CompLib.Demo/Components/Pages/LayoutBreakpointDemo.razor`.
+- Tabs evidence: `CG.CompLib/Comp/Tabs/*`; `CG.CompLib.Tests/CgTabsTests.cs` and `CgTabsBrowserTests.cs`; `CG.CompLib.Demo/Components/Pages/TabsDemo.razor*`.
+- Stepper evidence: `CG.CompLib/Comp/Stepper/*`; `CG.CompLib.Tests/CgStepperTests.cs` and `CgStepperBrowserTests.cs`; `CG.CompLib.Demo/Components/Pages/StepperDemo.razor*`.
+- Accordion evidence: `CG.CompLib/Comp/Accordion/*`; `CG.CompLib.Tests/CgAccordionTests.cs` and `CgAccordionBrowserTests.cs`; `CG.CompLib.Demo/Components/Pages/AccordionDemo.razor*`.
+- FormLayout evidence: `CG.CompLib/Comp/FormLayout/*`; `CG.CompLib.Tests/CgFormLayoutTests.cs` and `CgFormLayoutBrowserTests.cs`; `CG.CompLib.Demo/Components/Pages/FormLayoutDemo.razor*`.
+- `git status --short` immediately before implementation:
+
+```text
+ M CG.CompLib.Demo/Components/Pages/MemoDemo.razor
+ M CG.CompLib.Tests/CgBasicInputTests.cs
+ M CG.CompLib.Tests/EditLedgerJournalPageMigrationTests.cs
+ M CG.CompLib/Comp/FormLayout/README.md
+ M CG.CompLib/Comp/Inputs/CgMemo.md
+ D CG.CompLib/Comp/Inputs/CgTextArea.razor
+ D CG.CompLib/Comp/Inputs/CgTextArea.razor.css
+ M CashGear.App/Components/Comp/GL/UpdateJournalLineComp.razor
+ M CashGear.App/Components/Comp/Inv/UpdateInvJourLineComp.razor
+ M CashGear.App/Components/Comp/Inv/UpdateInvJourRevLineComp.razor
+ M CashGear.App/Components/Comp/Purch/UpdatePurchLineComp.razor
+ M CashGear.App/Components/Pages/Accounting/LrdgerJournalPages/AddLedgerJournalPage.razor
+ M CashGear.App/Components/Pages/Accounting/LrdgerJournalPages/EditLedgerJournalPage.razor
+ M CashGear.App/Components/Pages/Accounting/LrdgerJournalPages/EditLedgerJournalPage.razor.css
+ M CashGear.App/Components/Pages/Accounting/Reports/LedgertransPage.razor
+ M CashGear.App/Components/Pages/Purch/PO/EditPOsPage.razor
+ M CashGear.App/Components/Pages/Purch/PO/EditPOsPage.razor.cs
+ M CashGear.App/Components/Pages/Sales/OrdersReportPage.razor
+?? .claude/settings.local.json
+?? CG.CompLib.Tests/EditPOsPageMigrationTests.cs
+```
+
+The completion audit observed the same React `d198cd666834c06fde5d60147b51b52c679678e0` baseline HEAD and the same Razor `517e7eba58cdbcd6ad3f29087837c6ce8895ad2a` HEAD/status block above. No Phase 11 command wrote to, committed in, formatted, cleaned, reverted, or restored the Razor repository. The React worktree remains intentionally uncommitted.
+
+## Phase 12 reference refresh
+
+Phase 12 starts from the same React HEAD `d198cd666834c06fde5d60147b51b52c679678e0` with the entire uncommitted Phase 11 worktree retained in place. Baseline checks immediately before the first Phase 12 edit passed with the bundled Node 24.19 runtime: strict typecheck, lint, 28 Vitest files/246 tests, and cycle analysis across 161 source modules. The standalone TreeView comparison used the read-only Razor tree below.
+
+- Reference HEAD: `517e7eba58cdbcd6ad3f29087837c6ce8895ad2a`
+- Reference captured immediately before the first React edit: 2026-08-26
+- Source evidence: `CG.CompLib/Comp/TreeView/CgTreeView.razor*`, `CgTreeViewBranch.razor*`, `CgTreeViewNode.razor*`, `CgTreeViewTypes.cs`, `TreeNodeDefinition.cs`, and `README.md`.
+- Test/demo evidence: `CG.CompLib.Tests/CgTreeViewTests.cs`, `CgTreeViewBrowserTests.cs`; `CG.CompLib.Demo/Components/Pages/TreeViewDemo.razor*`.
+- `git status --short` captured with that HEAD:
+
+```text
+ M CG.CompLib.Demo/Components/Pages/MemoDemo.razor
+ M CG.CompLib.Tests/CgBasicInputTests.cs
+ M CG.CompLib.Tests/EditLedgerJournalPageMigrationTests.cs
+ M CG.CompLib/Comp/FormLayout/README.md
+ M CG.CompLib/Comp/Inputs/CgMemo.md
+ D CG.CompLib/Comp/Inputs/CgTextArea.razor
+ D CG.CompLib/Comp/Inputs/CgTextArea.razor.css
+ M CashGear.App/Components/Comp/GL/UpdateJournalLineComp.razor
+ M CashGear.App/Components/Comp/Inv/UpdateInvJourLineComp.razor
+ M CashGear.App/Components/Comp/Inv/UpdateInvJourRevLineComp.razor
+ M CashGear.App/Components/Comp/Purch/UpdatePurchLineComp.razor
+ M CashGear.App/Components/Pages/Accounting/LrdgerJournalPages/AddLedgerJournalPage.razor
+ M CashGear.App/Components/Pages/Accounting/LrdgerJournalPages/EditLedgerJournalPage.razor
+ M CashGear.App/Components/Pages/Accounting/LrdgerJournalPages/EditLedgerJournalPage.razor.css
+ M CashGear.App/Components/Pages/Accounting/Reports/LedgertransPage.razor
+ M CashGear.App/Components/Pages/Purch/PO/EditPOsPage.razor
+ M CashGear.App/Components/Pages/Purch/PO/EditPOsPage.razor.cs
+ M CashGear.App/Components/Pages/Sales/OrdersReportPage.razor
+?? .claude/settings.local.json
+?? CG.CompLib.Tests/EditPOsPageMigrationTests.cs
+```
+
+The completion audit observed the same Razor HEAD and exact status block above. No Phase 12 command wrote to, committed in, formatted, cleaned, reverted, or restored `CGWebApp`. The React worktree remains intentionally uncommitted, including all pre-existing Phase 11 modifications and untracked files.
+
+## Phase 13 — CgGrid
+
+Phase 13 is additive on top of the uncommitted Phase 11 and Phase 12 worktree. The read-only reference is `CG.CompLib/Comp/Grid/*`, `CgGrid*Tests.cs`, and `GridDemo.razor`; `ToolbarGridDemo.razor` informs composition only. No Razor source is modified.
+
+- `CgGrid<TItem>` uses immutable typed column descriptors, explicit accessors and immutable editor setters instead of Razor child registration or expression-driven mutation.
+- Local processing preserves the Razor order: search, filter, filtered-set summaries, stable multi-sort, grouping, and paging. Nested/source-aware filters, whole-day date rules, typed summaries, local multi-level groups, and state-v8 migration are pure modules.
+- The rendered Grid provides semantic row/column metadata, roving cell focus, keyboard activation and selection, paging, search/filter controls, summaries, one active master-detail row, grouping controls, column chooser, resize/reorder/freeze state, and RTL/token-based styling.
+- AbortSignal providers support row, group-node, and group-item requests with typed paths, authoritative counts/summaries, stale-response rejection, retained refresh errors, and remote-export delegation.
+- Popup CRUD composes existing CashGear controls, keeps original rows isolated, validates explicit editor metadata, rejects update key changes, serializes mutations, and uses caller confirmation/persistence callbacks.
+- Context menus reuse Phase 10 `CgContextMenu`. XLSX generation is dependency-free, returns a typed byte result, and performs browser download only through an explicit SSR-safe helper.
+- Named views use an injected store. The bundled browser store is personal/localStorage-only; role/company security remains an application/server concern.
+
+Intentional deferrals remain inline/cell/batch editing, row/column virtualization, automatic column discovery, transactional inference, custom aggregates, generic HTTP adapters, LookUpGrid, TreeList, and DateRangePicker. New visual evidence uses `phase-13-grid-*` names and does not replace Phase 12 TreeView snapshots.
+
+Phase 13 is a broad working implementation, but it is not yet a full-parity claim. Complete frozen-boundary enforcement still needs the Razor edge cases, and context-menu plumbing does not yet render a distinct group-footer surface. Those items remain tracked gaps rather than stubs presented as complete behavior.
+
 ## Implemented inventory
 
 “Mirrored” means the user-visible contract is carried across with React/native-DOM adaptations. “Partially mirrored” identifies a deliberate Phase 2 omission. “New React implementation” has no exact Razor component.
@@ -421,6 +510,13 @@ The completion audit observed the same `517e7eba58cdbcd6ad3f29087837c6ce8895ad2a
 | `CgDropDownButton` | Mirrored | `CG.CompLib/Comp/Buttons/CgDropDownButton.razor`, `CgButtonMenu*`; `ButtonMenusDemo.razor` | `src/components/DropDownButton/*`, shared private menu engine | `tests/button-menu.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/DropDownButton/CgDropDownButton.stories.tsx` | Immutable descriptors or a mutually exclusive arbitrary dialog render callback replace Razor fragments. The existing `CgButton` is solely the trigger. |
 | `CgSplitButton` | Mirrored | `CG.CompLib/Comp/Buttons/CgSplitButton.razor`, `CgButtonMenu*`; `ButtonMenusDemo.razor` | `src/components/SplitButton/*`, `src/components/DropDownButton/ButtonMenu.tsx` | `tests/button-menu.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/SplitButton/CgSplitButton.stories.tsx` | Primary action/form/busy behavior remains on `CgButton`; the logical toggle is isolated and disabled when no visible enabled leaf exists. |
 | `CgToolbar` | Mirrored with pure React layout planner | `CG.CompLib/Comp/Toolbar/*`; Toolbar demo family | `src/components/Toolbar/*`, `src/internal/toolbarLayout.ts` | `tests/toolbar.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/Toolbar/CgToolbar.stories.tsx` | A container `ResizeObserver` drives a pure deterministic stage plan; links remain semantic anchors and menu/split branches reuse the Phase 10 button surfaces. |
+| `CgLayoutBreakpoint` / `useCgLayoutBreakpoint` | Mirrored with SSR-safe React hook | `CG.CompLib/Comp/Layout/CgLayoutBreakpoint.*`; `LayoutBreakpointDemo.razor` | `src/components/LayoutBreakpoint/*` | `tests/layout-breakpoint.test.tsx`, browser semantic/boundary coverage | `src/components/LayoutBreakpoint/CgLayoutBreakpoint.stories.tsx` | `matchMedia` replaces the Razor JS module; hydration starts from `defaultMatches`, listeners are generation-safe, and exact named boundaries are preserved. |
+| `CgTabs` | Mirrored with immutable descriptors | `CG.CompLib/Comp/Tabs/*`; `TabsDemo.razor*` | `src/components/Tabs/*`, `src/internal/keyedCollection.ts`, `src/internal/rovingFocus.ts` | `tests/tabs.test.tsx`, browser semantic/visual coverage | `src/components/Tabs/CgTabs.stories.tsx` | Immutable keyed descriptors replace `CgTabPage` registration. Close is request-only, reordering is pointer-capture based, and on-demand panels retain visited React state. |
+| `CgStepper` | Mirrored with immutable descriptors | `CG.CompLib/Comp/Stepper/*`; `StepperDemo.razor*` | `src/components/Stepper/*`, shared keyed/focus helpers | `tests/stepper.test.tsx`, browser semantic/visual coverage | `src/components/Stepper/CgStepper.stories.tsx` | Immutable steps replace `CgStep` declarations. Abortable guards execute current → target → global, and controlled selection remains authoritative. |
+| `CgAccordion` | Mirrored with immutable tree descriptors | `CG.CompLib/Comp/Accordion/*`; `AccordionDemo.razor*` | `src/components/Accordion/*`, `src/internal/accordionTree.ts`, `src/internal/routeMatch.ts` | `tests/accordion.test.tsx`, browser semantic/visual coverage | `src/components/Accordion/CgAccordion.stories.tsx` | Nested or flat descriptors replace child registration. Safe route primitives are router-free; filtering and per-key lazy loading remain owned by the component. |
+| `CgTreeView` | Mirrored with immutable hierarchy descriptors | `CG.CompLib/Comp/TreeView/*`; `CgTreeViewTests.cs`, `CgTreeViewBrowserTests.cs`; `TreeViewDemo.razor*` | `src/components/TreeView/*`, private `src/internal/treeViewModel.ts`, `treeViewCheck.ts`, `treeViewFilter.ts` | `tests/tree-view.test.tsx`, browser semantic/Axe/visual coverage | `src/components/TreeView/CgTreeView.stories.tsx` | Nested or flat descriptors replace node registration. React owns stable-key state and safe filtering; menus compose the Phase 10 `CgContextMenu`. Lazy loading, virtualization, drag/drop, editing, and TreeList APIs are not included. |
+| `CgGrid` | Partially mirrored with typed React descriptors | `CG.CompLib/Comp/Grid/*`; `CgGrid*Tests.cs`; `GridDemo.razor` | `src/components/Grid/*` | `tests/grid.test.tsx`, browser semantic/visual coverage | `src/components/Grid/CgGrid.stories.tsx` | Immutable descriptors and `CgGridActions` replace registration. Providers receive serializable requests plus `AbortSignal`; views are injected and XLSX generation returns bytes before optional browser download. Remaining parity gaps are documented in the Phase 13 section. |
+| `CgFormLayout` family | Mirrored with real React composition | `CG.CompLib/Comp/FormLayout/*`; `FormLayoutDemo.razor*` | `src/components/FormLayout/*`, `src/internal/formLayout.ts`, private field caption context | `tests/form-layout.test.tsx`, browser semantic/visual coverage | `src/components/FormLayout/CgFormLayout.stories.tsx` | React context and CSS container queries replace declaration inspection and registration. Descriptor tabs replace tab-page markers; no compatibility alias is exported. |
 | `CgPopup` | Mirrored | `CG.CompLib/Comp/Overlays/CgPopup.*`, `CgOverlayBase.cs`, `CgOverlayContracts.cs`; `CG.CompLib.Demo/Components/Pages/PopupWindowDemo.razor` | `src/components/Popup/*`, `src/internal/OverlaySurface.tsx`, `src/internal/overlayStack.ts`, `src/internal/overlayDom.ts` | `tests/popup.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/Popup/CgPopup.stories.tsx` | A body-portalled backdrop/surface replaces native top-layer APIs. React owns focus isolation, exact scroll-style restoration, and full-region render contexts. |
 | `CgWindow` | Mirrored | `CG.CompLib/Comp/Overlays/CgWindow.*`, `CgOverlayBase.cs`, `CgOverlayContracts.cs`; `CG.CompLib.Demo/Components/Pages/PopupWindowDemo.razor` | `src/components/Window/*`, `src/internal/OverlaySurface.tsx`, `src/internal/overlayStack.ts`, `src/internal/overlayDom.ts` | `tests/window.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/Window/CgWindow.stories.tsx` | React modeless windows use a global paint order below modals, scoped Escape ownership, and DOM/ref/selector positioning actions instead of .NET/JS handles. |
 | `CgMaskedInput` | Mirrored with native-form adaptation | `CG.CompLib/Comp/Inputs/CgMaskedInput.*`, `CgMaskedInputTypes.cs`, `CgMaskParser.cs`, `CgMaskState.cs`; `CG.CompLib.Demo/Components/Pages/MaskedInputDemo.razor` | `src/components/MaskedInput/*`, `src/internal/mask.ts` | `tests/masked-input.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/MaskedInput/CgMaskedInput.stories.tsx` | Unicode property matching and UTF-16 caret maps implement the mask without DevExpress. A private native proxy replaces Blazor `EditContext` submission/validation. |
@@ -434,6 +530,28 @@ The completion audit observed the same `517e7eba58cdbcd6ad3f29087837c6ce8895ad2a
 | `CgProgressBar` | New React implementation | No exact source | `src/components/ProgressBar/*` | `tests/loading-progress.test.tsx` | `src/components/ProgressBar/CgProgressBar.stories.tsx` | Native React progress semantics, logical RTL fill, and reduced-motion support. |
 
 The shared hook/primitives layer is covered in `tests/foundation.test.tsx`. The exact runtime export allow-list is guarded by `tests/public-api.test.ts`.
+
+## Phase 12 TreeView behavior
+
+- A private pure hierarchy model validates and clones neither descriptors nor their payloads: it records derived nodes separately, trims and validates required unique keys, rejects nested/flat mixtures, missing or self parents, cycles, and depth beyond 64, then builds roots, complete preorder, key/parent/child maps, visible/selectable/checkable subsets, sibling metadata, and descendant check indexes. Hidden ancestors suppress rendering without deleting descendants from the complete model. No engine type is exported.
+- `selectedKey`, `expandedKeys`, `checkedKeys`, and `filterText` each support controlled and uncontrolled use. Controlled props remain authoritative; stable-key reconciliation removes unknown or unavailable state, emits deduplicated non-user correction details, preserves reordered nodes, and recovers focus to a selected rendered node or the first enabled rendered node. Caller arrays, sets, descriptors, and payloads are never mutated.
+- Row activation, disclosure, and checking are isolated proposal paths. Abortable selection and expansion guards supersede stale work and observe rejection. Recursive checking changes every eligible descendant in the complete model, leaves disabled/non-checkable nodes alone, and derives checked/mixed ancestors; multiple mode changes one key only.
+- The optional `CgTextBox` filter retains an IME-safe draft, honors trimmed minimum eligibility, performs locale-aware case-insensitive contains matching across plain text and `searchText`, safely highlights string fragments, preserves ancestors, and transiently expands match paths without touching committed expansion. Rich labels require `searchText` or a predicate.
+- React owns the structural `tree`, `treeitem`, and `group` roles, stable instance-scoped IDs, level/position/set-size/selection/expansion/check/disabled ARIA, and exactly one roving tab stop. Down/Up wrap; Home/End bound; physical Right/Left expand, descend, collapse, or ascend unchanged under RTL; Enter activates; Space checks or selects; Shift+F10 and Menu invoke the node menu. Read-only retains focus and navigation while suppressing mutations.
+- Node and empty-area commands reuse the Phase 10 `CgContextMenu` lifecycle and target-independent action surface. Opening never changes selection; default commands revalidate the live key before activation, expansion/checking, or copy-key execution. Customization, activation observation, failure handling, focus restoration, and owner cleanup remain authoritative in `CgContextMenu`.
+- Public surface is `CgTreeView`, immutable descriptors, render/lifecycle/context details, and `CgTreeViewActions`; there is no `CgTreeViewNode` registration marker and no speculative TreeList API. Stories cover nested/flat, controlled, check modes, filtering, dynamic reconciliation, menus, disabled/read-only, empty, dark compact, Arabic RTL, narrow wrapping, and keyboard focus states.
+
+## Phase 11 descriptor-layout behavior
+
+- Shared private keyed validation, collection reconciliation, stable DOM IDs, roving movement, controlled-proposal acceptance, and safe route matching serve multiple families. Menu URL/route behavior now uses the safe primitives without a public API change; Accordion keeps its specialized tree/filter/load engine private.
+- LayoutBreakpoint validates a mutually exclusive named band or inclusive integer bounds and renders SSR/hydration from `defaultMatches`. Query replacement detaches modern or legacy listeners, duplicate notifications are suppressed, and stale listener generations cannot commit.
+- Tabs retain caller descriptors, render stable tab/panel relationships, skip disabled tabs for roving focus, and keep close controls outside tab ownership. Manual activation, logical RTL arrows, Delete close, pointer-threshold midpoint reordering, native/button overflow, active-only/all/on-demand content, and imperative focus/activation/scroll actions are covered.
+- Stepper reconciles removed selection to the nearest prior available step, then the first available step. Linear forward motion reaches only the next available step; current `canLeave`, target `canEnter`, and global `beforeSelectionChange` are abortable and ordered. Parent selection bypasses guards, controlled rejection restores the authoritative indicator/focus, and accepted transitions alone produce after-events.
+- Accordion validates nested or flat trees before pruning, including depth 64, missing/self parents, cycles, hierarchy mixing, unsafe URLs, and lazy configuration. Expansion modes propose one complete key set, routing chooses the longest safe normalized match, filtering preserves ancestors with transient expansion and safe fragments, and one abortable cached lazy request is maintained per key.
+- Accordion auto-semantics select tree behavior for hierarchical/navigation/lazy data and disclosure behavior for flat panels. Anchors remain separate from expansion controls; retained on-demand content, reduced motion, forced colors, dark/compact, narrow layout, errors, retry, and busy announcements are included.
+- FormLayout uses composition context only. Item spans default to `12/12/6/6/6/6`; groups and tab containers default to all 12. Root, group bodies, and tab panels establish inline-size containers with breakpoints at 576/768/992/1200/1400px; horizontal captions switch to two tracks at 560px.
+- FormLayout emits a native label only for `captionFor`; otherwise compatible field controls resolve their accessible name in the order explicit `aria-label`, explicit `aria-labelledby`, `CgField`, then FormLayout caption. Collapsed groups remain mounted and hidden, while descriptor tabs inherit root size/direction, provide a fresh nested container, and default to retained on-demand content.
+- Public exports include only the components/hook plus descriptor, props, actions, render-context, lifecycle, reason, and detail types. No dependencies, router coupling, Razor registration mechanism, DevExpress code, or copied asset was added.
 
 ## Phase 10 command-surface behavior
 
@@ -546,26 +664,26 @@ The shared hook/primitives layer is covered in `tests/foundation.test.tsx`. The 
 
 ## Verification result
 
-Verified on 2026-08-26 with the bundled supported Node 24.19 runtime from the uncommitted Phase 10 working tree:
+Verified on 2026-08-26 with the bundled supported Node 24.19 runtime from the uncommitted Phase 12 working tree:
 
 | Command/gate | Result |
 | --- | --- |
 | `npm run typecheck` | Passed (strict TypeScript 6) |
 | `npm run lint` | Passed |
-| `npm run test` | Passed: 23 files, 205 tests |
-| `npm run check:cycles` | Passed: 138 source modules, no relative-import cycles |
-| `npm run build:lib` | Passed: 134 transformed modules; declarations/maps and `dist/cashgear-ui.css` emitted |
-| `npm run build-storybook` | Passed with Storybook 10.5.10; 191 transformed modules |
-| Chromium semantic/Axe | Passed: 68 tests |
-| Firefox semantic/Axe | Headless launch failed before tests with the known Mozilla `RenderCompositorSWGL failed mapping default framebuffer` error and a 30-second launch timeout. The complete 68-test project ran headed: 67 passed in that run and one pre-Phase-10 TagBox case timed out only while closing the Firefox context after its assertions; that exact case passed immediately in isolation. Every Phase 10 Firefox case passed. |
-| WebKit semantic/Axe | Passed: 68 tests |
-| Chromium visual | Passed: 108 tests comparing 116 Windows snapshots; exactly 21 Phase 10 snapshots were added (five Menu, six ContextMenu, five button-menu, and five Toolbar) and no earlier baseline was regenerated |
-| `npm run verify:package` | Passed: 33 runtime exports, 648 packed files, React externalization/declarations/styles/dry-run ESM import verified |
-| `npm run verify` | Not run as one monolithic command because its required headless Firefox project is unsupported on this host. Every source/build/package/Chromium/WebKit/visual constituent passed; the complete headed Firefox project plus the isolated teardown-flake retry covered all 68 Firefox cases. |
+| `npm run test` | Passed: 29 files, 265 tests |
+| `npm run check:cycles` | Passed: 167 source modules, no relative-import cycles |
+| `npm run build:lib` | Passed: 162 transformed modules; declarations/maps and `dist/cashgear-ui.css` emitted |
+| `npm run build-storybook` | Passed with Storybook 10.5.10; 223 transformed modules |
+| Chromium semantic/Axe | Passed: all 81 tests. The canonical TreeView story had no serious or critical Axe findings; pointer/check/filter/dynamic-node, roving keyboard, physical RTL arrows, Shift+F10/Menu, commands, and focus cases passed. The three Phase 12 cases also passed again after the final edge-case audit. |
+| Firefox semantic/Axe | The existing Windows host launch problem occurred before page creation: both the full headless project and the three headed Phase 12 cases timed out after launching `firefox.exe`. No story, Axe scan, or component assertion ran, so this is recorded as an environment-blocked gate rather than a component failure. |
+| WebKit semantic/Axe | Passed: all 81 tests, including every Phase 12 canonical/interaction case. The three Phase 12 cases also passed again after the final edge-case audit. |
+| Chromium visual | Passed: 144 tests comparing 152 Windows snapshots. Exactly nine Phase 12 TreeView baselines were added (basic, selected/expanded, recursive mixed, filtered, disabled/read-only, context menu, dark compact, Arabic RTL narrow, and empty); visual review accepted all nine, and all 143 prior baselines remained unchanged. |
+| `npm run verify:package` | Passed: 43 runtime exports, 784 packed files, React externalization/declarations/styles/dry-run ESM import verified |
+| `npm run verify` | Invoked. Typecheck, lint, the then-current 261 tests, cycle analysis, library build, Storybook build, and all 81 Chromium semantic/Axe cases passed in the aggregate run. It then reproduced the Firefox launch timeout and was stopped before repeated 30-second worker relaunches. Four supplemental controlled-checking, expansion-cancellation, focus-recovery, and ContextMenu lifecycle cases were added afterward; the complete 265-test suite plus typecheck/lint passed again. WebKit, visual, and package gates passed independently as recorded above. |
 
 ## Deferred inventory
 
-These rows are evidence only. No public React API or implementation is included in Phase 1–10.
+These rows are evidence only. No public React API or implementation is included in Phase 1–12.
 
 | Planned component | Razor evidence | Status |
 | --- | --- | --- |
@@ -582,7 +700,7 @@ These rows are evidence only. No public React API or implementation is included 
 
 - Decide on a decimal/arbitrary-precision value model before using numeric editors for accounting amounts that cannot tolerate IEEE-754 rounding.
 - TagBox intentionally binds selected objects; scalar-key adapters, custom key comparers, and selected-key hydration remain deferred.
-- DropDownBox intentionally leaves remote data ownership, hosted Grid/TreeView/DateRangePicker implementations, browser top-layer popovers, and focus trapping to callers or later component phases.
+- DropDownBox intentionally leaves remote data ownership, hosted Grid/DateRangePicker implementations, browser top-layer popovers, and focus trapping to callers or later component phases. The standalone TreeView can be composed by callers but is not coupled into DropDownBox.
 - ListBox remote loading/paging, drag/drop, sorting, column resizing, editing, nested groups, summaries, and export are intentionally outside Phase 4.
 - Browser gates are local; this phase intentionally adds no GitHub Actions workflow. Chromium snapshots must be compared and regenerated on the same platform.
 - Start each deferred advanced control with a fresh Razor working-tree audit because several reference components are currently uncommitted.

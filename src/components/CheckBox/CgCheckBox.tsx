@@ -9,10 +9,10 @@ import type { CgCheckedState, CgCheckBoxProps } from './CgCheckBox.types';
 const nextState = (current: CgCheckedState): CgCheckedState => current === 'indeterminate' ? true : current ? false : 'indeterminate';
 
 export const CgCheckBox = forwardRef<HTMLInputElement, CgCheckBoxProps>(function CgCheckBox(
-  { checked, defaultChecked = false, onCheckedChange, onChange, cycleIndeterminate = false, label, description, labelPosition = 'end', size = 'medium', readOnly, validationState = 'none', id, required, disabled, className, style, 'data-testid': testId, onClick, 'aria-describedby': ariaDescribedBy, ...nativeProps },
+  { checked, defaultChecked = false, onCheckedChange, onChange, cycleIndeterminate = false, label, description, labelPosition = 'end', size = 'medium', readOnly, validationState = 'none', id, required, disabled, className, style, 'data-testid': testId, onClick, 'aria-describedby': ariaDescribedBy, 'aria-label': ariaLabel, 'aria-labelledby': ariaLabelledBy, ...nativeProps },
   forwardedRef,
 ) {
-  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy });
+  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
   const [state, setState] = useControllableState(checked, defaultChecked, 'CgCheckBox');
   const inputRef = useRef<HTMLInputElement>(null);
   const ref = useMergedRefs(inputRef, forwardedRef);
@@ -43,6 +43,8 @@ export const CgCheckBox = forwardRef<HTMLInputElement, CgCheckBoxProps>(function
         disabled={field.disabled}
         required={field.required}
         aria-checked={state === 'indeterminate' ? 'mixed' : state}
+        aria-label={field.ariaLabel}
+        aria-labelledby={field.labelledBy}
         aria-readonly={field.readOnly || undefined}
         aria-invalid={field.validationState === 'error' || undefined}
         aria-describedby={describedBy}

@@ -2,3 +2,4 @@ export { CgFieldContext, mergeAriaIds, useCgFieldContext } from './CgFieldContex
 export type { CgFieldContextValue } from './CgFieldContext';
 export { useFieldControl } from './useFieldControl';
 export type { FieldControlOptions } from './useFieldControl';
+export { CgFormLayoutCaptionContext, useCgFormLayoutCaptionId } from './CgFormLayoutCaptionContext';

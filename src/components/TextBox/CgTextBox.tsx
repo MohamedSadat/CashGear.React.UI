@@ -40,12 +40,14 @@ export const CgTextBox = forwardRef<HTMLInputElement, CgTextBoxProps>(function C
     onCompositionStart,
     onCompositionEnd,
     'aria-describedby': ariaDescribedBy,
+    'aria-label': ariaLabel,
+    'aria-labelledby': ariaLabelledBy,
     ...nativeProps
   },
   forwardedRef,
 ) {
   assertNonNegative('debounceMs', debounceMs);
-  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy });
+  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
   const [committed, setCommitted] = useControllableState(value, defaultValue, 'CgTextBox');
   const [draft, setDraft] = useState(committed);
   const [revealed, setRevealed] = useState(false);
@@ -120,6 +122,8 @@ export const CgTextBox = forwardRef<HTMLInputElement, CgTextBoxProps>(function C
         disabled={field.disabled}
         readOnly={field.readOnly}
         aria-required={field.required || undefined}
+        aria-label={field.ariaLabel}
+        aria-labelledby={field.labelledBy}
         aria-invalid={field.validationState === 'error' || undefined}
         aria-describedby={field.describedBy}
         aria-errormessage={field.errorMessageId}

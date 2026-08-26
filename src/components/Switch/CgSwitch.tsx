@@ -8,10 +8,10 @@ import styles from './CgSwitch.module.css';
 import type { CgSwitchProps } from './CgSwitch.types';
 
 export const CgSwitch = forwardRef<HTMLInputElement, CgSwitchProps>(function CgSwitch(
-  { checked, defaultChecked = false, onCheckedChange, onChange, label, description, labelPosition = 'end', size = 'medium', readOnly, validationState = 'none', id, required, disabled, className, style, 'data-testid': testId, onClick, 'aria-describedby': ariaDescribedBy, ...nativeProps },
+  { checked, defaultChecked = false, onCheckedChange, onChange, label, description, labelPosition = 'end', size = 'medium', readOnly, validationState = 'none', id, required, disabled, className, style, 'data-testid': testId, onClick, 'aria-describedby': ariaDescribedBy, 'aria-label': ariaLabel, 'aria-labelledby': ariaLabelledBy, ...nativeProps },
   forwardedRef,
 ) {
-  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy });
+  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
   const [state, setState] = useControllableState(checked, defaultChecked, 'CgSwitch');
   const inputRef = useRef<HTMLInputElement>(null);
   const ref = useMergedRefs(inputRef, forwardedRef);
@@ -39,6 +39,8 @@ export const CgSwitch = forwardRef<HTMLInputElement, CgSwitchProps>(function CgS
         disabled={field.disabled}
         required={field.required}
         aria-readonly={field.readOnly || undefined}
+        aria-label={field.ariaLabel}
+        aria-labelledby={field.labelledBy}
         aria-invalid={field.validationState === 'error' || undefined}
         aria-describedby={describedBy}
         aria-errormessage={field.errorMessageId}

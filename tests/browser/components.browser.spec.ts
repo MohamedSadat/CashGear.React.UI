@@ -42,6 +42,12 @@ const canonicalStories = [
   'phase-10-splitbutton--default',
   'phase-10-toolbar--full',
   'phase-10-toolbar--narrow-popup',
+  'phase-11-layoutbreakpoint--named-bands',
+  'phase-11-tabs--controlled-closable-reorderable',
+  'phase-11-stepper--controlled-horizontal',
+  'phase-11-accordion--controlled-disclosure',
+  'phase-11-formlayout--standard-responsive',
+  'phase-12-treeview--nested-descriptors',
 ] as const;
 
 for (const story of canonicalStories) {
@@ -791,4 +797,210 @@ test('Toolbar roves focus, opens shared menus, overflows in narrow containers, a
   await openStory(page, 'phase-10-toolbar--narrow-popup');
   await expect(page.getByRole('dialog', { name: 'Toolbar in popup' })).toBeVisible();
   await expect(page.getByRole('toolbar')).toBeVisible();
+});
+
+test('LayoutBreakpoint switches at every exact viewport boundary', async ({ page }) => {
+  for (const [width, active] of [[575, 'x-small'], [576, 'small'], [767, 'small'], [768, 'medium'], [991, 'medium'], [992, 'large'], [1199, 'large'], [1200, 'x-large']] as const) {
+    await page.setViewportSize({ width, height: 720 });
+    await openStory(page, 'phase-11-layoutbreakpoint--named-bands');
+    await expect(page.getByTestId(`${active}-state`)).toHaveText(`${active}: active`);
+  }
+});
+
+test('Tabs support keyboard, retained content, close, reorder, overflow, and RTL', async ({ page }) => {
+  await openStory(page, 'phase-11-tabs--controlled-closable-reorderable');
+  const general = page.getByRole('tab', { name: 'General' });
+  const lines = page.getByRole('tab', { name: 'Order lines' });
+  await general.focus(); await general.press('ArrowRight'); await expect(lines).toBeFocused(); await lines.press('Enter');
+  const draft = page.getByRole('textbox', { name: 'Line state' }); await draft.fill('retained');
+  await general.click(); await lines.click(); await expect(draft).toHaveValue('retained');
+  const from = page.locator('[data-tab-key="general"]'); const to = page.locator('[data-tab-key="lines"]');
+  const fromBox = await from.boundingBox(); const toBox = await to.boundingBox();
+  if (fromBox && toBox) { await page.mouse.move(fromBox.x + fromBox.width / 2, fromBox.y + fromBox.height / 2); await page.mouse.down(); await page.mouse.move(toBox.x + toBox.width, toBox.y + toBox.height / 2, { steps: 5 }); await page.mouse.up(); }
+  await expect(page.getByRole('tab').first()).toHaveText(/Order lines/u);
+  await page.getByRole('button', { name: 'Close Order lines' }).click(); await expect(lines).toHaveCount(0);
+
+  await openStory(page, 'phase-11-tabs--overflow-buttons'); await expect(page.getByRole('button', { name: 'Next tabs' })).toBeVisible();
+  await openStory(page, 'phase-11-tabs--arabic-rtl', 'theme:light;density:comfortable;direction:rtl');
+  const rtlFirst = page.getByRole('tab', { name: 'عام' }); await rtlFirst.focus(); await rtlFirst.press('ArrowLeft'); await expect(page.getByRole('tab', { name: 'السطور' })).toBeFocused();
+});
+
+test('Stepper preserves linear keyboard and physical RTL navigation with active content', async ({ page }) => {
+  await openStory(page, 'phase-11-stepper--controlled-horizontal');
+  const customer = page.getByRole('button', { name: /Customer/u }); await customer.focus(); await customer.press('ArrowRight');
+  const lines = page.getByRole('button', { name: /Lines/u }); await expect(lines).toBeFocused(); await lines.press('Enter'); await expect(page.getByRole('region')).toContainText('Line editor');
+  await openStory(page, 'phase-11-stepper--arabic-rtl', 'theme:light;density:comfortable;direction:rtl');
+  const first = page.getByRole('button', { name: /العميل/u }); await first.focus(); await first.press('ArrowLeft'); await expect(page.getByRole('button', { name: /السطور/u })).toBeFocused();
+});
+
+test('Accordion supports tree navigation, route anchors, filtering, and retryable lazy failure', async ({ page }) => {
+  await openStory(page, 'phase-11-accordion--nested-tree');
+  await expect(page.getByRole('link', { name: 'Orders' })).toHaveAttribute('href', '/sales/orders');
+  const sales = page.getByRole('button', { name: 'Sales' }); await sales.focus(); await sales.press('ArrowRight'); await expect(page.getByRole('link', { name: 'Orders' })).toBeFocused();
+
+  await openStory(page, 'phase-11-accordion--filtered');
+  const filter = page.getByRole('searchbox', { name: 'Filter items' }); await filter.fill('not present'); await expect(page.getByText('No matching sections.')).toBeVisible();
+  await filter.fill('aging'); await expect(page.getByText('Aging report')).toBeVisible();
+
+  await openStory(page, 'phase-11-accordion--lazy-failure');
+  await page.getByRole('button', { name: 'Remote children' }).click(); await expect(page.getByRole('alert')).toContainText('Could not load items'); await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible();
+});
+
+test('TreeView supports separated pointer selection, expansion, recursive checking, filtering, and dynamic nodes', async ({ page }) => {
+  await openStory(page, 'phase-12-treeview--recursive-checking');
+  const products = page.locator('[data-node-key="products"]');
+  const hardware = page.locator('[data-node-key="hardware"]');
+  const keyboard = page.locator('[data-node-key="keyboard"]');
+  await expect(products).toHaveAttribute('role', 'treeitem');
+  await expect(products).toHaveAttribute('aria-level', '1');
+  await products.locator(':scope > div > button[role="checkbox"]').click();
+  await expect(products).toHaveAttribute('aria-checked', 'true');
+  await keyboard.locator(':scope > div > button[role="checkbox"]').click();
+  await expect(products).toHaveAttribute('aria-checked', 'mixed');
+  await hardware.locator(':scope > div').first().click();
+  await expect(hardware).toHaveAttribute('aria-selected', 'true');
+  await expect(hardware).toHaveAttribute('aria-expanded', 'true');
+  await hardware.locator(':scope > div > button').first().click();
+  await expect(hardware).toHaveAttribute('aria-expanded', 'false');
+  await expect(hardware).toHaveAttribute('aria-selected', 'true');
+
+  await openStory(page, 'phase-12-treeview--filtering');
+  const filter = page.getByRole('searchbox', { name: 'Filter tree' });
+  await expect(page.locator('[data-node-key="mouse"]')).toBeVisible();
+  await filter.fill('not present');
+  await expect(page.getByText('No matching nodes')).toBeVisible();
+  await filter.fill('bluetooth');
+  await expect(page.locator('[data-node-key="products"]')).toHaveAttribute('aria-expanded', 'true');
+  await filter.fill('');
+  await expect(page.locator('[data-node-key="products"]')).toHaveAttribute('aria-expanded', 'false');
+
+  await openStory(page, 'phase-12-treeview--dynamic-removal');
+  await expect(page.locator('[data-node-key="mouse"]')).toHaveAttribute('aria-selected', 'true');
+  await page.getByTestId('toggle-mouse').click();
+  await expect(page.locator('[data-node-key="mouse"]')).toHaveCount(0);
+});
+
+test('TreeView implements one roving tab stop, physical arrows in RTL, activation keys, and keyboard context menus', async ({ page }) => {
+  await openStory(page, 'phase-12-treeview--multiple-checking');
+  const root = page.locator('[data-node-key="products"]');
+  await root.focus();
+  await root.press('ArrowDown');
+  const hardware = page.locator('[data-node-key="hardware"]');
+  await expect(hardware).toBeFocused();
+  await hardware.press('End');
+  await expect(page.locator('[data-node-key="services"]')).toBeFocused();
+  await page.locator('[data-node-key="services"]').press('ArrowDown');
+  await expect(root).toBeFocused();
+  await root.press('ArrowRight');
+  await expect(hardware).toBeFocused();
+  await hardware.press('Enter');
+  await expect(hardware).toHaveAttribute('aria-selected', 'true');
+  await hardware.press(' ');
+  await expect(hardware).toHaveAttribute('aria-checked', 'true');
+  await hardware.press('ArrowLeft');
+  await expect(hardware).toHaveAttribute('aria-expanded', 'false');
+  await hardware.press('Home');
+  await expect(root).toBeFocused();
+  await expect(page.locator('[role="treeitem"][tabindex="0"]')).toHaveCount(1);
+
+  await openStory(page, 'phase-12-treeview--arabic-rtl', 'theme:light;density:comfortable;direction:rtl');
+  const rtlRoot = page.locator('[data-node-key="sales-ar"]');
+  await rtlRoot.focus();
+  await rtlRoot.press('ArrowLeft');
+  await expect(rtlRoot).toHaveAttribute('aria-expanded', 'false');
+  await rtlRoot.press('ArrowRight');
+  await expect(rtlRoot).toHaveAttribute('aria-expanded', 'true');
+
+  await openStory(page, 'phase-12-treeview--context-menus');
+  const contextRoot = page.locator('[data-node-key="products"]');
+  await contextRoot.focus();
+  await contextRoot.press('Shift+F10');
+  await expect(page.getByRole('menuitem', { name: 'Collapse' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await contextRoot.focus();
+  await contextRoot.dispatchEvent('keydown', { key: 'ContextMenu', code: 'ContextMenu', bubbles: true });
+  await expect(page.getByRole('menuitem', { name: 'Open' })).toBeVisible();
+  await page.getByRole('menuitem', { name: 'Open' }).click();
+  await expect(contextRoot).toHaveAttribute('aria-selected', 'true');
+});
+
+test('FormLayout uses exact container boundaries and adapts in Popup and Window', async ({ page }) => {
+  await openStory(page, 'phase-11-formlayout--exact-container-boundaries');
+  const layout = page.getByTestId('boundary-layout'); const item = page.getByTestId('boundary-item');
+  for (const [width, span] of [[575, 12], [576, 11], [767, 11], [768, 9], [991, 9], [992, 7], [1199, 7], [1200, 5], [1399, 5], [1400, 3]] as const) {
+    await layout.evaluate((element, value) => { element.style.inlineSize = `${value}px`; }, width);
+    await expect.poll(() => item.evaluate((element) => getComputedStyle(element).gridColumnStart)).toBe(`span ${span}`);
+  }
+  await layout.evaluate((element) => { element.style.inlineSize = '559px'; });
+  const inner = item.locator(':scope > div').first(); const narrowColumns = await inner.evaluate((element) => getComputedStyle(element).gridTemplateColumns);
+  await layout.evaluate((element) => { element.style.inlineSize = '560px'; });
+  await expect.poll(() => inner.evaluate((element) => getComputedStyle(element).gridTemplateColumns)).not.toBe(narrowColumns);
+
+  await openStory(page, 'phase-11-formlayout--popup-container'); await expect(page.getByRole('dialog', { name: 'Narrow form' })).toBeVisible(); await expect(page.getByRole('textbox', { name: 'Customer' })).toBeVisible();
+  await openStory(page, 'phase-11-formlayout--window-container'); await expect(page.getByRole('dialog', { name: 'Modeless form' })).toBeVisible(); await expect(page.getByRole('textbox', { name: 'Customer' })).toBeVisible();
+});
+
+test('Phase 13 Grid supports accessible sorting, selection, grouping, personalization, CRUD, and context commands', async ({ page }) => {
+  const browserProblems: string[] = [];
+  page.on('console', (message) => { if (message.type() === 'error' || message.type() === 'warning') browserProblems.push(message.text()); });
+  page.on('pageerror', (error) => browserProblems.push(error.message));
+  await openStory(page, 'phase-13-grid--basic-local');
+  const grid = page.getByRole('grid', { name: 'Invoice grid' });
+  await expect(grid).toHaveAttribute('aria-rowcount', '37');
+  await expect(grid).toHaveAttribute('aria-colcount', '7');
+  const amountHeader = page.getByRole('columnheader', { name: /Amount/u });
+  await amountHeader.getByRole('button').click();
+  await expect(amountHeader).toHaveAttribute('aria-sort', 'ascending');
+
+  await openStory(page, 'phase-13-grid--selection');
+  const selectAll = page.getByRole('checkbox', { name: 'Select all visible rows' });
+  await selectAll.click();
+  await expect(selectAll).toBeChecked();
+  await expect(page.getByRole('row', { selected: true })).toHaveCount(36);
+  const firstCell = page.getByRole('gridcell').first();
+  await firstCell.focus();
+  await firstCell.press('ArrowRight');
+  await expect(page.locator('[role="gridcell"][data-column-id="id"][tabindex="0"]')).toBeFocused();
+
+  await openStory(page, 'phase-13-grid--local-grouping');
+  const firstGroup = page.locator('tbody tr[aria-expanded]').first();
+  await firstGroup.getByRole('button').click();
+  await expect(firstGroup).toHaveAttribute('aria-expanded', 'false');
+
+  await openStory(page, 'phase-13-grid--column-personalization');
+  await page.getByRole('button', { name: 'Columns' }).click();
+  const chooser = page.getByRole('dialog', { name: 'Columns' });
+  await expect(chooser.getByRole('button', { name: 'Show all' })).toBeVisible();
+  await chooser.getByRole('button', { name: 'Hide all' }).click();
+  await expect(page.getByRole('columnheader', { name: /Invoice/u })).toBeVisible();
+  const separator = page.getByRole('separator', { name: 'Resize Invoice' });
+  await separator.focus();
+  await separator.press('ArrowRight');
+
+  await openStory(page, 'phase-13-grid--popup-crud');
+  await page.getByRole('button', { name: 'Edit' }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Edit row' });
+  await dialog.getByRole('textbox', { name: /Customer/u }).fill('Updated Customer');
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole('grid')).toContainText('Updated Customer');
+
+  await openStory(page, 'phase-13-grid--context-menus');
+  await page.getByRole('columnheader', { name: /Customer/u }).click({ button: 'right' });
+  await expect(page.getByRole('menuitem', { name: 'Sort ascending' })).toBeVisible();
+
+  await openStory(page, 'phase-13-grid--remote-grouping');
+  const remoteGroup = page.locator('tbody tr[aria-expanded]').first();
+  await remoteGroup.getByRole('button').click();
+  await expect(page.getByRole('grid')).toContainText('Acme Trading');
+
+  await openStory(page, 'phase-13-grid--empty-state');
+  await expect(page.getByText('No records found')).toBeVisible();
+  await openStory(page, 'phase-13-grid--loading-state');
+  await expect(page.getByText('Loading…')).toBeVisible();
+  await openStory(page, 'phase-13-grid--error-state');
+  await expect(page.getByRole('alert')).toContainText('Unable to load records');
+  await openStory(page, 'phase-13-grid--arabic-rtl-narrow', 'theme:light;density:comfortable;direction:rtl');
+  await expect(page.locator('[dir="rtl"]').first()).toBeVisible();
+  expect(browserProblems).toEqual([]);
 });

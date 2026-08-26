@@ -111,6 +111,8 @@ export const CgMaskedInput = forwardRef<HTMLInputElement, CgMaskedInputProps>(fu
     style,
     'data-testid': testId,
     'aria-describedby': ariaDescribedBy,
+    'aria-label': ariaLabel,
+    'aria-labelledby': ariaLabelledBy,
     onBeforeInput,
     onInput,
     onChange,
@@ -130,7 +132,7 @@ export const CgMaskedInput = forwardRef<HTMLInputElement, CgMaskedInputProps>(fu
 ) {
   const definition = useMemo(() => compileMask(mask), [mask]);
   const prompt = useMemo(() => validatePromptCharacter(promptCharacter), [promptCharacter]);
-  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy });
+  const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
   const inputRef = useRef<HTMLInputElement>(null);
   const proxyRef = useRef<HTMLSelectElement>(null);
   const mergedRef = useMergedRefs(inputRef, forwardedRef);
@@ -365,6 +367,8 @@ export const CgMaskedInput = forwardRef<HTMLInputElement, CgMaskedInputProps>(fu
           disabled={field.disabled}
           readOnly={field.readOnly}
           aria-required={field.required || undefined}
+          aria-label={field.ariaLabel}
+          aria-labelledby={field.labelledBy}
           aria-invalid={effectiveValidation === 'error' || undefined}
           aria-describedby={describedBy}
           aria-errormessage={internalMessage ? errorId : field.errorMessageId}
