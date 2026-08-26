@@ -48,6 +48,7 @@ const canonicalStories = [
   'phase-11-accordion--controlled-disclosure',
   'phase-11-formlayout--standard-responsive',
   'phase-12-treeview--nested-descriptors',
+  'phase-14-lookupgrid--local-item-lookup',
 ] as const;
 
 for (const story of canonicalStories) {
@@ -1002,5 +1003,108 @@ test('Phase 13 Grid supports accessible sorting, selection, grouping, personaliz
   await expect(page.getByRole('alert')).toContainText('Unable to load records');
   await openStory(page, 'phase-13-grid--arabic-rtl-narrow', 'theme:light;density:comfortable;direction:rtl');
   await expect(page.locator('[dir="rtl"]').first()).toBeVisible();
+  expect(browserProblems).toEqual([]);
+});
+
+test('Phase 14 LookUpGrid covers lookup interaction, ERP context, accessibility, and dismissal', async ({ page, browserName }) => {
+  test.slow();
+  const browserProblems: string[] = [];
+  page.on('console', (message) => { if (message.type() === 'error' || message.type() === 'warning') browserProblems.push(message.text()); });
+  page.on('pageerror', (error) => browserProblems.push(error.message));
+
+  await openStory(page, 'phase-14-lookupgrid--local-item-lookup');
+  let input = page.getByRole('combobox', { name: 'Local item' });
+  await expect(page.getByRole('grid')).toBeVisible();
+  await input.fill('Drive Shaft 2');
+  await expect(page.getByRole('row').filter({ hasText: 'ITM-0002' })).toBeVisible();
+  await page.getByRole('row').filter({ hasText: 'ITM-0002' }).click();
+  await expect(input).toHaveValue(/ITM-0002/u);
+  await expect(input).toHaveAttribute('aria-expanded', 'false');
+
+  await openStory(page, 'phase-14-lookupgrid--server-customer-lookup');
+  input = page.getByRole('combobox', { name: 'Server customer' });
+  await input.fill('Precision');
+  await input.fill('Hydraulic');
+  await expect(page.getByRole('row').filter({ hasText: 'Hydraulic' }).first()).toBeVisible();
+  await expect(page.getByRole('row').filter({ hasText: 'Precision' })).toHaveCount(0);
+
+  await openStory(page, 'phase-14-lookupgrid--existing-key-resolved-asynchronously');
+  await expect(page.getByRole('combobox', { name: 'Resolved item' })).toHaveValue(/ITM-0078/u);
+  await expect(page.getByRole('combobox', { name: 'Resolved item' })).toHaveAttribute('aria-expanded', 'false');
+
+  await openStory(page, 'phase-14-lookupgrid--column-filter-row');
+  input = page.getByRole('combobox', { name: 'Filtered item' });
+  await input.press('Tab');
+  const firstFilter = page.getByRole('textbox', { name: 'Filter code' });
+  await expect(firstFilter).toBeFocused();
+  await firstFilter.fill('ITM-0003');
+  await expect(page.getByRole('row').filter({ hasText: 'ITM-0003' })).toBeVisible();
+  await firstFilter.press('Escape');
+  await expect(input).toBeFocused();
+  await expect(input).toHaveAttribute('aria-expanded', 'false');
+
+  await openStory(page, 'phase-14-lookupgrid--append-paging');
+  await expect(page.locator('[role="rowgroup"] > [role="row"]')).toHaveCount(8);
+  await page.getByRole('button', { name: 'Load more' }).click();
+  await expect(page.locator('[role="rowgroup"] > [role="row"]')).toHaveCount(16);
+
+  await openStory(page, 'phase-14-lookupgrid--sorting');
+  const codeHeader = page.getByRole('columnheader', { name: 'Item' });
+  await codeHeader.getByRole('button').click();
+  await expect(codeHeader).toHaveAttribute('aria-sort', 'ascending');
+  input = page.getByRole('combobox', { name: 'Sorted item' });
+  await input.press('Control+ArrowDown');
+  await expect(input).toBeFocused();
+  await expect(input).toHaveAttribute('aria-expanded', 'true');
+
+  await openStory(page, 'phase-14-lookupgrid--disabled-ledger-rows');
+  input = page.getByRole('combobox', { name: 'Ledger account' });
+  const disabledRow = page.locator('[role="row"][aria-disabled="true"]').first();
+  await disabledRow.click({ force: true });
+  await expect(input).toHaveAttribute('aria-expanded', 'true');
+  await input.press('Home');
+  await expect(input).not.toHaveAttribute('aria-activedescendant', await disabledRow.getAttribute('id') ?? '');
+
+  await openStory(page, 'phase-14-lookupgrid--validation-and-required-field');
+  input = page.getByRole('combobox', { name: 'Required product' });
+  await expect(input).toHaveAttribute('aria-invalid', 'true');
+  await page.getByRole('button', { name: 'Submit' }).click();
+  await expect(input).toBeFocused();
+
+  await openStory(page, 'phase-14-lookupgrid--view-all-integration');
+  await page.getByRole('button', { name: 'View all' }).click();
+  await expect(page.getByRole('dialog', { name: 'Advanced item search' })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Item with advanced search' })).toHaveAttribute('aria-expanded', 'false');
+
+  await openStory(page, 'phase-14-lookupgrid--multiple-instances');
+  const first = page.getByRole('combobox', { name: 'First item' });
+  const second = page.getByRole('combobox', { name: 'Second item' });
+  await first.click();
+  await expect(first).toHaveAttribute('aria-expanded', 'true');
+  await second.click();
+  await expect(first).toHaveAttribute('aria-expanded', 'false');
+  await expect(second).toHaveAttribute('aria-expanded', 'true');
+  await second.press('Escape');
+  await expect(second).toHaveAttribute('aria-expanded', 'false');
+
+  await openStory(page, 'phase-14-lookupgrid--narrow-viewport-and-flyout-flip');
+  await expect(page.locator('[data-cg-flyout-placed="top"]')).toBeVisible();
+  await expect(page.getByRole('grid')).toBeVisible();
+
+  await openStory(page, 'phase-14-lookupgrid--arabic-rtl-lookup', 'theme:light;density:comfortable;direction:rtl');
+  await expect(page.locator('[dir="rtl"]').first()).toBeVisible();
+  input = page.getByRole('combobox', { name: 'الصنف' });
+  await input.fill('احمد');
+  await expect(page.getByRole('row').filter({ hasText: 'أَحْمَد' })).toBeVisible();
+
+  if (browserName === 'chromium') {
+    await page.emulateMedia({ forcedColors: 'active' });
+    await openStory(page, 'phase-14-lookupgrid--templates-and-custom-footer');
+    const selectedRow = page.locator('[role="row"][aria-selected="true"]').first();
+    await expect(selectedRow).toBeVisible();
+    await expect(selectedRow).toHaveCSS('forced-color-adjust', 'none');
+    await page.emulateMedia({ forcedColors: 'none' });
+  }
+
   expect(browserProblems).toEqual([]);
 });

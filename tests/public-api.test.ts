@@ -29,6 +29,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'CgLayoutBreakpoint',
   'CgListBox',
   'CgLoadingPanel',
+  'CgLookUpGrid',
   'CgMaskedInput',
   'CgMemo',
   'CgMenu',

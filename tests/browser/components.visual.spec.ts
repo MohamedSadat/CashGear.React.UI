@@ -209,6 +209,34 @@ for (const [name, story, globals, narrow] of [
 }
 
 for (const [name, story, globals, narrow] of [
+  ['phase-14-lookupgrid-local', 'phase-14-lookupgrid--local-item-lookup', undefined, false],
+  ['phase-14-lookupgrid-filters', 'phase-14-lookupgrid--column-filter-row', undefined, false],
+  ['phase-14-lookupgrid-disabled', 'phase-14-lookupgrid--disabled-ledger-rows', undefined, false],
+  ['phase-14-lookupgrid-error', 'phase-14-lookupgrid--error-and-retry', undefined, false],
+  ['phase-14-lookupgrid-dark', 'phase-14-lookupgrid--dark-theme', 'theme:dark;density:compact;direction:ltr', false],
+  ['phase-14-lookupgrid-rtl', 'phase-14-lookupgrid--arabic-rtl-lookup', 'theme:light;density:comfortable;direction:rtl', false],
+  ['phase-14-lookupgrid-narrow-flip', 'phase-14-lookupgrid--narrow-viewport-and-flyout-flip', undefined, true],
+] as const) {
+  test(`${name} visual`, async ({ page }) => {
+    if (narrow) await page.setViewportSize({ width: 390, height: 680 });
+    await openStory(page, story, globals);
+    await expect(page.getByRole('grid')).toBeVisible();
+    await expect(page).toHaveScreenshot(`${name}.png`, { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+  });
+}
+
+test('phase-14-lookupgrid-reduced-motion visual', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await openStory(page, 'phase-14-lookupgrid--reduced-motion');
+  await expect(page.getByText('Loading…')).toBeVisible();
+  const animationName = await page.locator('[class*="loading"]').first().evaluate((element) => (
+    window.getComputedStyle(element, '::before').animationName
+  ));
+  expect(animationName).toBe('none');
+  await expect(page).toHaveScreenshot('phase-14-lookupgrid-reduced-motion.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
+
+for (const [name, story, globals, narrow] of [
   ['phase-13-grid-basic', 'phase-13-grid--basic-local', undefined, false],
   ['phase-13-grid-grouping', 'phase-13-grid--local-grouping', undefined, false],
   ['phase-13-grid-dark', 'phase-13-grid--dark-theme', 'theme:dark;density:compact;direction:ltr', false],

@@ -1,6 +1,6 @@
 # `@cashgear/ui`
 
-CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–12 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, Flyout, Popup, Window, MaskedInput, command surfaces, descriptor-based navigation, responsive layout, FormLayout, and standalone TreeView families in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies and add browser-verified interaction behavior.
+CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–14 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, overlays, MaskedInput, command surfaces, descriptor-based navigation, responsive FormLayout, TreeView, the broad Grid surface, and the focused `CgLookUpGrid` in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies.
 
 ## Install and import
 
@@ -478,7 +478,36 @@ Local processing is search, filter, total summaries, stable sorting, grouping, t
 
 `CgGridActions<TItem>` exposes refresh, state, focus, selection, grouping, detail, CRUD, layout, and XLSX operations. Popup CRUD uses isolated caller-created models, explicit immutable editor setters, validation results, async confirmation callbacks, and caller-owned persistence. Named views use an injected `CgGridViewStore`; `CgGridBrowserViewStore` is a personal localStorage implementation and server applications can provide secured role/company stores. Local XLSX generation returns bytes before any optional SSR-guarded browser download.
 
-The React adaptation deliberately does not expose Razor child registration, SQL/EF/Dapper stores, or Blazor lifecycle concepts. Inline/cell/batch editing, virtualization, automatic columns, transactional inference, custom aggregates, generic HTTP adapters, LookUpGrid, TreeList, and DateRangePicker remain deferred.
+The React adaptation deliberately does not expose Razor child registration, SQL/EF/Dapper stores, or Blazor lifecycle concepts. Inline/cell/batch editing, virtualization, automatic columns, transactional inference, custom aggregates, generic HTTP adapters, TreeList, and DateRangePicker remain deferred.
+
+## LookUpGrid
+
+`CgLookUpGrid<TItem, TValue>` is a key-bound, single-selection editor whose `CgFlyout` contains a focused multi-column lookup surface. Immutable descriptors replace Razor child-column registration, and exactly one local array or abortable async loader is required.
+
+```tsx
+const lookupColumns: ReadonlyArray<CgLookUpGridColumnDescriptor<Product>> = [
+  { fieldId: 'code', title: 'Item', accessor: row => row.code, width: 120 },
+  { fieldId: 'name', title: 'Description', accessor: row => row.name },
+  { fieldId: 'available', title: 'Available', accessor: row => row.available,
+    alignment: 'end', searchable: false },
+];
+
+<CgLookUpGrid
+  data={products}
+  columns={lookupColumns}
+  value={productId}
+  onValueChange={setProductId}
+  valueSelector={row => row.id}
+  textSelector={row => `${row.code} — ${row.name}`}
+  showFilterRow
+/>
+```
+
+Async loaders receive normalized search text, visible searchable field IDs, one sort, immutable column filters, `skip`/`take`, opaque `queryContext`, and an `AbortSignal`. `itemResolver` hydrates an existing key without opening or searching. Fresh callback identities are adopted without resetting state; stale work is aborted and rejected by generation.
+
+`null` is the explicit React no-selection value. Blank string keys are also empty for ERP compatibility, while numeric zero remains valid. Strings and numbers serialize to native forms automatically; other named values require `serializeValue`. Object query contexts should be memoized or paired with `isQueryContextEqual`. Context is query input, not an authorization boundary—the server must still enforce tenant, branch, warehouse, and permission scope.
+
+The input retains focus and owns `aria-activedescendant`; paging appends rows, disabled rows stay visible but cannot be selected, and the filter-row Tab path is lookup-specific. `CgLookUpGridActions` exposes popup, reload, paging, sorting, filtering, state inspection, focus, and clear operations. Multiple selection, grouping, master-detail, column chooser/reordering/resizing/freezing, CRUD, summaries, export, and row virtualization remain intentionally exclusive to `CgGrid`; no ignored or fake virtualization prop is exposed.
 
 ## MaskedInput
 
@@ -532,7 +561,7 @@ Eligibility uses the trimmed query length, but `onSearch` receives the original 
 Components:
 
 - `CgIcon`, `CgButton`, `CgField`
-- `CgTextBox`, `CgMemo`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgKeyComboBox`, `CgListBox`, `CgTagBox`, `CgDropDownBox`, `CgDateEdit`
+- `CgTextBox`, `CgMemo`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgKeyComboBox`, `CgLookUpGrid`, `CgListBox`, `CgTagBox`, `CgDropDownBox`, `CgDateEdit`
 - `CgFlyout`, `CgPopup`, `CgWindow`, `CgMaskedInput`
 - `CgMenu`, `CgContextMenu`, `CgDropDownButton`, `CgSplitButton`, `CgToolbar`
 - `CgLayoutBreakpoint`, `CgTabs`, `CgStepper`, `CgAccordion`, `CgTreeView`, `CgGrid`

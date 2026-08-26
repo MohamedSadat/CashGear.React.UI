@@ -14,6 +14,7 @@ export * from './Icon';
 export * from './KeyComboBox';
 export * from './LoadingPanel';
 export * from './ListBox';
+export * from './LookUpGrid';
 export * from './LayoutBreakpoint';
 export * from './MaskedInput';
 export * from './Menu';

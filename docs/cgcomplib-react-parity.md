@@ -1,4 +1,4 @@
-# CG.CompLib → `@cashgear/ui` Phase 1–10 parity
+# CG.CompLib → `@cashgear/ui` Phase 1–14 parity
 
 ## Reference snapshot
 
@@ -482,9 +482,23 @@ Phase 13 is additive on top of the uncommitted Phase 11 and Phase 12 worktree. T
 - Context menus reuse Phase 10 `CgContextMenu`. XLSX generation is dependency-free, returns a typed byte result, and performs browser download only through an explicit SSR-safe helper.
 - Named views use an injected store. The bundled browser store is personal/localStorage-only; role/company security remains an application/server concern.
 
-Intentional deferrals remain inline/cell/batch editing, row/column virtualization, automatic column discovery, transactional inference, custom aggregates, generic HTTP adapters, LookUpGrid, TreeList, and DateRangePicker. New visual evidence uses `phase-13-grid-*` names and does not replace Phase 12 TreeView snapshots.
+Intentional deferrals remain inline/cell/batch editing, row/column virtualization, automatic column discovery, transactional inference, custom aggregates, generic HTTP adapters, TreeList, and DateRangePicker. New visual evidence uses `phase-13-grid-*` names and does not replace Phase 12 TreeView snapshots.
 
 Phase 13 is a broad working implementation, but it is not yet a full-parity claim. Complete frozen-boundary enforcement still needs the Razor edge cases, and context-menu plumbing does not yet render a distinct group-footer surface. Those items remain tracked gaps rather than stubs presented as complete behavior.
+
+## Phase 14 — CgLookUpGrid
+
+Phase 14 mirrors the current read-only `CgLookUpGrid` working implementation, its unit/browser/ERP tests, and both lookup demos as a focused React editor rather than embedding `CgGrid`.
+
+- `CgLookUpGrid<TItem, TValue>` binds only the key while resolving the display row from controlled state, committed cache, local/loaded rows, or an abortable `itemResolver`. `null` is the explicit empty value; blank strings are also empty and numeric zero remains valid.
+- Immutable `CgLookUpGridColumnDescriptor<TItem>` values replace child registration. Visible searchable fields drive global OR search; formatted text also drives local column filters, which combine with AND semantics and persist across popup/query operations.
+- Local and abortable server modes share normalized queries, single-column sorting, append paging, disabled-row snapshots, query-context comparison, retry, stale-result rejection, and fresh-callback adoption. Callers own transport and server authorization.
+- The input-focused combobox/grid pattern uses positional row IDs, lookup-specific filter traversal, disabled-row skipping, immediate close-on-selection, controlled popup state, native form serialization/reset, field validation, live sorting/count announcements, and `CgFlyout` collision handling.
+- CSS modules use CashGear tokens, logical properties, RTL-safe numeric cells, dark theme, forced colors, and reduced-motion rules. Phase 14 stories cover local/server, resolver, filters, sort/page, templates, forms, error/minimum, View All, Arabic/RTL, ERP contexts, multiple instances, and narrow flipping.
+
+React adaptations are intentional: descriptors are immutable, async contracts use `AbortSignal`, structural query-context comparison is caller-supplied, and there is no virtualization prop. Multiple selection, grouping, master-detail, column personalization, CRUD, summaries, export, and virtualization remain `CgGrid` responsibilities. New browser and visual evidence uses `phase-14-lookupgrid-*` names.
+
+Phase 14 verification on 2026-08-26 passed strict TypeScript, ESLint, 31 Vitest files/308 tests, import-cycle analysis across 188 source modules, the production library build, the 246-module Storybook build, and package verification of 59 runtime exports across 887 packed files. The complete Chromium/WebKit semantic suite passed 166 tests, followed by final focused Chromium/WebKit interaction and Axe reruns from the rebuilt bundle. Eight `phase-14-lookupgrid-*` Chromium baselines cover local, filters, disabled, error, dark, RTL, narrow flip/overflow, and reduced-motion states; forced-colors behavior is asserted in Chromium. Firefox could not execute because its headless SWGL compositor timed out while launching on this host, so Firefox-specific browser behavior remains an environment-limited verification risk rather than a passing claim.
 
 ## Implemented inventory
 
@@ -500,6 +514,7 @@ Phase 13 is a broad working implementation, but it is not yet a full-parity clai
 | `CgCheckBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgCheckBox.*`; `CG.CompLib.Demo/Components/Pages/CheckBoxDemo.razor` | `src/components/CheckBox/*` | `tests/choice-controls.test.tsx` | `src/components/CheckBox/CgCheckBox.stories.tsx` | Boolean/`indeterminate` only; C# numeric/string mappings are intentionally omitted. |
 | `CgComboBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgComboBox.*`; `CG.CompLib.Demo/Components/Pages/ComboBoxDemo.razor` | `src/components/ComboBox/*`, `src/internal/PositionedOverlay.tsx` | `tests/combo-box.test.tsx`, `tests/browser/components.browser.spec.ts` | `src/components/ComboBox/CgComboBox.stories.tsx` | Object-valued selection uses required stable keys for identity and form serialization; `CgKeyComboBox` adapts scalar-key models. |
 | `CgKeyComboBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgKeyComboBox.*`; `CG.CompLib.Demo/Components/Pages/Home.razor` | `src/components/KeyComboBox/*` | `tests/key-combo-box.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/KeyComboBox/CgKeyComboBox.stories.tsx` | React keys are strings or finite numbers, `null` is the explicit empty value, and `selectedItem` provides synchronous off-page hydration. |
+| `CgLookUpGrid` | Mirrored with focused lookup descriptors | `CG.CompLib/Comp/Inputs/CgLookUpGrid.*`; `CgLookUpGrid*Tests.cs`; `LookUpGridDemo.razor`; `LookUpGridErpDemo.razor` | `src/components/LookUpGrid/*` | `tests/look-up-grid.test.tsx`, browser semantic/visual coverage | `src/components/LookUpGrid/CgLookUpGrid.stories.tsx` | Immutable descriptors, AbortSignal loaders/resolvers, `null`, caller-owned query-context equality, and a native form proxy replace registration, cancellation tokens, and EditContext. No virtualization prop is exposed. |
 | `CgListBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgListBox.*`, `CgListBoxTypes.cs`, `CgListBoxColumn.cs`, `CgListBoxAccessors.cs`; `CG.CompLib.Demo/Components/Pages/ListBoxDemo.razor` | `src/components/ListBox/*`, `src/internal/listBox.ts`, `src/internal/useVirtualWindow.ts` | `tests/list-box.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/ListBox/CgListBox.stories.tsx` | Object-array binding and stable keys replace Razor field accessors. Fixed-row virtualization is dependency-free; remote loading/paging and richer data-grid operations remain deferred. |
 | `CgTagBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgTagBox.*`; `CG.CompLib.Demo/Components/Pages/TagBoxDemo.razor` | `src/components/TagBox/*`, `src/internal/tagBox.ts`, `src/internal/PositionedOverlay.tsx` | `tests/tag-box.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/TagBox/CgTagBox.stories.tsx` | Object-array binding replaces Razor scalar keys. Custom comparers and `ResolveValuesAsync` hydration remain deferred because selected objects carry labels. |
 | `CgDropDownBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgDropDownBox.*`, `CgDropDownBoxTypes.cs`; `CG.CompLib.Demo/Components/Pages/DropDownBoxDemo.razor` | `src/components/DropDownBox/*`, `src/internal/PositionedOverlay.tsx`, `src/internal/overlayStack.ts` | `tests/drop-down-box.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/DropDownBox/CgDropDownBox.stories.tsx` | React render contexts host arbitrary content; a native select proxy and explicit object serializer replace Blazor `EditContext` integration. The body portal replaces the browser manual-popover top layer and deliberately adds no focus trap. |
@@ -683,14 +698,12 @@ Verified on 2026-08-26 with the bundled supported Node 24.19 runtime from the un
 
 ## Deferred inventory
 
-These rows are evidence only. No public React API or implementation is included in Phase 1–12.
+These rows are evidence only. No public React API or implementation is included for these remaining planned controls.
 
 | Planned component | Razor evidence | Status |
 | --- | --- | --- |
 | DateRangePicker | `CG.CompLib/Comp/Inputs/CgDateRangePicker.*` | Explicitly deferred after Phase 8 |
 | Calendar | Calendar surface inside `CG.CompLib/Comp/Inputs/CgDateEdit.*`; Phase 8 calendar is private | Standalone public component deferred |
-| LookupGrid | `CG.CompLib/Comp/Inputs/CgLookUpGrid.*` | Deferred |
-| Grid | Working-tree `CG.CompLib/Comp/Grid/CgGrid.*` | Deferred |
 | TreeList | Working-tree `CG.CompLib/Comp/TreeList/CgTreeList.*` | Deferred |
 | Scheduler | `CG.CompLib/Comp/Scheduler/CgScheduler.*` | Deferred |
 | PivotTable | `CG.CompLib/Comp/Pivot/CgPivotTable.*` | Deferred |
