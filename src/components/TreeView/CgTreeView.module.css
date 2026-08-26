@@ -1,0 +1,111 @@
+.root {
+  --cg-tree-accent: var(--cg-accent, #2563eb);
+  --cg-tree-accent-soft: var(--cg-accent-soft, #eff6ff);
+  --cg-tree-surface: var(--cg-surface, #fff);
+  --cg-tree-text: var(--cg-text, #1f2937);
+  --cg-tree-muted: var(--cg-text-secondary, #667085);
+  --cg-tree-border: var(--cg-border, #d0d5dd);
+  --cg-tree-hover: var(--cg-hover, #f2f4f7);
+  --cg-tree-row-height: 2rem;
+  --cg-tree-indent: 1.25rem;
+  --cg-tree-control: 1.25rem;
+  inline-size: 100%;
+  min-inline-size: 0;
+  color: var(--cg-tree-text);
+  font-size: 0.875rem;
+}
+
+.small {
+  --cg-tree-row-height: 1.75rem;
+  --cg-tree-indent: 1.1rem;
+  --cg-tree-control: 1.125rem;
+  font-size: 0.8125rem;
+}
+
+.large {
+  --cg-tree-row-height: 2.5rem;
+  --cg-tree-indent: 1.5rem;
+  --cg-tree-control: 1.5rem;
+  font-size: 1rem;
+}
+
+.disabled { opacity: 0.58; }
+.tree, .node { min-inline-size: 0; }
+.node { outline: none; }
+
+.row {
+  display: flex;
+  gap: 0.375rem;
+  align-items: center;
+  min-block-size: var(--cg-tree-row-height);
+  padding: 0.125rem 0.5rem 0.125rem 0.25rem;
+  border-radius: 0.3rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.node:not(.nodeDisabled):hover > .row { background: var(--cg-tree-hover); }
+.node:focus-visible > .row { box-shadow: inset 0 0 0 2px var(--cg-tree-accent), 0 0 0 0.1875rem color-mix(in srgb, var(--cg-tree-accent) 30%, transparent); }
+.selected > .row { color: var(--cg-tree-accent); background: var(--cg-tree-accent-soft); }
+.nodeDisabled > .row, .readOnly .row { cursor: default; }
+.nodeDisabled > .row { opacity: 0.55; }
+.group { padding-inline-start: var(--cg-tree-indent); }
+
+.toggle, .check {
+  position: relative;
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  inline-size: var(--cg-tree-control);
+  block-size: var(--cg-tree-control);
+  min-inline-size: var(--cg-tree-control);
+  min-block-size: var(--cg-tree-control);
+  padding: 0;
+  color: currentcolor;
+  background: transparent;
+  border: 0;
+  border-radius: 0.2rem;
+  cursor: pointer;
+}
+
+.toggle:focus-visible, .check:focus-visible { outline: 2px solid var(--cg-tree-accent); outline-offset: 2px; }
+.toggle:disabled, .check:disabled { cursor: default; }
+.toggle > span { inline-size: 0.45rem; block-size: 0.45rem; border-block-end: 1.5px solid currentcolor; border-inline-end: 1.5px solid currentcolor; transform: rotate(-45deg); transition: transform 120ms ease; }
+.expanded > .row .toggle > span { transform: rotate(45deg); }
+[dir='rtl'] .toggle > span { transform: rotate(135deg); }
+[dir='rtl'] .expanded > .row .toggle > span { transform: rotate(45deg); }
+
+.check { background: var(--cg-tree-surface); border: 1px solid var(--cg-tree-border); }
+.checked, .mixed { color: #fff; background: var(--cg-tree-accent); border-color: var(--cg-tree-accent); }
+.checked > span { inline-size: 0.3rem; block-size: 0.55rem; border: solid currentcolor; border-width: 0 0.12rem 0.12rem 0; transform: translateY(-0.05rem) rotate(45deg); }
+.mixed > span { inline-size: 0.55rem; block-size: 0.12rem; background: currentcolor; border-radius: 999px; }
+.controlPlaceholder { flex: 0 0 var(--cg-tree-control); inline-size: var(--cg-tree-control); block-size: var(--cg-tree-control); }
+.icon { display: inline-flex; flex: 0 0 auto; }
+.content { min-inline-size: 0; overflow-wrap: anywhere; }
+.nowrap > .row .content { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filter { display: block; margin-block-end: 0.5rem; }
+.empty { padding: 0.75rem; color: var(--cg-tree-muted); text-align: center; }
+.content mark { color: inherit; background: color-mix(in srgb, #facc15 55%, transparent); }
+
+.visuallyHidden {
+  position: absolute !important;
+  inline-size: 1px !important;
+  block-size: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .root { --cg-tree-surface: var(--cg-surface, #111827); --cg-tree-text: var(--cg-text, #f3f4f6); --cg-tree-hover: var(--cg-hover, #1f2937); --cg-tree-accent-soft: var(--cg-accent-soft, #1e3a5f); }
+}
+
+@media (prefers-reduced-motion: reduce) { .toggle > span { transition: none; } }
+
+@media (forced-colors: active) {
+  .selected > .row { color: HighlightText; background: Highlight; }
+  .checked, .mixed { color: HighlightText; background: Highlight; border-color: Highlight; forced-color-adjust: none; }
+}
