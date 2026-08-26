@@ -1,0 +1,6 @@
+.root { display: inline-flex; max-inline-size: 100%; }
+.root > button { border-radius: 0; }
+.root > button:first-child { border-start-start-radius: var(--cg-radius-sm, 0.375rem); border-end-start-radius: var(--cg-radius-sm, 0.375rem); }
+.root > button:last-of-type { border-start-end-radius: var(--cg-radius-sm, 0.375rem); border-end-end-radius: var(--cg-radius-sm, 0.375rem); }
+.toggle { padding-inline: 0.6rem; }
+

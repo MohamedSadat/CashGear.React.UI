@@ -1,6 +1,6 @@
 # `@cashgear/ui`
 
-CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–9 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, Flyout, Popup, Window, and MaskedInput in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies and add browser-verified interaction behavior.
+CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–10 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, Flyout, Popup, Window, MaskedInput, Menu, ContextMenu, button menus, and Toolbar in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies and add browser-verified interaction behavior.
 
 ## Install and import
 
@@ -362,6 +362,28 @@ Flyout, Popup, and Window share the same controlled/uncontrolled lifecycle. Comp
 
 Body portals inherit the source `data-cg-theme`, `data-cg-density`, and computed direction. This is the deliberate React adaptation in place of Razor/DevExpress top-layer plumbing. A third-party portal rendered from an overlay template can join ownership by setting `data-cg-overlay-boundary={boundaryId}`.
 
+## Menus, context commands, button menus, and Toolbar
+
+All Phase 10 command surfaces adapt immutable public descriptors into one private menu engine. It owns structural validation, pruning, safe URLs, locale-aware typeahead, roving focus, logical RTL arrows, check/radio proposals, and nested `CgFlyout` ownership. Menu and standalone button trees support up to 16 levels, context menus up to 32, and Toolbar descriptors up to three. Relative/hash URLs and absolute `http`, `https`, `mailto`, and `tel` URLs are accepted; other schemes are rejected.
+
+```tsx
+const menuItems = [
+  { key: 'home', text: 'Home', navigateUrl: '/' },
+  { key: 'sales', text: 'Sales', children: [{ key: 'orders', text: 'Orders' }] },
+] as const;
+
+<CgMenu items={menuItems} semanticMode="navigation" selectionMode="route" />
+<CgDropDownButton items={[{ key: 'new', text: 'New invoice' }]}>Actions</CgDropDownButton>
+<CgSplitButton items={[{ key: 'save-close', text: 'Save and close' }]}>Save</CgSplitButton>
+<CgToolbar items={[{ name: 'new', text: 'New', icon: 'check' }]} />
+```
+
+`CgMenu` supports navigation or application semantics, nested or flat trees, controlled selection/expansion, route matching without a router dependency, and deterministic container-based caption/hamburger adaptation. Native anchors keep their `href`, target, modifier/middle-click, and browser-context-menu behavior; `currentLocation` is authoritative for SSR or SPA integration and `onNavigate` is observational.
+
+`CgContextMenu<TContext>` gives every invocation a typed context, fresh structural/check snapshot, owner, anchor metadata, and `AbortSignal`. `useCgContextMenuTarget` composes a target ref and handlers for right-click, Shift+F10/Menu, long press, and optional click without wrapper DOM or string IDs. Confirmation-bearing items require an explicit `confirm` callback. New invocations supersede stale opening/command work; cancellation or failure rolls check/radio proposals back.
+
+Button menus compose `CgButton`, `CgFlyout`, and the same menu surface. `CgDropDownButton` is only a trigger; `CgSplitButton` isolates the primary action/form contract from its toggle. Arbitrary content uses dialog semantics and receives `close()` and `reposition()`. Toolbar dispatches commands, links, custom content, dropdowns, and split buttons across logical start/end rails, then adapts full text → adaptive text → icon-only → deterministic one-at-a-time overflow through a container `ResizeObserver`.
+
 ## MaskedInput
 
 `CgMaskedInput` follows TextBox's `value`, `defaultValue`, and `onValueChange` convention, uses `''` as empty, and forwards its `HTMLInputElement` ref plus native events and attributes. Masks are Unicode-aware: `0`, `L`, `A`, and `*` are required digit/letter/alphanumeric slots; `9`, `l`, `a`, and `?` are optional; backslash escapes the next code point. Empty masks and trailing escapes are configuration errors.
@@ -416,13 +438,14 @@ Components:
 - `CgIcon`, `CgButton`, `CgField`
 - `CgTextBox`, `CgMemo`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgKeyComboBox`, `CgListBox`, `CgTagBox`, `CgDropDownBox`, `CgDateEdit`
 - `CgFlyout`, `CgPopup`, `CgWindow`, `CgMaskedInput`
+- `CgMenu`, `CgContextMenu`, `CgDropDownButton`, `CgSplitButton`, `CgToolbar`
 - `CgRadio`, `CgRadioGroup`
 - `CgNumericEdit`, `CgSpinEdit`, `CgSearchBox`
 - `CgLoadingPanel`, `CgProgressBar`
 
-Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, the `CgDateEdit` value/change/open/render/label contracts, and the shared overlay point/rectangle/size, alignment, lifecycle, drag/resize, and position contracts. Each Phase 9 component also exports its props, actions, reasons, lifecycle details, and render/state contexts. There is intentionally no universal component-state interface.
+Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, the `CgDateEdit` contracts, the shared overlay contracts, and each Phase 9–10 component's descriptors, props, actions, reasons, lifecycle details, and render/state contexts. Private menu and adaptive-layout engine types are not exported. There is intentionally no universal component-state interface.
 
-The public hooks are `useControllableState` and `useCgId`; `cx` is the public class-name utility. All other primitives and hooks are private implementation details.
+The public hooks are `useControllableState`, `useCgId`, and `useCgContextMenuTarget`; `cx` is the public class-name utility. All other primitives and hooks are private implementation details.
 
 ## Development
 
@@ -448,7 +471,7 @@ Install browser binaries once with `npx playwright install chromium firefox webk
 
 Chromium screenshots in `tests/browser/__snapshots__` are canonical Windows/Node 24.19 baselines. Playwright snapshots are platform-specific; regenerate them on the same operating system used for comparison. Browser tests serve the prebuilt Storybook through a lifecycle-managed Vite preview server. No CI workflow is installed; browser gates run locally through `npm run verify`.
 
-The Phase 9 Node 24.19 verification completed with 178 Vitest tests, 165 semantic/Axe browser tests (55 per engine), 87 Chromium visual tests comparing 95 Windows snapshots, and package verification of exactly 27 runtime exports across 535 packed files. Firefox's headless software renderer still cannot start on this host; its complete 55-test project passed in headed mode. See the parity ledger for the exact gate breakdown.
+The Phase 10 Node 24.19 verification completed with 205 Vitest tests, 68 semantic/Axe cases per engine, 108 Chromium visual tests comparing 116 Windows snapshots, and package verification of exactly 33 runtime exports across 648 packed files. Firefox's headless software renderer still cannot start on this host; all 68 cases were covered headed, with one legacy TagBox browser-context teardown flake passing immediately in isolation. See the parity ledger for the exact gate breakdown.
 
 ## Packaging
 

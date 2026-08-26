@@ -1,0 +1,20 @@
+.surface { min-inline-size: 12rem; }
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-inline-size: 12rem;
+  padding: 0.75rem;
+  color: var(--cg-color-text-muted, #64748b);
+}
+.spinner {
+  inline-size: 1rem;
+  block-size: 1rem;
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: 50%;
+  animation: cg-context-spin 0.8s linear infinite;
+}
+@keyframes cg-context-spin { to { transform: rotate(1turn); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+

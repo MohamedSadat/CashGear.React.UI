@@ -14,3 +14,12 @@ export { PositionedOverlay, useResolvedTarget, useTargetCoverStyle } from './Pos
 export { createListBoxTextFragments, listBoxKeyToken, listBoxTextMatches, normalizeListBoxSearch, toCssLength } from './listBox';
 export { normalizeTagBoxSearch, tagBoxKeyToken, tagBoxTextMatches } from './tagBox';
 export { useVirtualWindow } from './useVirtualWindow';
+export { MenuSurface } from './MenuSurface';
+export type { MenuSurfaceProps } from './MenuSurface';
+export { containsEnabledLeaf, flattenMenu, normalizeMenuTree, proposeMenuCheck, validateMenuUrl } from './menuTree';
+export { enabledMenuItems, findRouteMenuItem, findTypeaheadItem } from './menuNavigation';
+export { buildMenuAdaptivePlan } from './menuLayout';
+export type { MenuAdaptivePlan } from './menuLayout';
+export type { MenuActivationDetails, MenuActivationSource, MenuDescriptor, MenuNode, MenuRenderContext, MenuRouteMatch, NormalizeMenuOptions } from './menuTypes';
+export { planToolbarLayout, toolbarRemovalOrder, TOOLBAR_ADAPTIVE_STAGE, TOOLBAR_FIRST_OVERFLOW_STAGE, TOOLBAR_FULL_STAGE, TOOLBAR_ICON_STAGE } from './toolbarLayout';
+export type { ToolbarDisplayMode, ToolbarLayoutAlignment, ToolbarLayoutItem, ToolbarLayoutPlan, ToolbarOverflowBehavior, ToolbarPlacement } from './toolbarLayout';

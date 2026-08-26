@@ -274,6 +274,90 @@ for (const [name, story, globals, narrow] of [
   });
 }
 
+test('Phase 10 Menu horizontal navigation', async ({ page }) => {
+  await openStory(page, 'phase-10-menu--horizontal-navigation');
+  await expect(page).toHaveScreenshot('phase-10-menu-horizontal.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
+
+test('Phase 10 Menu open nested submenu', async ({ page }) => {
+  await openStory(page, 'phase-10-menu--application-menu');
+  await page.getByRole('menuitem', { name: 'Sales' }).click();
+  await page.getByRole('menuitem', { name: 'Reports' }).hover();
+  await expect(page.getByRole('menuitem', { name: 'Aging report' })).toBeVisible();
+  await expect(page).toHaveScreenshot('phase-10-menu-nested.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
+
+for (const [name, story, globals] of [
+  ['phase-10-menu-application', 'phase-10-menu--application-menu', undefined],
+  ['phase-10-menu-mobile', 'phase-10-menu--mobile', undefined],
+  ['phase-10-menu-arabic-rtl', 'phase-10-menu--arabic-rtl', 'theme:light;density:comfortable;direction:rtl'],
+] as const) {
+  test(`${name} visual`, async ({ page }) => {
+    await openStory(page, story, globals);
+    if (name.includes('mobile')) await page.getByRole('button', { name: 'Open menu' }).click();
+    await expect(page).toHaveScreenshot(`${name}.png`, { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+  });
+}
+
+for (const [name, story, globals, nested] of [
+  ['phase-10-context-pointer', 'phase-10-contextmenu--pointer-opened', undefined, false],
+  ['phase-10-context-nested', 'phase-10-contextmenu--pointer-opened', undefined, true],
+  ['phase-10-context-check-radio-danger', 'phase-10-contextmenu--pointer-opened', undefined, false],
+  ['phase-10-context-dark', 'phase-10-contextmenu--dark', 'theme:dark;density:compact;direction:ltr', false],
+  ['phase-10-context-arabic-rtl', 'phase-10-contextmenu--arabic-rtl', 'theme:light;density:comfortable;direction:rtl', false],
+] as const) {
+  test(`${name} visual`, async ({ page }) => {
+    await openStory(page, story, globals);
+    await page.getByText('Right-click order SO-1042').click({ button: 'right' });
+    if (nested) {
+      await page.getByRole('menuitem', { name: 'Status' }).hover();
+      await expect(page.getByRole('menuitemradio', { name: 'Open' })).toBeVisible();
+    }
+    await expect(page).toHaveScreenshot(`${name}.png`, { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+  });
+}
+
+test('Phase 10 ContextMenu loading visual', async ({ page }) => {
+  await openStory(page, 'phase-10-contextmenu--loading');
+  await expect(page.getByRole('status')).toBeVisible();
+  await expect(page).toHaveScreenshot('phase-10-context-loading.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
+
+for (const [name, story, trigger, globals] of [
+  ['phase-10-dropdown-open', 'phase-10-dropdownbutton--commands', 'Actions', undefined],
+  ['phase-10-split-open', 'phase-10-splitbutton--default', 'Open menu', undefined],
+  ['phase-10-dropdown-arbitrary', 'phase-10-dropdownbutton--arbitrary-content', 'Filters', undefined],
+  ['phase-10-split-rtl-start', 'phase-10-splitbutton--arabic-rtl', 'Open menu', 'theme:light;density:comfortable;direction:rtl'],
+] as const) {
+  test(`${name} visual`, async ({ page }) => {
+    await openStory(page, story, globals);
+    await page.getByRole('button', { name: trigger }).click();
+    await expect(page).toHaveScreenshot(`${name}.png`, { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+  });
+}
+
+test('Phase 10 DropDownButton busy visual', async ({ page }) => {
+  await openStory(page, 'phase-10-dropdownbutton--busy-command');
+  await page.getByRole('button', { name: 'Async actions' }).click();
+  await page.getByRole('menuitem', { name: 'New invoice' }).click();
+  await expect(page.getByRole('menuitem', { name: 'New invoice' })).toHaveAttribute('aria-busy', 'true');
+  await expect(page).toHaveScreenshot('phase-10-dropdown-busy.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
+
+for (const [name, story, globals] of [
+  ['phase-10-toolbar-full-mixed', 'phase-10-toolbar--full', undefined],
+  ['phase-10-toolbar-adaptive-overflow', 'phase-10-toolbar--narrow-overflow', undefined],
+  ['phase-10-toolbar-dark-compact', 'phase-10-toolbar--dark-compact', 'theme:dark;density:compact;direction:ltr'],
+  ['phase-10-toolbar-arabic-rtl', 'phase-10-toolbar--arabic-rtl', 'theme:light;density:comfortable;direction:rtl'],
+  ['phase-10-toolbar-narrow-popup', 'phase-10-toolbar--narrow-popup', undefined],
+] as const) {
+  test(`${name} visual`, async ({ page }) => {
+    await openStory(page, story, globals);
+    if (name.includes('overflow')) await expect(page.getByRole('button', { name: 'More commands' })).toBeVisible();
+    await expect(page).toHaveScreenshot(`${name}.png`, { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+  });
+}
+
 for (const [name, story, globals] of [
   ['window-primary', 'phase-9-window--default', undefined],
   ['window-multiple', 'phase-9-window--multiple-windows', undefined],

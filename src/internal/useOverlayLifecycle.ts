@@ -65,6 +65,7 @@ export function useOverlayLifecycle<TOpen extends LifecycleDetails, TClose exten
       return false;
     }
     pendingDetailsRef.current = details;
+    if (options.open === undefined) openRef.current = true;
     setActualOpen(true);
     options.onOpenChange?.(true, details);
     return options.open === undefined;
@@ -82,6 +83,7 @@ export function useOverlayLifecycle<TOpen extends LifecycleDetails, TClose exten
       return false;
     }
     pendingDetailsRef.current = details;
+    if (options.open === undefined) openRef.current = false;
     setActualOpen(false);
     options.onOpenChange?.(false, details);
     return options.open === undefined;

@@ -27,6 +27,7 @@
 .root[data-intent='warning'] { --button-bg: var(--cg-warning-text); --button-border: var(--cg-warning-text); --button-color: #fff; }
 .root[data-intent='danger'] { --button-bg: var(--cg-danger-text); --button-border: var(--cg-danger-text); --button-color: #fff; }
 .root[data-appearance='outline'], .root[data-appearance='ghost'], .root[data-appearance='link'] { color: var(--button-bg); background: transparent; }
+.root[data-intent='neutral'][data-appearance='outline'], .root[data-intent='neutral'][data-appearance='ghost'], .root[data-intent='neutral'][data-appearance='link'] { color: var(--cg-text); }
 .root[data-appearance='ghost'], .root[data-appearance='link'] { border-color: transparent; }
 .root[data-appearance='soft'] { color: var(--button-bg); background: color-mix(in srgb, var(--button-bg) 12%, var(--cg-surface)); border-color: transparent; }
 .root[data-appearance='link'] { min-block-size: auto; padding: 0; text-decoration: underline; }

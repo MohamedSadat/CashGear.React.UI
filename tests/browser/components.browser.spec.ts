@@ -33,6 +33,15 @@ const canonicalStories = [
   'phase-9-popup--third-party-boundary',
   'phase-9-window--multiple-windows',
   'phase-9-maskedinput--validation',
+  'phase-10-menu--horizontal-navigation',
+  'phase-10-menu--application-menu',
+  'phase-10-contextmenu--pointer-opened',
+  'phase-10-contextmenu--cancellation-and-focus-return',
+  'phase-10-dropdownbutton--commands',
+  'phase-10-dropdownbutton--arbitrary-content',
+  'phase-10-splitbutton--default',
+  'phase-10-toolbar--full',
+  'phase-10-toolbar--narrow-popup',
 ] as const;
 
 for (const story of canonicalStories) {
@@ -678,4 +687,108 @@ test('MaskedInput handles caret editing, Unicode, controlled rejection, forms, a
   await rtl.press('End');
   await page.keyboard.insertText('٨');
   await expect(rtl).toHaveValue('٠١٠١ ٢٣٤ ٥٦٧٨');
+});
+
+test('Menu preserves native navigation semantics and application-menu keyboard ownership', async ({ page }) => {
+  await openStory(page, 'phase-10-menu--horizontal-navigation');
+  const home = page.getByRole('link', { name: 'Home' });
+  await expect(home).toHaveAttribute('href', '/');
+  await page.evaluate(() => {
+    const state = window as typeof window & { __cgMiddleClickPrevented?: boolean };
+    delete state.__cgMiddleClickPrevented;
+    window.addEventListener('auxclick', (event) => {
+      state.__cgMiddleClickPrevented = event.defaultPrevented;
+      event.preventDefault();
+    }, { once: true });
+  });
+  await home.click({ button: 'middle' });
+  await expect.poll(() => page.evaluate(() => (window as typeof window & { __cgMiddleClickPrevented?: boolean }).__cgMiddleClickPrevented)).toBe(false);
+
+  await openStory(page, 'phase-10-menu--application-menu');
+  const menu = page.getByRole('menubar');
+  const first = menu.getByRole('menuitem', { name: 'Home' });
+  await first.focus();
+  await first.press('ArrowRight');
+  const sales = menu.getByRole('menuitem', { name: 'Sales' });
+  await expect(sales).toBeFocused();
+  await sales.press('ArrowDown');
+  const orders = page.getByRole('menuitem', { name: 'Orders' });
+  await expect(orders).toBeFocused();
+  await orders.press('Escape');
+  await expect(sales).toBeFocused();
+});
+
+test('ContextMenu supports pointer, keyboard, long-press, nested ownership, cancellation, and focus return', async ({ page }) => {
+  await openStory(page, 'phase-10-contextmenu--pointer-opened');
+  const target = page.getByText('Right-click order SO-1042');
+  await target.focus();
+  await target.click({ button: 'right' });
+  await expect(page.getByRole('menuitem', { name: 'Open order' })).toBeFocused();
+  await page.getByRole('menuitem', { name: 'Status' }).hover();
+  await expect(page.getByRole('menuitemradio', { name: 'Open' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(target).toBeFocused();
+  await target.press('Shift+F10');
+  await expect(page.getByRole('menuitem', { name: 'Open order' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await target.dispatchEvent('pointerdown', { pointerType: 'touch', pointerId: 42, clientX: 100, clientY: 100 });
+  await page.waitForTimeout(650);
+  await expect(page.getByRole('menuitem', { name: 'Open order' })).toBeVisible();
+  await target.dispatchEvent('pointerup', { pointerType: 'touch', pointerId: 42, clientX: 100, clientY: 100 });
+  await page.keyboard.press('Escape');
+
+  await openStory(page, 'phase-10-contextmenu--cancellation-and-focus-return');
+  const protectedTarget = page.getByRole('button', { name: 'Protected order' });
+  await protectedTarget.focus();
+  await protectedTarget.press('Shift+F10');
+  await page.getByRole('menuitem', { name: 'Protected command' }).click();
+  await expect(page.getByLabel('Command status')).toHaveText('Cancelled by policy');
+  await expect(page.getByRole('menu')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(protectedTarget).toBeFocused();
+});
+
+test('DropDownButton and SplitButton keep trigger, dialog, and primary-action semantics isolated', async ({ page }) => {
+  await openStory(page, 'phase-10-dropdownbutton--commands');
+  const trigger = page.getByRole('button', { name: 'Actions' });
+  await trigger.focus();
+  await trigger.press('Enter');
+  await expect(page.getByRole('menuitem', { name: 'New invoice' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(trigger).toBeFocused();
+
+  await openStory(page, 'phase-10-dropdownbutton--arbitrary-content');
+  await page.getByRole('button', { name: 'Filters' }).click();
+  await expect(page.getByRole('dialog', { name: 'Button menu' })).toBeVisible();
+  await expect(page.getByRole('textbox')).toBeFocused();
+
+  await openStory(page, 'phase-10-splitbutton--default');
+  await expect(page.getByRole('button', { name: 'Save' })).not.toHaveAttribute('aria-haspopup');
+  const toggle = page.getByRole('button', { name: 'Open menu' });
+  await toggle.click();
+  await expect(page.getByRole('menuitem', { name: 'Save and close' })).toBeVisible();
+});
+
+test('Toolbar roves focus, opens shared menus, overflows in narrow containers, and adapts inside Popup', async ({ page }) => {
+  await openStory(page, 'phase-10-toolbar--full');
+  const toolbar = page.getByRole('toolbar');
+  const first = toolbar.getByRole('button', { name: 'New invoice' });
+  await first.focus();
+  await first.press('ArrowRight');
+  await expect(toolbar.getByRole('button', { name: 'Save' })).toBeFocused();
+  const exportButton = toolbar.getByRole('button', { name: 'Export' });
+  await exportButton.focus();
+  await exportButton.press('ArrowDown');
+  await expect(page.getByRole('menuitem', { name: 'PDF' })).toBeFocused();
+  await page.keyboard.press('Escape');
+
+  await openStory(page, 'phase-10-toolbar--narrow-overflow');
+  const narrow = page.getByRole('toolbar');
+  await expect(narrow).not.toHaveAttribute('data-cg-toolbar-stage', '0');
+  await expect(narrow.getByRole('button', { name: 'More commands' })).toBeVisible();
+
+  await openStory(page, 'phase-10-toolbar--narrow-popup');
+  await expect(page.getByRole('dialog', { name: 'Toolbar in popup' })).toBeVisible();
+  await expect(page.getByRole('toolbar')).toBeVisible();
 });

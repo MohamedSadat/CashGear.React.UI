@@ -16,7 +16,7 @@ export type CgFlyoutPlacement =
   | 'left-start' | 'left' | 'left-end';
 
 export type CgFlyoutAnchor = HTMLElement | RefObject<HTMLElement | null> | string | CgOverlayRectangle | CgOverlayPoint;
-export type CgFlyoutCloseReason = 'programmatic' | 'outsideClick' | 'escape' | 'scroll' | 'anchorLost' | 'superseded';
+export type CgFlyoutCloseReason = 'programmatic' | 'outsideClick' | 'escape' | 'scroll' | 'focusLoss' | 'anchorLost' | 'superseded';
 
 export interface CgFlyoutCloseDetails {
   reason: CgFlyoutCloseReason;
@@ -71,6 +71,8 @@ export interface CgFlyoutProps extends NativeFlyoutProps {
   closeOnOutsideClick?: boolean;
   closeOnEscape?: boolean;
   closeOnScroll?: boolean;
+  closeOnFocusLoss?: boolean;
+  returnFocusOnClose?: boolean;
   exclusiveGroup?: string;
   zIndex?: number;
   actionsRef?: Ref<CgFlyoutActions>;

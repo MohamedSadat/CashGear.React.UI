@@ -9,15 +9,11 @@ import {
 } from 'react';
 import type { RefObject } from 'react';
 import { useMergedRefs, useStableCallback } from '../../hooks';
-import {
-  OverlayOwnerProvider,
-  overlaySurfaceStyles,
-  PositionedOverlay,
-  requestExclusiveOverlay,
-  useOverlayLifecycle,
-  useOverlaySurface,
-  useSurfaceGestures,
-} from '../../internal';
+import { overlaySurfaceStyles, useSurfaceGestures } from '../../internal/OverlaySurface';
+import { OverlayOwnerProvider, overlayOwnsNode, requestExclusiveOverlay, useOverlaySurface } from '../../internal/overlayStack';
+import { PositionedOverlay } from '../../internal/PositionedOverlay';
+import { useFocusReturn } from '../../internal/useFocusReturn';
+import { useOverlayLifecycle } from '../../internal/useOverlayLifecycle';
 import { assertNonNegative } from '../../internal/validation';
 import type { CgOverlayPoint, CgOverlayRectangle } from '../../types';
 import { cx } from '../../utils';
@@ -95,6 +91,8 @@ export const CgFlyout = forwardRef<HTMLDivElement, CgFlyoutProps>(function CgFly
     closeOnOutsideClick = true,
     closeOnEscape = true,
     closeOnScroll = false,
+    closeOnFocusLoss = false,
+    returnFocusOnClose = false,
     exclusiveGroup,
     zIndex,
     actionsRef,
@@ -146,6 +144,17 @@ export const CgFlyout = forwardRef<HTMLDivElement, CgFlyoutProps>(function CgFly
     ...(exclusiveGroup ? { exclusiveGroup } : {}),
     onSuperseded: () => requestClose('superseded'),
   });
+  useFocusReturn(lifecycle.open, returnFocusOnClose);
+
+  useEffect(() => {
+    if (!lifecycle.open || !closeOnFocusLoss) return undefined;
+    const onFocusIn = (event: FocusEvent) => {
+      if (event.target instanceof Node && overlayOwnsNode(stack.id, event.target)) return;
+      void requestClose('focusLoss', event);
+    };
+    document.addEventListener('focusin', onFocusIn, true);
+    return () => document.removeEventListener('focusin', onFocusIn, true);
+  }, [closeOnFocusLoss, lifecycle.open, requestClose, stack.id]);
 
   useLayoutEffect(() => {
     const resolve = () => {

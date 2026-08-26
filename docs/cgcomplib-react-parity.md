@@ -1,4 +1,4 @@
-# CG.CompLib → `@cashgear/ui` Phase 1–9 parity
+# CG.CompLib → `@cashgear/ui` Phase 1–10 parity
 
 ## Reference snapshot
 
@@ -360,6 +360,43 @@ The post-verification read-only audit observed the same reference HEAD. Concurre
 
 No Phase 9 command wrote to, committed in, formatted, cleaned, reverted, or restored the Razor repository.
 
+## Phase 10 reference refresh
+
+Phase 10 builds on the clean React baseline `fc6b7139424844f013b94870f141507583da5963` and retains every earlier snapshot. Menu, ContextMenu, DropDownButton, SplitButton, and Toolbar comparison used the read-only Razor tree below. Baseline Node 24.19 checks passed before editing: strict typecheck, lint, 19 Vitest files/178 tests, cycle analysis across 115 source modules, and package verification of 27 runtime exports across 535 packed files.
+
+- Reference HEAD: `517e7eba58cdbcd6ad3f29087837c6ce8895ad2a`
+- Reference captured immediately before implementation: 2026-08-26
+- Menu evidence: `CG.CompLib/Comp/Menu/*`; `CG.CompLib.Tests/CgMenuTests.cs`, `CgMenuEngineTests.cs`, and `CgMenuBrowserTests.cs`; `CG.CompLib.Demo/Components/Pages/MenuDemo.razor` and `MenuRouteTarget.razor`.
+- ContextMenu evidence: `CG.CompLib/Comp/ContextMenu/*`; `CG.CompLib.Tests/CgContextMenuTests.cs` and `CgContextMenuBrowserTests.cs`; `CG.CompLib.Demo/Components/Pages/ContextMenuDemo.razor`.
+- Button-menu evidence: `CG.CompLib/Comp/Buttons/CgDropDownButton.razor`, `CgSplitButton.razor`, `CgButtonMenu*`, and `CgButtonMenus.md`; `CG.CompLib.Tests/CgButtonMenuTests.cs` and `CgButtonMenuBrowserTests.cs`; `CG.CompLib.Demo/Components/Pages/ButtonMenusDemo.razor`.
+- Toolbar evidence: `CG.CompLib/Comp/Toolbar/*`; `CG.CompLib.Tests/CgToolbarTests.cs`, `CgToolbarLayoutEngineTests.cs`, and `CgToolbarBrowserTests.cs`; the Toolbar, adaptive, filter, grid, list-page, and sales-order demos.
+- `git status --short` immediately before implementation:
+
+```text
+ M CG.CompLib.Demo/Components/Pages/MemoDemo.razor
+ M CG.CompLib.Tests/CgBasicInputTests.cs
+ M CG.CompLib.Tests/EditLedgerJournalPageMigrationTests.cs
+ M CG.CompLib/Comp/FormLayout/README.md
+ M CG.CompLib/Comp/Inputs/CgMemo.md
+ D CG.CompLib/Comp/Inputs/CgTextArea.razor
+ D CG.CompLib/Comp/Inputs/CgTextArea.razor.css
+ M CashGear.App/Components/Comp/GL/UpdateJournalLineComp.razor
+ M CashGear.App/Components/Comp/Inv/UpdateInvJourLineComp.razor
+ M CashGear.App/Components/Comp/Inv/UpdateInvJourRevLineComp.razor
+ M CashGear.App/Components/Comp/Purch/UpdatePurchLineComp.razor
+ M CashGear.App/Components/Pages/Accounting/LrdgerJournalPages/AddLedgerJournalPage.razor
+ M CashGear.App/Components/Pages/Accounting/LrdgerJournalPages/EditLedgerJournalPage.razor
+ M CashGear.App/Components/Pages/Accounting/LrdgerJournalPages/EditLedgerJournalPage.razor.css
+ M CashGear.App/Components/Pages/Accounting/Reports/LedgertransPage.razor
+ M CashGear.App/Components/Pages/Purch/PO/EditPOsPage.razor
+ M CashGear.App/Components/Pages/Purch/PO/EditPOsPage.razor.cs
+ M CashGear.App/Components/Pages/Sales/OrdersReportPage.razor
+?? .claude/settings.local.json
+?? CG.CompLib.Tests/EditPOsPageMigrationTests.cs
+```
+
+The completion audit observed the same `517e7eba58cdbcd6ad3f29087837c6ce8895ad2a` HEAD and the exact same status block above. No Phase 10 command wrote to, committed in, formatted, cleaned, reverted, or restored the Razor repository.
+
 ## Implemented inventory
 
 “Mirrored” means the user-visible contract is carried across with React/native-DOM adaptations. “Partially mirrored” identifies a deliberate Phase 2 omission. “New React implementation” has no exact Razor component.
@@ -379,6 +416,11 @@ No Phase 9 command wrote to, committed in, formatted, cleaned, reverted, or rest
 | `CgDropDownBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgDropDownBox.*`, `CgDropDownBoxTypes.cs`; `CG.CompLib.Demo/Components/Pages/DropDownBoxDemo.razor` | `src/components/DropDownBox/*`, `src/internal/PositionedOverlay.tsx`, `src/internal/overlayStack.ts` | `tests/drop-down-box.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/DropDownBox/CgDropDownBox.stories.tsx` | React render contexts host arbitrary content; a native select proxy and explicit object serializer replace Blazor `EditContext` integration. The body portal replaces the browser manual-popover top layer and deliberately adds no focus trap. |
 | `CgDateEdit` | Mirrored with canonical React value contract | `CG.CompLib/Comp/Inputs/CgDateEdit.*`, `CgDateEditTypes.cs`, `CgDateEditorUtilities.cs`; `CG.CompLib.Demo/Components/Pages/DateEditDemo.razor` | `src/components/DateEdit/*`, `src/internal/PositionedOverlay.tsx`, `src/internal/overlayStack.ts` | `tests/date-edit.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/DateEdit/CgDateEdit.stories.tsx` | React exposes only canonical `YYYY-MM-DD | null` civil dates, exact documented token formats, and a private dependency-free calendar. It does not expose `Date`, DateRangePicker, or a public Calendar. |
 | `CgFlyout` | Mirrored | `CG.CompLib/Comp/Overlays/CgFlyout.*`, `CgFlyoutCloseReason.cs`, `CgPlacement.cs`, `CgOverlayContracts.cs`; `CG.CompLib.Demo/Components/Pages/FlyoutDemo.razor` | `src/components/Flyout/*`, `src/internal/PositionedOverlay.tsx`, `src/internal/overlayStack.ts`, `src/internal/overlayDom.ts` | `tests/flyout.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/Flyout/CgFlyout.stories.tsx` | React supports element/ref/selector and virtual anchors through a body portal. Private React context plus DOM owner/boundary IDs replace Blazor cascading ownership and JS module handles. |
+| `CgMenu` | Mirrored with React descriptor adaptation | `CG.CompLib/Comp/Menu/*`; `CG.CompLib.Demo/Components/Pages/MenuDemo.razor` | `src/components/Menu/*`, `src/internal/menu*.ts`, `src/internal/MenuSurface.tsx` | `tests/menu.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/Menu/CgMenu.stories.tsx` | Immutable nested/flat descriptors replace declaration-only Razor items. Native anchors and optional `currentLocation`/`onNavigate` replace router coupling; automatic SSR begins with the complete desktop tree. |
+| `CgContextMenu` | Mirrored with typed target-hook adaptation | `CG.CompLib/Comp/ContextMenu/*`; `CG.CompLib.Demo/Components/Pages/ContextMenuDemo.razor` | `src/components/ContextMenu/*`, shared private menu engine | `tests/context-menu.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/ContextMenu/CgContextMenu.stories.tsx` | `useCgContextMenuTarget` composes refs/handlers without wrapper DOM or string IDs. Every invocation is typed and abortable; confirmation requires an explicit callback instead of a global service. |
+| `CgDropDownButton` | Mirrored | `CG.CompLib/Comp/Buttons/CgDropDownButton.razor`, `CgButtonMenu*`; `ButtonMenusDemo.razor` | `src/components/DropDownButton/*`, shared private menu engine | `tests/button-menu.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/DropDownButton/CgDropDownButton.stories.tsx` | Immutable descriptors or a mutually exclusive arbitrary dialog render callback replace Razor fragments. The existing `CgButton` is solely the trigger. |
+| `CgSplitButton` | Mirrored | `CG.CompLib/Comp/Buttons/CgSplitButton.razor`, `CgButtonMenu*`; `ButtonMenusDemo.razor` | `src/components/SplitButton/*`, `src/components/DropDownButton/ButtonMenu.tsx` | `tests/button-menu.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/SplitButton/CgSplitButton.stories.tsx` | Primary action/form/busy behavior remains on `CgButton`; the logical toggle is isolated and disabled when no visible enabled leaf exists. |
+| `CgToolbar` | Mirrored with pure React layout planner | `CG.CompLib/Comp/Toolbar/*`; Toolbar demo family | `src/components/Toolbar/*`, `src/internal/toolbarLayout.ts` | `tests/toolbar.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/Toolbar/CgToolbar.stories.tsx` | A container `ResizeObserver` drives a pure deterministic stage plan; links remain semantic anchors and menu/split branches reuse the Phase 10 button surfaces. |
 | `CgPopup` | Mirrored | `CG.CompLib/Comp/Overlays/CgPopup.*`, `CgOverlayBase.cs`, `CgOverlayContracts.cs`; `CG.CompLib.Demo/Components/Pages/PopupWindowDemo.razor` | `src/components/Popup/*`, `src/internal/OverlaySurface.tsx`, `src/internal/overlayStack.ts`, `src/internal/overlayDom.ts` | `tests/popup.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/Popup/CgPopup.stories.tsx` | A body-portalled backdrop/surface replaces native top-layer APIs. React owns focus isolation, exact scroll-style restoration, and full-region render contexts. |
 | `CgWindow` | Mirrored | `CG.CompLib/Comp/Overlays/CgWindow.*`, `CgOverlayBase.cs`, `CgOverlayContracts.cs`; `CG.CompLib.Demo/Components/Pages/PopupWindowDemo.razor` | `src/components/Window/*`, `src/internal/OverlaySurface.tsx`, `src/internal/overlayStack.ts`, `src/internal/overlayDom.ts` | `tests/window.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/Window/CgWindow.stories.tsx` | React modeless windows use a global paint order below modals, scoped Escape ownership, and DOM/ref/selector positioning actions instead of .NET/JS handles. |
 | `CgMaskedInput` | Mirrored with native-form adaptation | `CG.CompLib/Comp/Inputs/CgMaskedInput.*`, `CgMaskedInputTypes.cs`, `CgMaskParser.cs`, `CgMaskState.cs`; `CG.CompLib.Demo/Components/Pages/MaskedInputDemo.razor` | `src/components/MaskedInput/*`, `src/internal/mask.ts` | `tests/masked-input.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/MaskedInput/CgMaskedInput.stories.tsx` | Unicode property matching and UTF-16 caret maps implement the mask without DevExpress. A private native proxy replaces Blazor `EditContext` submission/validation. |
@@ -392,6 +434,16 @@ No Phase 9 command wrote to, committed in, formatted, cleaned, reverted, or rest
 | `CgProgressBar` | New React implementation | No exact source | `src/components/ProgressBar/*` | `tests/loading-progress.test.tsx` | `src/components/ProgressBar/CgProgressBar.stories.tsx` | Native React progress semantics, logical RTL fill, and reduced-motion support. |
 
 The shared hook/primitives layer is covered in `tests/foundation.test.tsx`. The exact runtime export allow-list is guarded by `tests/public-api.test.ts`.
+
+## Phase 10 command-surface behavior
+
+- One private engine (`menuTree`, `menuNavigation`, `menuLayout`, and `MenuSurface`) validates and clones caller-owned trees, retains opaque data/functions/renderers by reference, normalizes visibility/groups/separators, proposes check/radio state, rejects dangerous or obfuscated schemes, and owns menu ARIA, roving focus, locale typeahead, logical RTL arrows, timers, and keyed focus across portals. Every floating level is an owned `CgFlyout`; no engine type is exported from the package root.
+- `CgMenu` supports navigation and application-menu semantics, controlled/uncontrolled selection and expansion, exact/prefix route selection, native link behavior, and container-based full → adaptive/icon → hamburger planning. Automatic SSR renders one deterministic complete desktop tree; post-hydration movement never creates duplicate interactive commands.
+- `CgContextMenu` supersedes and aborts stale invocations, delays its noninteractive busy surface by 150ms, revalidates customized snapshots, enforces explicit confirmation integration, and runs validation → confirmation → transient proposal → cancellable before-command → global activation → item command → success/failure observation. Cancelled or failed work rolls proposals back. Forced navigation/owner-loss/supersession/unmount closes cannot be vetoed.
+- The target hook composes existing handlers and refs and implements right-click, Shift+F10/Menu, optional click, and 600ms/10px long press with owner-specific cleanup. Button menus focus their first command/control, restore their trigger, observe async failures, ignore duplicate activation, and honor `{ keepOpen: true }` from either callback.
+- Toolbar filters hidden commands before independently planning start/end rails. It dispatches plain commands, menu-only branches, primary-action branches, semantic links, and managed custom content exactly once. Adaptation is full text → adaptive text → icon-only → one-at-a-time overflow; lower priority/later items move first and widening restores the exact reverse order while respecting always/never overflow and minimum-visible rules.
+- Phase 9 Flyout gained additive focus-loss dismissal and focus-return switches through the existing overlay registry. Native navigation preserves modifier, middle-click, target, context-menu, and consumer `preventDefault` behavior; same-window Toolbar navigation waits for its async activation pipeline.
+- Exactly 21 Phase 10 Windows Chromium baselines were added: five Menu, six ContextMenu, five button-menu, and five Toolbar snapshots. All 95 earlier baselines remained byte-for-byte unchanged.
 
 ## Phase 9 shared overlay behavior
 
@@ -494,30 +546,29 @@ The shared hook/primitives layer is covered in `tests/foundation.test.tsx`. The 
 
 ## Verification result
 
-Verified on 2026-08-26 with the bundled supported Node 24.19 runtime from the uncommitted Phase 9 working tree:
+Verified on 2026-08-26 with the bundled supported Node 24.19 runtime from the uncommitted Phase 10 working tree:
 
 | Command/gate | Result |
 | --- | --- |
 | `npm run typecheck` | Passed (strict TypeScript 6) |
 | `npm run lint` | Passed |
-| `npm run test` | Passed: 19 files, 178 tests |
-| `npm run check:cycles` | Passed: 115 source modules, no relative-import cycles |
-| `npm run build:lib` | Passed: 111 transformed modules; declarations/maps and `dist/cashgear-ui.css` emitted |
-| `npm run build-storybook` | Passed with Storybook 10.5.10; 165 transformed modules |
-| Chromium semantic/Axe | Passed: 55 tests |
-| Firefox semantic/Axe | Passed: 55 tests with `--headed`; the supported-Node headless launch failed before tests with Mozilla `RenderCompositorSWGL failed mapping default framebuffer` and three 30-second browser-launch timeouts |
-| WebKit semantic/Axe | Passed: 55 tests |
-| Chromium visual | Passed: 87 tests comparing 95 Windows snapshots; exactly 19 Phase 9 snapshots were added (four Flyouts, five Popups, four Windows, and six MaskedInputs) and no pre-Phase-9 baseline was regenerated |
-| `npm run verify:package` | Passed: 27 runtime exports, 535 packed files, React externalization/declarations/styles/dry-run ESM import verified |
-| `npm run verify` | Not run as one monolithic command because its required headless Firefox project is unsupported on this host. Every constituent source/build/package gate and the equivalent complete headed Firefox plus headless Chromium/WebKit/visual projects passed under Node 24.19. |
+| `npm run test` | Passed: 23 files, 205 tests |
+| `npm run check:cycles` | Passed: 138 source modules, no relative-import cycles |
+| `npm run build:lib` | Passed: 134 transformed modules; declarations/maps and `dist/cashgear-ui.css` emitted |
+| `npm run build-storybook` | Passed with Storybook 10.5.10; 191 transformed modules |
+| Chromium semantic/Axe | Passed: 68 tests |
+| Firefox semantic/Axe | Headless launch failed before tests with the known Mozilla `RenderCompositorSWGL failed mapping default framebuffer` error and a 30-second launch timeout. The complete 68-test project ran headed: 67 passed in that run and one pre-Phase-10 TagBox case timed out only while closing the Firefox context after its assertions; that exact case passed immediately in isolation. Every Phase 10 Firefox case passed. |
+| WebKit semantic/Axe | Passed: 68 tests |
+| Chromium visual | Passed: 108 tests comparing 116 Windows snapshots; exactly 21 Phase 10 snapshots were added (five Menu, six ContextMenu, five button-menu, and five Toolbar) and no earlier baseline was regenerated |
+| `npm run verify:package` | Passed: 33 runtime exports, 648 packed files, React externalization/declarations/styles/dry-run ESM import verified |
+| `npm run verify` | Not run as one monolithic command because its required headless Firefox project is unsupported on this host. Every source/build/package/Chromium/WebKit/visual constituent passed; the complete headed Firefox project plus the isolated teardown-flake retry covered all 68 Firefox cases. |
 
 ## Deferred inventory
 
-These rows are evidence only. No public React API or implementation is included in Phase 1–9.
+These rows are evidence only. No public React API or implementation is included in Phase 1–10.
 
 | Planned component | Razor evidence | Status |
 | --- | --- | --- |
-| ContextMenu | Working-tree `CG.CompLib/Comp/ContextMenu/CgContextMenu.*` | Deferred |
 | DateRangePicker | `CG.CompLib/Comp/Inputs/CgDateRangePicker.*` | Explicitly deferred after Phase 8 |
 | Calendar | Calendar surface inside `CG.CompLib/Comp/Inputs/CgDateEdit.*`; Phase 8 calendar is private | Standalone public component deferred |
 | LookupGrid | `CG.CompLib/Comp/Inputs/CgLookUpGrid.*` | Deferred |
