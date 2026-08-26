@@ -1,0 +1,22 @@
+.portal {
+  position: fixed;
+  inset: 0;
+  pointer-events: auto;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(15 23 42 / 48%);
+}
+
+.portal[data-shading='transparent'] .backdrop { background: transparent; }
+
+.surface { min-inline-size: min(20rem, calc(100dvw - 24px)); }
+
+@media (max-width: 767.98px) {
+  .portal[data-adaptive='true'] .surface {
+    inline-size: calc(100dvw - 24px) !important;
+    max-inline-size: calc(100dvw - 24px) !important;
+  }
+}

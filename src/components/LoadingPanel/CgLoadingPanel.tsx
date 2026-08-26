@@ -36,7 +36,7 @@ export const CgLoadingPanel = forwardRef<HTMLDivElement, CgLoadingPanelProps>(fu
     }
     return () => { if (timer !== undefined) clearTimeout(timer); };
   }, [displayed, minimumVisibleDuration, requested, showDelay]);
-  const stacked = useOverlayStack(displayed && mode !== 'inline', dismissOnEscape ? dismiss : undefined);
+  const stacked = useOverlayStack(displayed && mode !== 'inline', dismissOnEscape ? dismiss : undefined, panelRef);
 
   useEffect(() => {
     if (!displayed || !blocking || mode !== 'portal' || typeof document === 'undefined') return undefined;
@@ -98,11 +98,13 @@ export const CgLoadingPanel = forwardRef<HTMLDivElement, CgLoadingPanelProps>(fu
       {...nativeProps}
       ref={mergedRef}
       className={cx(styles.panel, mode === 'inline' && styles.inline, shading && mode !== 'inline' && styles.shading, className)}
-      style={{ ...style, ...(mode === 'portal' ? coverStyle : null), zIndex: mode === 'inline' ? undefined : `calc(var(--cg-z-overlay) + ${stacked.order})` }}
+      style={{ ...style, ...(mode === 'portal' ? coverStyle : null), zIndex: mode === 'inline' ? undefined : stacked.rootKind === 'modal' ? `calc(var(--cg-z-modal) + ${stacked.order * 2 + 1})` : `calc(var(--cg-z-overlay) + ${stacked.order})` }}
       role="status"
       aria-live="polite"
       aria-busy="true"
       data-blocking={blocking}
+      data-cg-overlay-id={stacked.id}
+      data-cg-overlay-owner={stacked.ownerId}
       data-cg-loading-overlay=""
       data-testid={testId}
       tabIndex={trapFocus ? -1 : nativeProps.tabIndex}

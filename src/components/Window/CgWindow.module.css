@@ -1,0 +1,10 @@
+.portal {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.surface {
+  min-inline-size: min(18rem, calc(100dvw - 24px));
+  pointer-events: auto;
+}

@@ -198,7 +198,9 @@ describe('CgDropDownBox', () => {
     const hosted = screen.getByRole('button', { name: 'Hosted action' });
     fireEvent.keyDown(hosted, { key: 'ArrowDown' });
     expect(screen.getByRole('combobox')).toHaveAttribute('aria-expanded', 'true');
-    fireEvent.pointerDown(screen.getByRole('button', { name: 'Outside' }));
+    const outside = screen.getByRole('button', { name: 'Outside' });
+    fireEvent.pointerDown(outside, { pointerId: 12 });
+    fireEvent.pointerUp(outside, { pointerId: 12 });
     await waitFor(() => expect(screen.getByRole('combobox')).toHaveAttribute('aria-expanded', 'false'));
   });
 

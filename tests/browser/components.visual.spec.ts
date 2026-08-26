@@ -247,3 +247,56 @@ test('DateEdit narrow layout', async ({ page }) => {
   await expect(page.getByRole('dialog', { name: 'Calendar' })).toBeVisible();
   await expect(page).toHaveScreenshot('date-edit-narrow.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
 });
+
+for (const [name, story, globals] of [
+  ['flyout-primary', 'phase-9-flyout--default', undefined],
+  ['flyout-placements', 'phase-9-flyout--placements', undefined],
+  ['flyout-dark-compact', 'phase-9-flyout--dark-compact', 'theme:dark;density:compact;direction:ltr'],
+  ['flyout-arabic-rtl', 'phase-9-flyout--arabic-rtl', 'theme:light;density:comfortable;direction:rtl'],
+] as const) {
+  test(`${name} Phase 9 visual`, async ({ page }) => {
+    await openStory(page, story, globals);
+    await expect(page).toHaveScreenshot(`${name}.png`, { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+  });
+}
+
+for (const [name, story, globals, narrow] of [
+  ['popup-primary', 'phase-9-popup--default', undefined, false],
+  ['popup-nested-flyout', 'phase-9-popup--nested-flyout-ownership', undefined, false],
+  ['popup-drag-resize', 'phase-9-popup--drag-and-resize', undefined, false],
+  ['popup-transparent-dark', 'phase-9-popup--transparent-dark', 'theme:dark;density:comfortable;direction:ltr', false],
+  ['popup-adaptive-narrow', 'phase-9-popup--adaptive-narrow', undefined, true],
+] as const) {
+  test(`${name} Phase 9 visual`, async ({ page }) => {
+    if (narrow) await page.setViewportSize({ width: 360, height: 540 });
+    await openStory(page, story, globals);
+    await expect(page).toHaveScreenshot(`${name}.png`, { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+  });
+}
+
+for (const [name, story, globals] of [
+  ['window-primary', 'phase-9-window--default', undefined],
+  ['window-multiple', 'phase-9-window--multiple-windows', undefined],
+  ['window-drag-resize', 'phase-9-window--drag-and-resize', undefined],
+  ['window-dark-rtl', 'phase-9-window--dark-rtl', 'theme:dark;density:compact;direction:rtl'],
+] as const) {
+  test(`${name} Phase 9 visual`, async ({ page }) => {
+    await openStory(page, story, globals);
+    await expect(page).toHaveScreenshot(`${name}.png`, { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+  });
+}
+
+for (const [name, story, globals, narrow] of [
+  ['masked-input-primary', 'phase-9-maskedinput--default', undefined, false],
+  ['masked-input-show-modes', 'phase-9-maskedinput--show-mask-modes', undefined, false],
+  ['masked-input-validation', 'phase-9-maskedinput--validation', undefined, false],
+  ['masked-input-unicode', 'phase-9-maskedinput--unicode', undefined, false],
+  ['masked-input-dark-compact', 'phase-9-maskedinput--dark-compact', 'theme:dark;density:compact;direction:ltr', false],
+  ['masked-input-arabic-rtl-narrow', 'phase-9-maskedinput--arabic-rtl-narrow', 'theme:light;density:comfortable;direction:rtl', true],
+] as const) {
+  test(`${name} Phase 9 visual`, async ({ page }) => {
+    if (narrow) await page.setViewportSize({ width: 360, height: 540 });
+    await openStory(page, story, globals);
+    await expect(page).toHaveScreenshot(`${name}.png`, { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+  });
+}

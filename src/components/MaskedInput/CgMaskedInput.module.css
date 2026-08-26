@@ -1,0 +1,41 @@
+.root {
+  position: relative;
+  inline-size: 18rem;
+  min-inline-size: 0;
+  color: var(--cg-text);
+}
+
+.fullWidth { inline-size: 100%; }
+
+.control { inline-size: 100%; }
+
+.input {
+  order: 100;
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  block-size: 100%;
+  padding-inline: var(--cg-space-3);
+  color: inherit;
+  font: inherit;
+  background: transparent;
+  border: 0;
+  outline: 0;
+}
+
+.formProxy {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.validationMessage {
+  margin-block-start: var(--cg-space-2);
+  color: var(--cg-danger-text);
+  font-size: var(--cg-font-size-sm);
+  line-height: var(--cg-line-height);
+}
+
+.root[data-density='compact'] .input { padding-inline: var(--cg-space-2); }

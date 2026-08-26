@@ -25,6 +25,14 @@ const canonicalStories = [
   'phase-8-dateedit--default',
   'phase-8-dateedit--open-calendar',
   'phase-8-dateedit--arabic-rtl',
+  'phase-9-flyout--default',
+  'phase-9-popup--default',
+  'phase-9-window--default',
+  'phase-9-maskedinput--default',
+  'phase-9-popup--nested-flyout-ownership',
+  'phase-9-popup--third-party-boundary',
+  'phase-9-window--multiple-windows',
+  'phase-9-maskedinput--validation',
 ] as const;
 
 for (const story of canonicalStories) {
@@ -513,4 +521,161 @@ test('SpinEdit repeats a held pointer and stops on release', async ({ page }) =>
   expect(stopped).toBeGreaterThan(1);
   await page.waitForTimeout(500);
   await expect(input).toHaveValue(String(stopped));
+});
+
+test('Flyout and Popup preserve nested ownership, matched pointer pairs, and Escape ordering', async ({ page }) => {
+  await openStory(page, 'phase-9-popup--nested-flyout-ownership');
+  const popup = page.getByRole('dialog', { name: 'Customer details' });
+  const nested = page.getByRole('button', { name: 'Open ledger' });
+  await expect(popup).toBeVisible();
+  await expect(nested).toBeVisible();
+
+  const nestedBox = await nested.boundingBox();
+  expect(nestedBox).not.toBeNull();
+  await page.mouse.move((nestedBox?.x ?? 0) + 4, (nestedBox?.y ?? 0) + 4);
+  await page.mouse.down();
+  await page.mouse.move(4, 4);
+  await page.mouse.up();
+  await expect(nested).toBeVisible();
+  await expect(popup).toBeVisible();
+
+  await nested.focus();
+  await page.keyboard.press('Escape');
+  await expect(nested).toHaveCount(0);
+  await expect(popup).toBeVisible();
+  await page.locator('[data-cg-popup-backdrop]').click({ position: { x: 4, y: 4 } });
+  await expect(popup).toHaveCount(0);
+
+  await openStory(page, 'phase-9-popup--third-party-boundary');
+  const boundaryPopup = page.getByRole('dialog', { name: 'Boundary ownership' });
+  const externalAction = page.getByRole('button', { name: 'External owned action' });
+  await externalAction.focus();
+  await expect(externalAction).toBeFocused();
+  await externalAction.click();
+  await expect(boundaryPopup).toBeVisible();
+});
+
+test('Popup traps and returns focus, adapts to narrow viewports, and supports pointer drag and resize', async ({ page }) => {
+  await openStory(page, 'phase-9-popup--focus-trap-and-return');
+  const opener = page.getByRole('button', { name: 'Launch focus Popup' });
+  await opener.focus();
+  await opener.click();
+  await expect(page.getByRole('button', { name: 'First modal action' })).toBeFocused();
+  await page.getByRole('button', { name: 'Last modal action' }).focus();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: 'Close' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(opener).toBeFocused();
+
+  await openStory(page, 'phase-9-popup--drag-and-resize');
+  const dialog = page.getByRole('dialog', { name: 'Resizable posting dialog' });
+  const before = await dialog.boundingBox();
+  const header = dialog.locator('[data-cg-overlay-header]');
+  const headerBox = await header.boundingBox();
+  expect(before).not.toBeNull();
+  expect(headerBox).not.toBeNull();
+  await page.mouse.move((headerBox?.x ?? 0) + 30, (headerBox?.y ?? 0) + 20);
+  await page.mouse.down();
+  await page.mouse.move((headerBox?.x ?? 0) + 80, (headerBox?.y ?? 0) + 50);
+  await page.mouse.up();
+  const moved = await dialog.boundingBox();
+  expect((moved?.x ?? 0) - (before?.x ?? 0)).toBeGreaterThan(20);
+  const handle = dialog.locator('[data-cg-resize="se"]');
+  const handleBox = await handle.boundingBox();
+  expect(handleBox).not.toBeNull();
+  await page.mouse.move((handleBox?.x ?? 0) + 3, (handleBox?.y ?? 0) + 3);
+  await page.mouse.down();
+  await page.mouse.move((handleBox?.x ?? 0) + 43, (handleBox?.y ?? 0) + 33);
+  await page.mouse.up();
+  const resized = await dialog.boundingBox();
+  expect((resized?.width ?? 0) - (moved?.width ?? 0)).toBeGreaterThan(20);
+
+  await page.setViewportSize({ width: 360, height: 540 });
+  await openStory(page, 'phase-9-popup--adaptive-narrow');
+  const adaptive = await page.getByRole('dialog', { name: 'Adaptive approval' }).boundingBox();
+  expect(adaptive).not.toBeNull();
+  expect(adaptive?.x ?? -1).toBeGreaterThanOrEqual(11);
+  expect((adaptive?.x ?? 0) + (adaptive?.width ?? 0)).toBeLessThanOrEqual(349);
+});
+
+test('Window paint order follows focus and Escape is scoped to the focused owner', async ({ page }) => {
+  await openStory(page, 'phase-9-window--multiple-windows');
+  const journal = page.getByRole('dialog', { name: 'Journal lines' });
+  const account = page.getByRole('dialog', { name: 'Account lookup' });
+  const accountOrder = await account.locator('xpath=..').evaluate((element) => Number.parseInt(getComputedStyle(element).zIndex, 10));
+  await page.getByRole('button', { name: 'Add line' }).click();
+  const journalOrder = await journal.locator('xpath=..').evaluate((element) => Number.parseInt(getComputedStyle(element).zIndex, 10));
+  expect(journalOrder).toBeGreaterThan(accountOrder);
+  await page.keyboard.press('Escape');
+  await expect(journal).toHaveCount(0);
+  await expect(account).toBeVisible();
+});
+
+test('Window drag and resize release pointer gestures cleanly', async ({ page }) => {
+  await openStory(page, 'phase-9-window--drag-and-resize');
+  const window = page.getByRole('dialog', { name: 'Resizable analysis' });
+  const before = await window.boundingBox();
+  const headerBox = await window.locator('[data-cg-overlay-header]').boundingBox();
+  expect(before).not.toBeNull();
+  expect(headerBox).not.toBeNull();
+  await page.mouse.move((headerBox?.x ?? 0) + 20, (headerBox?.y ?? 0) + 18);
+  await page.mouse.down();
+  await page.mouse.move((headerBox?.x ?? 0) + 65, (headerBox?.y ?? 0) + 48);
+  await page.mouse.up();
+  const moved = await window.boundingBox();
+  expect((moved?.x ?? 0) - (before?.x ?? 0)).toBeGreaterThan(15);
+  const handleBox = await window.locator('[data-cg-resize="se"]').boundingBox();
+  expect(handleBox).not.toBeNull();
+  await page.mouse.move((handleBox?.x ?? 0) + 3, (handleBox?.y ?? 0) + 3);
+  await page.mouse.down();
+  await page.mouse.move((handleBox?.x ?? 0) + 33, (handleBox?.y ?? 0) + 33);
+  await page.mouse.up();
+  const resized = await window.boundingBox();
+  expect((resized?.width ?? 0) - (moved?.width ?? 0)).toBeGreaterThan(15);
+});
+
+test('MaskedInput handles caret editing, Unicode, controlled rejection, forms, and RTL', async ({ page }) => {
+  await openStory(page, 'phase-9-maskedinput--default');
+  const controlled = page.getByRole('textbox', { name: 'Controlled mobile' });
+  await controlled.focus();
+  await controlled.press('End');
+  await controlled.evaluate((element) => {
+    const pasteEvent = new Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(pasteEvent, 'clipboardData', { value: { getData: () => '8' } });
+    element.dispatchEvent(pasteEvent);
+  });
+  await expect(controlled).toHaveValue('0101 234 5678');
+  await expect(page.getByLabel('Controlled masked value')).toHaveText('0101 234 5678');
+
+  await openStory(page, 'phase-9-maskedinput--unicode');
+  const unicode = page.getByRole('textbox', { name: 'Astral Unicode letter' });
+  await unicode.focus();
+  await unicode.press('End');
+  await unicode.press('Backspace');
+  await expect(unicode).toHaveValue('𐐀_');
+  await page.keyboard.insertText('٢');
+  await expect(unicode).toHaveValue('𐐀٢');
+
+  await openStory(page, 'phase-9-maskedinput--controlled-rejection');
+  const rejected = page.getByRole('textbox', { name: 'Authoritative code' });
+  await rejected.focus();
+  await rejected.press('End');
+  await page.keyboard.insertText('45');
+  await expect(page.getByLabel('Attempted masked value')).toHaveText('123-45');
+  await expect(rejected).toHaveValue('123-__');
+
+  await openStory(page, 'phase-9-maskedinput--value-semantics-and-form');
+  await page.getByRole('button', { name: 'Submit identifier' }).click();
+  await expect(page.getByLabel('Submitted identifier')).toHaveText('123456789');
+  await page.getByRole('button', { name: 'Reset identifier' }).click();
+  await expect(page.getByRole('textbox', { name: 'Tax identifier' })).toHaveValue('123-456-789');
+
+  await page.setViewportSize({ width: 360, height: 540 });
+  await openStory(page, 'phase-9-maskedinput--arabic-rtl-narrow', 'theme:light;density:comfortable;direction:rtl');
+  const rtl = page.getByRole('textbox', { name: 'رقم الهاتف' });
+  expect(await rtl.evaluate((element) => getComputedStyle(element).direction)).toBe('ltr');
+  await rtl.focus();
+  await rtl.press('End');
+  await page.keyboard.insertText('٨');
+  await expect(rtl).toHaveValue('٠١٠١ ٢٣٤ ٥٦٧٨');
 });

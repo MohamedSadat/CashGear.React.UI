@@ -1,7 +1,7 @@
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, CompositionEvent, KeyboardEvent, MouseEvent } from 'react';
 import { useAsyncOperation, useCgId, useControllableState, useDebouncedCallback, useDirection, useFormReset, useMergedRefs, useStableCallback } from '../../hooks';
-import { EditorButton, InputShell, PositionedOverlay, normalizeTagBoxSearch, tagBoxKeyToken, tagBoxTextMatches, useFieldControl, useOverlayStack } from '../../internal';
+import { EditorButton, InputShell, OverlayOwnerProvider, PositionedOverlay, normalizeTagBoxSearch, tagBoxKeyToken, tagBoxTextMatches, useFieldControl, useOverlayStack } from '../../internal';
 import { assertNonNegative, assertPositiveInteger } from '../../internal/validation';
 import { cx } from '../../utils';
 import styles from './CgTagBox.module.css';
@@ -92,6 +92,7 @@ function CgTagBoxInner<TItem>(
   const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy });
   const inputRef = useRef<HTMLInputElement>(null);
   const controlRef = useRef<HTMLDivElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
   const formProxyRef = useRef<HTMLSelectElement>(null);
   const ref = useMergedRefs(inputRef, forwardedRef);
   const listboxId = `${useCgId(field.id)}-listbox`;
@@ -255,7 +256,7 @@ function CgTagBoxInner<TItem>(
     setActiveIndex(-1);
     if (loadOptions) setRemoteItems([]);
   });
-  const overlay = useOverlayStack(open, closePopup);
+  const overlay = useOverlayStack(open, closePopup, popupRef, closePopup, controlRef);
 
   const beginOpen = useStableCallback((fromEnd = false) => {
     if (field.disabled || field.readOnly) return;
@@ -589,7 +590,8 @@ function CgTagBoxInner<TItem>(
         })}
       </select>
       {open ? (
-        <PositionedOverlay anchorRef={controlRef} className={styles.popup} role="presentation" maxHeight={288} onOutsidePointerDown={overlay.isTopmost ? closePopup : undefined} style={{ zIndex: `calc(var(--cg-z-popover) + ${overlay.order})` }}>
+        <PositionedOverlay ref={popupRef} anchorRef={controlRef} className={styles.popup} role="presentation" maxHeight={288} style={{ zIndex: overlay.rootKind === 'modal' ? `calc(var(--cg-z-modal) + ${overlay.order * 2 + 1})` : `calc(var(--cg-z-popover) + ${overlay.order})` }} data-cg-overlay-id={overlay.id} data-cg-overlay-owner={overlay.ownerId}>
+          <OverlayOwnerProvider id={overlay.id}>
           {status !== undefined && status !== null ? (
             <div id={statusId} className={cx(styles.status, asyncOperation.pending && styles.loading, loadError !== undefined && styles.error)} role={loadError !== undefined ? 'alert' : 'status'}>{status}</div>
           ) : null}
@@ -619,6 +621,7 @@ function CgTagBoxInner<TItem>(
               );
             })}
           </div>
+          </OverlayOwnerProvider>
         </PositionedOverlay>
       ) : null}
     </div>

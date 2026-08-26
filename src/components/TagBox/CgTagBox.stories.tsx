@@ -45,7 +45,7 @@ function RemoteSelection() {
     <CgField label="Remote customers" description="Type “co”, “north”, “none”, or “error”.">
       <CgTagBox
         loadOptions={async (query, { signal }) => {
-          await new Promise((resolve) => setTimeout(resolve, 500));
+          await new Promise((resolve) => setTimeout(resolve, 1_500));
           if (signal.aborted) return [];
           if (query === 'error') throw new Error('Demo search failure');
           if (query === 'none') return [];

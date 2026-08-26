@@ -1,4 +1,4 @@
-# CG.CompLib → `@cashgear/ui` Phase 1–8 parity
+# CG.CompLib → `@cashgear/ui` Phase 1–9 parity
 
 ## Reference snapshot
 
@@ -306,6 +306,60 @@ Phase 8 builds on the clean React baseline `9abb93938a3a17ba6fd1dcc900eb8a72a8a1
 
 The completion audit observed the same reference HEAD and exact status. No React implementation or verification command changed the Razor repository.
 
+## Phase 9 reference refresh
+
+Phase 9 builds on the clean React baseline `2144b2fa41e47c27f58dc158d457c2b8b17c8f29` and retains every earlier snapshot. Flyout, Popup, Window, and MaskedInput comparison uses the read-only Razor tree below. `CgDateRangePicker` and the private DateEdit calendar are explicitly outside this phase. No Phase 9 command may write to, commit in, format, clean, revert, or restore `CGWebApp`.
+
+- Reference HEAD: `517e7eba58cdbcd6ad3f29087837c6ce8895ad2a`
+- Reference captured immediately before implementation: 2026-08-26
+- Flyout evidence: `CG.CompLib/Comp/Overlays/CgFlyout.*`, `CgFlyoutCloseReason.cs`, `CgPlacement.cs`, `CgOverlayContracts.cs`, and `README.md`; `CG.CompLib.Tests/CgFlyoutTests.cs` and `CgFlyoutBrowserTests.cs`; `CG.CompLib.Demo/Components/Pages/FlyoutDemo.razor`.
+- Popup and Window evidence: `CG.CompLib/Comp/Overlays/CgPopup.*`, `CgWindow.*`, `CgOverlayBase.cs`, `CgOverlayContracts.cs`, and `CG.CompLib/wwwroot/js/cg-overlay-stack.js`; `CG.CompLib.Tests/CgOverlayTests.cs` and `CgOverlayBrowserTests.cs`; `CG.CompLib.Demo/Components/Pages/PopupWindowDemo.razor` and `.razor.css`.
+- MaskedInput evidence: `CG.CompLib/Comp/Inputs/CgMaskedInput.*`, `CgMaskedInputTypes.cs`, `CgMaskParser.cs`, and `CgMaskState.cs`; `CG.CompLib.Tests/CgMaskedInputTests.cs` and `CgMaskedInputBrowserTests.cs`; `CG.CompLib.Demo/Components/Pages/MaskedInputDemo.razor`.
+- `git status --short` immediately before implementation:
+
+```text
+ M CG.CompLib.Demo/Components/Pages/MemoDemo.razor
+ M CG.CompLib.Tests/CgBasicInputTests.cs
+ M CG.CompLib/Comp/FormLayout/README.md
+ M CG.CompLib/Comp/Inputs/CgMemo.md
+ D CG.CompLib/Comp/Inputs/CgTextArea.razor
+ D CG.CompLib/Comp/Inputs/CgTextArea.razor.css
+ M CashGear.App/Components/Comp/GL/UpdateJournalLineComp.razor
+ M CashGear.App/Components/Comp/Inv/UpdateInvJourLineComp.razor
+ M CashGear.App/Components/Comp/Inv/UpdateInvJourRevLineComp.razor
+ M CashGear.App/Components/Comp/Purch/UpdatePurchLineComp.razor
+ M CashGear.App/Components/Pages/Accounting/LrdgerJournalPages/AddLedgerJournalPage.razor
+ M CashGear.App/Components/Pages/Accounting/LrdgerJournalPages/EditLedgerJournalPage.razor
+ M CashGear.App/Components/Pages/Accounting/Reports/LedgertransPage.razor
+ M CashGear.App/Components/Pages/Sales/OrdersReportPage.razor
+?? .claude/settings.local.json
+```
+
+The post-verification read-only audit observed the same reference HEAD. Concurrent external work added modifications to `CashGear.App/Components/Pages/Purch/PO/EditPOsPage.razor` and `.razor.cs` plus untracked `CG.CompLib.Tests/EditPOsPageMigrationTests.cs`; every pre-implementation status entry above remained. The exact completion `git status --short` was:
+
+```text
+ M CG.CompLib.Demo/Components/Pages/MemoDemo.razor
+ M CG.CompLib.Tests/CgBasicInputTests.cs
+ M CG.CompLib/Comp/FormLayout/README.md
+ M CG.CompLib/Comp/Inputs/CgMemo.md
+ D CG.CompLib/Comp/Inputs/CgTextArea.razor
+ D CG.CompLib/Comp/Inputs/CgTextArea.razor.css
+ M CashGear.App/Components/Comp/GL/UpdateJournalLineComp.razor
+ M CashGear.App/Components/Comp/Inv/UpdateInvJourLineComp.razor
+ M CashGear.App/Components/Comp/Inv/UpdateInvJourRevLineComp.razor
+ M CashGear.App/Components/Comp/Purch/UpdatePurchLineComp.razor
+ M CashGear.App/Components/Pages/Accounting/LrdgerJournalPages/AddLedgerJournalPage.razor
+ M CashGear.App/Components/Pages/Accounting/LrdgerJournalPages/EditLedgerJournalPage.razor
+ M CashGear.App/Components/Pages/Accounting/Reports/LedgertransPage.razor
+ M CashGear.App/Components/Pages/Purch/PO/EditPOsPage.razor
+ M CashGear.App/Components/Pages/Purch/PO/EditPOsPage.razor.cs
+ M CashGear.App/Components/Pages/Sales/OrdersReportPage.razor
+?? .claude/settings.local.json
+?? CG.CompLib.Tests/EditPOsPageMigrationTests.cs
+```
+
+No Phase 9 command wrote to, committed in, formatted, cleaned, reverted, or restored the Razor repository.
+
 ## Implemented inventory
 
 “Mirrored” means the user-visible contract is carried across with React/native-DOM adaptations. “Partially mirrored” identifies a deliberate Phase 2 omission. “New React implementation” has no exact Razor component.
@@ -323,7 +377,11 @@ The completion audit observed the same reference HEAD and exact status. No React
 | `CgListBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgListBox.*`, `CgListBoxTypes.cs`, `CgListBoxColumn.cs`, `CgListBoxAccessors.cs`; `CG.CompLib.Demo/Components/Pages/ListBoxDemo.razor` | `src/components/ListBox/*`, `src/internal/listBox.ts`, `src/internal/useVirtualWindow.ts` | `tests/list-box.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/ListBox/CgListBox.stories.tsx` | Object-array binding and stable keys replace Razor field accessors. Fixed-row virtualization is dependency-free; remote loading/paging and richer data-grid operations remain deferred. |
 | `CgTagBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgTagBox.*`; `CG.CompLib.Demo/Components/Pages/TagBoxDemo.razor` | `src/components/TagBox/*`, `src/internal/tagBox.ts`, `src/internal/PositionedOverlay.tsx` | `tests/tag-box.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/TagBox/CgTagBox.stories.tsx` | Object-array binding replaces Razor scalar keys. Custom comparers and `ResolveValuesAsync` hydration remain deferred because selected objects carry labels. |
 | `CgDropDownBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgDropDownBox.*`, `CgDropDownBoxTypes.cs`; `CG.CompLib.Demo/Components/Pages/DropDownBoxDemo.razor` | `src/components/DropDownBox/*`, `src/internal/PositionedOverlay.tsx`, `src/internal/overlayStack.ts` | `tests/drop-down-box.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/DropDownBox/CgDropDownBox.stories.tsx` | React render contexts host arbitrary content; a native select proxy and explicit object serializer replace Blazor `EditContext` integration. The body portal replaces the browser manual-popover top layer and deliberately adds no focus trap. |
-| `CgDateEdit` | Mirrored with canonical React value contract | `CG.CompLib/Comp/Inputs/CgDateEdit.*`, `CgDateEditTypes.cs`, `CgDateEditorUtilities.cs`; `CG.CompLib.Demo/Components/Pages/DateEditDemo.razor` | `src/components/DateEdit/*`, `src/internal/PositionedOverlay.tsx`, `src/internal/overlayStack.ts` | `tests/date-edit.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/DateEdit/CgDateEdit.stories.tsx` | React exposes only canonical `YYYY-MM-DD | null` civil dates, exact documented token formats, and a private dependency-free calendar. It does not expose `Date`, DateRangePicker, or a public Calendar/Flyout. |
+| `CgDateEdit` | Mirrored with canonical React value contract | `CG.CompLib/Comp/Inputs/CgDateEdit.*`, `CgDateEditTypes.cs`, `CgDateEditorUtilities.cs`; `CG.CompLib.Demo/Components/Pages/DateEditDemo.razor` | `src/components/DateEdit/*`, `src/internal/PositionedOverlay.tsx`, `src/internal/overlayStack.ts` | `tests/date-edit.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/DateEdit/CgDateEdit.stories.tsx` | React exposes only canonical `YYYY-MM-DD | null` civil dates, exact documented token formats, and a private dependency-free calendar. It does not expose `Date`, DateRangePicker, or a public Calendar. |
+| `CgFlyout` | Mirrored | `CG.CompLib/Comp/Overlays/CgFlyout.*`, `CgFlyoutCloseReason.cs`, `CgPlacement.cs`, `CgOverlayContracts.cs`; `CG.CompLib.Demo/Components/Pages/FlyoutDemo.razor` | `src/components/Flyout/*`, `src/internal/PositionedOverlay.tsx`, `src/internal/overlayStack.ts`, `src/internal/overlayDom.ts` | `tests/flyout.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/Flyout/CgFlyout.stories.tsx` | React supports element/ref/selector and virtual anchors through a body portal. Private React context plus DOM owner/boundary IDs replace Blazor cascading ownership and JS module handles. |
+| `CgPopup` | Mirrored | `CG.CompLib/Comp/Overlays/CgPopup.*`, `CgOverlayBase.cs`, `CgOverlayContracts.cs`; `CG.CompLib.Demo/Components/Pages/PopupWindowDemo.razor` | `src/components/Popup/*`, `src/internal/OverlaySurface.tsx`, `src/internal/overlayStack.ts`, `src/internal/overlayDom.ts` | `tests/popup.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/Popup/CgPopup.stories.tsx` | A body-portalled backdrop/surface replaces native top-layer APIs. React owns focus isolation, exact scroll-style restoration, and full-region render contexts. |
+| `CgWindow` | Mirrored | `CG.CompLib/Comp/Overlays/CgWindow.*`, `CgOverlayBase.cs`, `CgOverlayContracts.cs`; `CG.CompLib.Demo/Components/Pages/PopupWindowDemo.razor` | `src/components/Window/*`, `src/internal/OverlaySurface.tsx`, `src/internal/overlayStack.ts`, `src/internal/overlayDom.ts` | `tests/window.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/Window/CgWindow.stories.tsx` | React modeless windows use a global paint order below modals, scoped Escape ownership, and DOM/ref/selector positioning actions instead of .NET/JS handles. |
+| `CgMaskedInput` | Mirrored with native-form adaptation | `CG.CompLib/Comp/Inputs/CgMaskedInput.*`, `CgMaskedInputTypes.cs`, `CgMaskParser.cs`, `CgMaskState.cs`; `CG.CompLib.Demo/Components/Pages/MaskedInputDemo.razor` | `src/components/MaskedInput/*`, `src/internal/mask.ts` | `tests/masked-input.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/MaskedInput/CgMaskedInput.stories.tsx` | Unicode property matching and UTF-16 caret maps implement the mask without DevExpress. A private native proxy replaces Blazor `EditContext` submission/validation. |
 | `CgSwitch` | Mirrored | `CG.CompLib/Comp/Inputs/CgCheckBox.*` switch mode | `src/components/Switch/*` | `tests/choice-controls.test.tsx` | `src/components/Switch/CgSwitch.stories.tsx` | Extracted as a separate two-state component. The source has no pending state, so React does not add one. |
 | `CgRadio` | Mirrored | `CG.CompLib/Comp/Inputs/CgRadio.*`; `CG.CompLib.Demo/Components/Pages/RadioDemo.razor` | `src/components/Radio/*` | `tests/choice-controls.test.tsx` | `src/components/Radio/CgRadio.stories.tsx` | Native grouping is preserved for uncontrolled same-name radios; typed string/number values replace C# conversion. |
 | `CgRadioGroup` | Mirrored | `CG.CompLib/Comp/Inputs/CgRadioGroup.*`; `CG.CompLib.Demo/Components/Pages/RadioDemo.razor` | `src/components/RadioGroup/*` | `tests/choice-controls.test.tsx` | `src/components/RadioGroup/CgRadioGroup.stories.tsx` | Generic React options replace reflection-based field-name mapping. |
@@ -334,6 +392,40 @@ The completion audit observed the same reference HEAD and exact status. No React
 | `CgProgressBar` | New React implementation | No exact source | `src/components/ProgressBar/*` | `tests/loading-progress.test.tsx` | `src/components/ProgressBar/CgProgressBar.stories.tsx` | Native React progress semantics, logical RTL fill, and reduced-motion support. |
 
 The shared hook/primitives layer is covered in `tests/foundation.test.tsx`. The exact runtime export allow-list is guarded by `tests/public-api.test.ts`.
+
+## Phase 9 shared overlay behavior
+
+- One private registry now owns deterministic transient/window/modal ordering, global Escape, matched pointer-down/up dismissal, parent/child ownership, exclusive root groups, and `data-cg-overlay-boundary` markers. DateEdit, DropDownBox, ComboBox, TagBox, and LoadingPanel retain their public contracts while using that registry.
+- Portalled descendants inherit ownership through React context and DOM owner IDs, so nested overlays and third-party boundary-marked portals count as inside ancestors. Outside dismissal proceeds top-down and stops when a child refuses to close; exclusive Flyout opening waits for the incumbent root to accept `superseded`.
+- `PositionedOverlay` retains the legacy editor sizing branch while adding point/rectangle anchors, logical RTL placement, configurable offset/flip/shift, CSS constraints, explicit revisions, and visual viewport, zoom, nested-scroll, mutation, and resize observation.
+- Body portals copy `data-cg-theme`, `data-cg-density`, and computed direction. They deliberately avoid Popover/top-layer dependencies and copy no Razor or DevExpress assets.
+- Flyout, Popup, and Window lifecycle proposals share abortable `onBeforeOpen`/`onBeforeClose` work, rejection observation, stale-completion guards, authoritative controlled props, rendered-transition after-hooks, retained-content modes, and unmount cleanup without a fabricated close.
+
+## Phase 9 Flyout behavior
+
+- Anchors accept connected elements, refs, valid selectors, finite points, and nonnegative finite rectangles. Malformed selectors and invalid geometry throw configuration errors; disappearance of a valid DOM anchor closes with `anchorLost`.
+- Flyout is non-modal and non-trapping. It supports all twelve logical placements, offset/flip/shift, anchor-width matching, CSS size constraints, scrolling, resizing, scroll/escape/outside switches, exclusive groups, and open/close/toggle/reposition/focus actions.
+- Resize triggers anchored repositioning. Nested owned portals survive ancestor outside gestures, matched pointer pairs prevent a selection begun inside from closing outside, and Escape closes the topmost accepted owner first.
+
+## Phase 9 Popup behavior
+
+- Popup is always modal and renders a body-portalled visible or transparent backdrop without native top-layer APIs. `dialog`/`alertdialog`, `aria-modal`, explicit accessible names, and nonempty standard-header fallback are enforced without referencing an empty replacement header.
+- Only the topmost modal traps focus. Entry prefers `[data-cg-autofocus]`, then a usable body control, then the surface; accepted close restores a connected opener. Nested modal isolation recomputes inert body siblings, reference-counts scroll locking, and restores exact body/root styles and scroll coordinates.
+- Shared surface composition supports node/text precedence, children-as-body shorthand, inferred footer visibility, full-region render replacements, size/CSS constraints, controlled or default positions, alignment, scrolling, drag, eight-edge resize, 12px viewport reachability, and sub-768px adaptivity.
+
+## Phase 9 Window behavior
+
+- Window reuses surface composition, lifecycle, content retention, portal inheritance, focus entry, drag/resize, computed CSS constraints, and viewport reachability without modal isolation or trapping.
+- Global modeless paint order raises on pointer or focus entry while active modals and descendants remain above windows. Escape is scoped to the focused/event-owning window; a background close never steals focus, and an owned close restores focus only when appropriate.
+- `position` remains authoritative over alignment and rejected controlled moves snap back. `showAt`, `showAtPoint`, `showNear`, `moveTo`, and `moveToPoint` report `showAt`, `showNear`, or `move`; dragging reports `drag`. Invalid or missing selector targets reject actionably.
+
+## Phase 9 MaskedInput behavior
+
+- The pure private compiler parses Unicode code points and implements required `0`/`L`/`A`/`*`, optional `9`/`l`/`a`/`?`, and backslash literals. It rejects empty masks and trailing escapes; Unicode `Nd`/`L` categories and printable exclusions replace ASCII-only matching.
+- External raw or formatted strings normalize into slots while rejected, extra, and misplaced characters remain explicit invalid evidence. Prompt characters never enter bound values; `always`, `onFocus`, and `never` display modes preserve compact literals and interior spacing.
+- UTF-16 caret maps cover typing, replacement, Backspace/Delete, paste, cut, Home/End/arrows, pointer/touch selection, fallback input events, and composition. Controlled edits provide immediate caret feedback, then restore authoritative slots and a nearby caret when the parent rejects them.
+- InputShell, field context, and a private form proxy compose validation/description IDs and submit only committed raw or formatted values. External forms, reset, required/incomplete/custom validity, disabled exclusion, invalid-focus transfer, SSR, Unicode, RTL, and semantic-only authoritative transition callbacks are covered.
+- Exactly 19 Phase 9 Windows Chromium baselines were added: four Flyouts, five Popups, four Windows, and six MaskedInputs. No pre-Phase-9 image was regenerated.
 
 ## Phase 8 DateEdit behavior
 
@@ -402,26 +494,26 @@ The shared hook/primitives layer is covered in `tests/foundation.test.tsx`. The 
 
 ## Verification result
 
-Verified on 2026-08-26 with the bundled supported Node 24.19 runtime from the uncommitted Phase 8 working tree:
+Verified on 2026-08-26 with the bundled supported Node 24.19 runtime from the uncommitted Phase 9 working tree:
 
 | Command/gate | Result |
 | --- | --- |
 | `npm run typecheck` | Passed (strict TypeScript 6) |
 | `npm run lint` | Passed |
-| `npm run test` | Passed: 15 files, 132 tests |
-| `npm run check:cycles` | Passed: 98 source modules, no relative-import cycles |
-| `npm run build:lib` | Passed: 94 transformed modules; declarations/maps and `dist/cashgear-ui.css` emitted |
-| `npm run build-storybook` | Passed with Storybook 10.5.10; 147 transformed modules |
-| Chromium semantic/Axe | Passed: 42 tests |
-| Firefox semantic/Axe | Passed: 42 tests with `--headed`; a supported-Node headless launch still timed out before tests with Mozilla `RenderCompositorSWGL failed mapping default framebuffer` |
-| WebKit semantic/Axe | Passed: 42 tests |
-| Chromium visual | Passed: 68 tests comparing 76 Windows snapshots; exactly eight DateEdit snapshots were added and no unrelated baseline was regenerated |
-| `npm run verify:package` | Passed: 23 runtime exports, 453 packed files, React externalization/declarations/styles/dry-run ESM import verified |
-| `npm run verify` | Every constituent source/build/browser/package gate passed under Node 24.19. The monolithic headless-browser form is unsupported on this host because of the Firefox launcher issue above; the equivalent complete headed Firefox and headless Chromium/WebKit projects passed. |
+| `npm run test` | Passed: 19 files, 178 tests |
+| `npm run check:cycles` | Passed: 115 source modules, no relative-import cycles |
+| `npm run build:lib` | Passed: 111 transformed modules; declarations/maps and `dist/cashgear-ui.css` emitted |
+| `npm run build-storybook` | Passed with Storybook 10.5.10; 165 transformed modules |
+| Chromium semantic/Axe | Passed: 55 tests |
+| Firefox semantic/Axe | Passed: 55 tests with `--headed`; the supported-Node headless launch failed before tests with Mozilla `RenderCompositorSWGL failed mapping default framebuffer` and three 30-second browser-launch timeouts |
+| WebKit semantic/Axe | Passed: 55 tests |
+| Chromium visual | Passed: 87 tests comparing 95 Windows snapshots; exactly 19 Phase 9 snapshots were added (four Flyouts, five Popups, four Windows, and six MaskedInputs) and no pre-Phase-9 baseline was regenerated |
+| `npm run verify:package` | Passed: 27 runtime exports, 535 packed files, React externalization/declarations/styles/dry-run ESM import verified |
+| `npm run verify` | Not run as one monolithic command because its required headless Firefox project is unsupported on this host. Every constituent source/build/package gate and the equivalent complete headed Firefox plus headless Chromium/WebKit/visual projects passed under Node 24.19. |
 
 ## Deferred inventory
 
-These rows are evidence only. No public React API or implementation is included in Phase 1–8.
+These rows are evidence only. No public React API or implementation is included in Phase 1–9.
 
 | Planned component | Razor evidence | Status |
 | --- | --- | --- |

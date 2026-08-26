@@ -16,7 +16,7 @@ import {
   useMergedRefs,
   useStableCallback,
 } from '../../hooks';
-import { EditorButton, InputShell, PositionedOverlay, useFieldControl, useOverlayStack } from '../../internal';
+import { EditorButton, InputShell, OverlayOwnerProvider, PositionedOverlay, useFieldControl, useOverlayStack } from '../../internal';
 import { cx } from '../../utils';
 import type { CgValidationState } from '../../types';
 import type {
@@ -439,7 +439,8 @@ function CgDateEditInner(
   }, [field.disabled, field.readOnly, requestClose]);
 
   const dismissOnEscape = useStableCallback(() => { void requestClose('escape', undefined, true); });
-  const overlay = useOverlayStack(isOpen, dismissOnEscape);
+  const dismissOnOutside = useStableCallback(() => requestClose('outside-click'));
+  const overlay = useOverlayStack(isOpen, dismissOnEscape, popupRef, dismissOnOutside, controlRef);
   const selectedDate = committedValue === null ? null : parseCanonicalDate(committedValue);
   const today = todayCivilDate();
   const anchor = clampCivilDate(selectedDate ?? today, minimum, maximum);
@@ -597,11 +598,12 @@ function CgDateEditInner(
           scrollable={false}
           onReadyChange={setOverlayReady}
           onAnchorLost={() => { void requestClose('anchor-lost'); }}
-          onOutsidePointerDown={overlay.isTopmost ? () => { void requestClose('outside-click'); } : undefined}
-          style={{ zIndex: `calc(var(--cg-z-popover) + ${overlay.order})` }}
+          style={{ zIndex: overlay.rootKind === 'modal' ? `calc(var(--cg-z-modal) + ${overlay.order * 2 + 1})` : `calc(var(--cg-z-popover) + ${overlay.order})` }}
+          data-cg-overlay-id={overlay.id}
+          data-cg-overlay-owner={overlay.ownerId}
           data-cg-date-edit-popup=""
         >
-          <DateCalendar
+          <OverlayOwnerProvider id={overlay.id}><DateCalendar
             id={calendarId}
             headingId={headingId}
             selected={selectedDate}
@@ -627,7 +629,7 @@ function CgDateEditInner(
             onToday={(event) => { void selectToday(event); }}
             onClear={(event) => { void clearValue(event); }}
             onEscape={(event) => { void requestClose('escape', event, true); }}
-          />
+          /></OverlayOwnerProvider>
         </PositionedOverlay>
       ) : null}
     </div>

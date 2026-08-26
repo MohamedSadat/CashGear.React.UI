@@ -62,9 +62,14 @@ function syncPortalContext(anchor: HTMLElement, overlay: HTMLElement) {
 }
 
 export interface PositionedOverlayProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
-  anchorRef: RefObject<HTMLElement | null>;
+  anchorRef?: RefObject<HTMLElement | null>;
+  contextRef?: RefObject<Element | null>;
+  getAnchorRect?: () => { left: number; top: number; width: number; height: number; right?: number; bottom?: number } | null;
   children: React.ReactNode;
   placement?: PositionedOverlayPlacement;
+  offset?: number;
+  flipOnOverflow?: boolean;
+  shiftOnOverflow?: boolean;
   widthMode?: PositionedOverlayWidthMode;
   overlayWidth?: CSSProperties['width'];
   overlayHeight?: CSSProperties['height'];
@@ -79,6 +84,7 @@ export interface PositionedOverlayProps extends Omit<HTMLAttributes<HTMLDivEleme
   onReadyChange?: (ready: boolean) => void;
   onAnchorLost?: () => void;
   onAnchorScroll?: () => void;
+  onPlacementChange?: (side: 'top' | 'bottom' | 'left' | 'right') => void;
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -112,8 +118,13 @@ function splitPlacement(placement: PositionedOverlayPlacement) {
 export const PositionedOverlay = forwardRef<HTMLDivElement, PositionedOverlayProps>(function PositionedOverlay(
   {
     anchorRef,
+    contextRef,
+    getAnchorRect,
     children,
     placement = 'bottom-start',
+    offset = 0,
+    flipOnOverflow = true,
+    shiftOnOverflow = true,
     widthMode = 'editor',
     overlayWidth,
     overlayHeight,
@@ -128,6 +139,7 @@ export const PositionedOverlay = forwardRef<HTMLDivElement, PositionedOverlayPro
     onReadyChange,
     onAnchorLost,
     onAnchorScroll,
+    onPlacementChange,
     style,
     ...props
   },
@@ -140,6 +152,7 @@ export const PositionedOverlay = forwardRef<HTMLDivElement, PositionedOverlayPro
   const notifyReady = useStableCallback(onReadyChange);
   const notifyAnchorLost = useStableCallback(onAnchorLost);
   const notifyAnchorScroll = useStableCallback(onAnchorScroll);
+  const notifyPlacement = useStableCallback(onPlacementChange);
   const readyRef = useRef(false);
 
   const setReady = useCallback((ready: boolean) => {
@@ -150,16 +163,27 @@ export const PositionedOverlay = forwardRef<HTMLDivElement, PositionedOverlayPro
 
   useLayoutEffect(() => {
     const update = () => {
-      const anchor = anchorRef.current;
+      const anchor = anchorRef?.current;
       const overlay = overlayRef.current;
-      if (!anchor || !overlay) {
+      const suppliedRect = getAnchorRect?.();
+      if ((!anchor && !suppliedRect) || !overlay) {
         setPosition({ visibility: 'hidden' });
         setReady(false);
         return;
       }
-      syncPortalContext(anchor, overlay);
-      const anchorRect = anchor.getBoundingClientRect();
-      if (!anchor.isConnected || anchorRect.width <= 0 || anchorRect.height <= 0) {
+      const context = anchor ?? contextRef?.current;
+      if (context instanceof HTMLElement) syncPortalContext(context, overlay);
+      const rawRect = suppliedRect ?? anchor?.getBoundingClientRect();
+      if (!rawRect) return;
+      const anchorRect = {
+        left: rawRect.left,
+        top: rawRect.top,
+        width: rawRect.width,
+        height: rawRect.height,
+        right: rawRect.right ?? rawRect.left + rawRect.width,
+        bottom: rawRect.bottom ?? rawRect.top + rawRect.height,
+      };
+      if ((anchor && !anchor.isConnected) || anchorRect.width < 0 || anchorRect.height < 0 || (!suppliedRect && (anchorRect.width <= 0 || anchorRect.height <= 0))) {
         setPosition({ visibility: 'hidden' });
         setReady(false);
         notifyAnchorLost();
@@ -177,8 +201,8 @@ export const PositionedOverlay = forwardRef<HTMLDivElement, PositionedOverlayPro
         && !resizable
         && typeof maxHeight === 'number';
       if (usesLegacyEditorSizing) {
-        const below = Math.max(0, bounds.bottom - anchorRect.bottom - VIEWPORT_MARGIN);
-        const above = Math.max(0, anchorRect.top - bounds.top - VIEWPORT_MARGIN);
+        const below = Math.max(0, bounds.bottom - anchorRect.bottom - VIEWPORT_MARGIN - offset);
+        const above = Math.max(0, anchorRect.top - bounds.top - VIEWPORT_MARGIN - offset);
         const desiredHeight = Math.min(maxHeight, Math.max(overlay.scrollHeight, 48));
         const placeAbove = below < desiredHeight && above > below;
         const availableHeight = Math.max(0, placeAbove ? above : below);
@@ -189,8 +213,9 @@ export const PositionedOverlay = forwardRef<HTMLDivElement, PositionedOverlayPro
           Math.max(bounds.left + VIEWPORT_MARGIN, bounds.right - VIEWPORT_MARGIN - width),
         );
         const top = placeAbove
-          ? Math.max(bounds.top + VIEWPORT_MARGIN, anchorRect.top - renderedHeight)
-          : anchorRect.bottom;
+          ? Math.max(bounds.top + VIEWPORT_MARGIN, anchorRect.top - renderedHeight - offset)
+          : anchorRect.bottom + offset;
+        notifyPlacement(placeAbove ? 'top' : 'bottom');
         setPosition({
           position: 'fixed',
           left,
@@ -205,17 +230,17 @@ export const PositionedOverlay = forwardRef<HTMLDivElement, PositionedOverlayPro
       const { side: preferredSide, alignment } = splitPlacement(placement);
       const vertical = preferredSide === 'top' || preferredSide === 'bottom';
       const spaces = {
-        top: Math.max(0, anchorRect.top - bounds.top - VIEWPORT_MARGIN),
-        bottom: Math.max(0, bounds.bottom - anchorRect.bottom - VIEWPORT_MARGIN),
-        left: Math.max(0, anchorRect.left - bounds.left - VIEWPORT_MARGIN),
-        right: Math.max(0, bounds.right - anchorRect.right - VIEWPORT_MARGIN),
+        top: Math.max(0, anchorRect.top - bounds.top - VIEWPORT_MARGIN - offset),
+        bottom: Math.max(0, bounds.bottom - anchorRect.bottom - VIEWPORT_MARGIN - offset),
+        left: Math.max(0, anchorRect.left - bounds.left - VIEWPORT_MARGIN - offset),
+        right: Math.max(0, bounds.right - anchorRect.right - VIEWPORT_MARGIN - offset),
       };
       const opposite = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' } as const;
       const naturalWidth = Math.max(overlay.getBoundingClientRect().width, Math.min(overlay.scrollWidth, bounds.right - bounds.left));
       const naturalHeight = Math.max(overlay.getBoundingClientRect().height, Math.min(overlay.scrollHeight, bounds.bottom - bounds.top));
       const desiredHeight = naturalHeight;
       const desiredMain = vertical ? desiredHeight : naturalWidth;
-      const side = spaces[preferredSide as keyof typeof spaces] < desiredMain && spaces[opposite[preferredSide as keyof typeof opposite]] > spaces[preferredSide as keyof typeof spaces]
+      const side = flipOnOverflow && spaces[preferredSide as keyof typeof spaces] < desiredMain && spaces[opposite[preferredSide as keyof typeof opposite]] > spaces[preferredSide as keyof typeof spaces]
         ? opposite[preferredSide as keyof typeof opposite]
         : preferredSide;
       const availableMain = spaces[side as keyof typeof spaces];
@@ -225,15 +250,18 @@ export const PositionedOverlay = forwardRef<HTMLDivElement, PositionedOverlayPro
         ? Math.min(anchorRect.width, availableWidth)
         : Math.min(naturalWidth, availableWidth);
       const measuredHeight = Math.min(desiredHeight, availableHeight, vertical ? availableMain : availableHeight);
-      const rtl = getComputedStyle(anchor).direction === 'rtl';
+      const rtl = getComputedStyle(anchor ?? contextRef?.current ?? document.documentElement).direction === 'rtl';
       let left = vertical
         ? alignedOffset(alignment, anchorRect.left, anchorRect.width, measuredWidth, rtl)
-        : side === 'left' ? anchorRect.left - measuredWidth : anchorRect.right;
+        : side === 'left' ? anchorRect.left - measuredWidth - offset : anchorRect.right + offset;
       let top = vertical
-        ? side === 'top' ? anchorRect.top - measuredHeight : anchorRect.bottom
+        ? side === 'top' ? anchorRect.top - measuredHeight - offset : anchorRect.bottom + offset
         : alignedOffset(alignment, anchorRect.top, anchorRect.height, measuredHeight, false);
-      left = clamp(left, bounds.left + VIEWPORT_MARGIN, bounds.right - VIEWPORT_MARGIN - measuredWidth);
-      top = clamp(top, bounds.top + VIEWPORT_MARGIN, bounds.bottom - VIEWPORT_MARGIN - measuredHeight);
+      if (shiftOnOverflow) {
+        left = clamp(left, bounds.left + VIEWPORT_MARGIN, bounds.right - VIEWPORT_MARGIN - measuredWidth);
+        top = clamp(top, bounds.top + VIEWPORT_MARGIN, bounds.bottom - VIEWPORT_MARGIN - measuredHeight);
+      }
+      notifyPlacement(side as 'top' | 'bottom' | 'left' | 'right');
       setPosition({
         position: 'fixed',
         inset: 'auto',
@@ -255,19 +283,19 @@ export const PositionedOverlay = forwardRef<HTMLDivElement, PositionedOverlayPro
       setReady(measuredWidth > 0 && measuredHeight > 0);
     };
     update();
-    const cleanup = observeGeometry([anchorRef.current, overlayRef.current], update);
+    const cleanup = observeGeometry([anchorRef?.current ?? null, contextRef?.current ?? null, overlayRef.current], update);
     return () => {
       cleanup();
       setReady(false);
     };
-  }, [anchorRef, maxHeight, maxWidth, minHeight, minWidth, notifyAnchorLost, overlayHeight, overlayWidth, placement, resizable, revision, scrollable, setReady, widthMode]);
+  }, [anchorRef, contextRef, flipOnOverflow, getAnchorRect, maxHeight, maxWidth, minHeight, minWidth, notifyAnchorLost, notifyPlacement, offset, overlayHeight, overlayWidth, placement, resizable, revision, scrollable, setReady, shiftOnOverflow, widthMode]);
 
   useEffect(() => {
     if (!onAnchorScroll) return undefined;
     const onScroll = (event: Event) => {
       const target = event.target;
       if (target instanceof Node && overlayRef.current?.contains(target)) return;
-      if (target instanceof Element && anchorRef.current && !target.contains(anchorRef.current)) return;
+      if (target instanceof Element && anchorRef?.current && !target.contains(anchorRef.current)) return;
       notifyAnchorScroll();
     };
     document.addEventListener('scroll', onScroll, true);
@@ -283,7 +311,7 @@ export const PositionedOverlay = forwardRef<HTMLDivElement, PositionedOverlayPro
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target;
       if (!(target instanceof Node)) return;
-      if (anchorRef.current?.contains(target) || overlayRef.current?.contains(target)) return;
+      if (anchorRef?.current?.contains(target) || overlayRef.current?.contains(target)) return;
       dismissOutside();
     };
     document.addEventListener('pointerdown', onPointerDown, true);

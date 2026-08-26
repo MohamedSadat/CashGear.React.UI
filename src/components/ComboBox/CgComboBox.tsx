@@ -1,7 +1,7 @@
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, CompositionEvent, KeyboardEvent, MouseEvent } from 'react';
 import { useAsyncOperation, useCgId, useControllableState, useDebouncedCallback, useDirection, useFormReset, useMergedRefs, useStableCallback } from '../../hooks';
-import { EditorButton, InputShell, PositionedOverlay, useFieldControl, useOverlayStack } from '../../internal';
+import { EditorButton, InputShell, OverlayOwnerProvider, PositionedOverlay, useFieldControl, useOverlayStack } from '../../internal';
 import { assertNonNegative, assertPositiveInteger } from '../../internal/validation';
 import { cx } from '../../utils';
 import styles from './CgComboBox.module.css';
@@ -86,6 +86,7 @@ function CgComboBoxInner<TItem>(
   const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy });
   const inputRef = useRef<HTMLInputElement>(null);
   const controlRef = useRef<HTMLDivElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
   const ref = useMergedRefs(inputRef, forwardedRef);
   const listboxId = `${useCgId(field.id)}-listbox`;
   const statusId = `${listboxId}-status`;
@@ -195,7 +196,7 @@ function CgComboBoxInner<TItem>(
     setDraft(selectedRef.current === null ? '' : getOptionLabel(selectedRef.current));
     if (loadOptions) setRemoteItems([]);
   });
-  const overlay = useOverlayStack(open, closeAndRestore);
+  const overlay = useOverlayStack(open, closeAndRestore, popupRef, closeAndRestore, controlRef);
 
   const beginOpen = useStableCallback(() => {
     if (field.disabled || field.readOnly) return;
@@ -455,7 +456,8 @@ function CgComboBoxInner<TItem>(
       </InputShell>
       {name ? <input type="hidden" name={name} form={form} disabled={field.disabled} value={serializedValue} /> : null}
       {open ? (
-        <PositionedOverlay anchorRef={controlRef} className={styles.popup} role="presentation" maxHeight={288} onOutsidePointerDown={overlay.isTopmost ? closeAndRestore : undefined} style={{ zIndex: `calc(var(--cg-z-popover) + ${overlay.order})` }}>
+        <PositionedOverlay ref={popupRef} anchorRef={controlRef} className={styles.popup} role="presentation" maxHeight={288} style={{ zIndex: overlay.rootKind === 'modal' ? `calc(var(--cg-z-modal) + ${overlay.order * 2 + 1})` : `calc(var(--cg-z-popover) + ${overlay.order})` }} data-cg-overlay-id={overlay.id} data-cg-overlay-owner={overlay.ownerId}>
+          <OverlayOwnerProvider id={overlay.id}>
           {status !== undefined && status !== null ? (
             <div id={statusId} className={cx(styles.status, asyncOperation.pending && styles.loading, loadError !== undefined && styles.error)} role={loadError !== undefined ? 'alert' : 'status'}>{status}</div>
           ) : null}
@@ -482,6 +484,7 @@ function CgComboBoxInner<TItem>(
               );
             })}
           </div>
+          </OverlayOwnerProvider>
         </PositionedOverlay>
       ) : null}
     </div>

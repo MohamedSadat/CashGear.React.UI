@@ -15,3 +15,23 @@ export type {
   CgTextCommitMode,
   CgValidationState,
 } from './common';
+
+export type {
+  CgOverlayAfterOpenDetails,
+  CgOverlayBeforeOpenDetails,
+  CgOverlayCancelableResult,
+  CgOverlayContentLoadMode,
+  CgOverlayDragEndDetails,
+  CgOverlayDragStartDetails,
+  CgOverlayEventDetails,
+  CgOverlayHorizontalAlignment,
+  CgOverlayLifecyclePhase,
+  CgOverlayPoint,
+  CgOverlayPositionChangeDetails,
+  CgOverlayPositionChangeReason,
+  CgOverlayRectangle,
+  CgOverlayResizeEndDetails,
+  CgOverlayResizeStartDetails,
+  CgOverlaySize,
+  CgOverlayVerticalAlignment,
+} from './overlay';

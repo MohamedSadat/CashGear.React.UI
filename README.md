@@ -1,6 +1,6 @@
 # `@cashgear/ui`
 
-CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–8 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, and DateEdit in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies and add browser-verified interaction behavior.
+CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–9 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, Flyout, Popup, Window, and MaskedInput in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies and add browser-verified interaction behavior.
 
 ## Install and import
 
@@ -326,7 +326,58 @@ Formats use the exact tokens `yyyy`, `M`, `MM`, `MMM`, `MMMM`, `d`, and `dd`. Pu
 
 The private six-week calendar includes adjacent-month days plus month and 12-year panels. It uses `Intl` names, locale week starts, integer civil-date arithmetic, logical RTL navigation, and the shared body-portal overlay stack without a focus trap. `minDate`, `maxDate`, and `isDateDisabled` apply equally to typed values, calendar choices, and Today.
 
-`onBeforeValueChange` can synchronously or asynchronously veto a proposal. It receives an `AbortSignal`; a newer attempt or unmount aborts older work, and stale completions cannot commit. A hidden native select submits only the canonical committed value and provides external-form association, reset, required/custom validity, disabled exclusion, and invalid-focus transfer. Invalid external values remain visible verbatim; valid restricted values remain formatted and invalid. DateRangePicker and a public Calendar/Flyout remain intentionally deferred.
+`onBeforeValueChange` can synchronously or asynchronously veto a proposal. It receives an `AbortSignal`; a newer attempt or unmount aborts older work, and stale completions cannot commit. A hidden native select submits only the canonical committed value and provides external-form association, reset, required/custom validity, disabled exclusion, and invalid-focus transfer. Invalid external values remain visible verbatim; valid restricted values remain formatted and invalid. DateRangePicker and a public Calendar remain intentionally deferred.
+
+## Flyout and overlay lifecycle
+
+`CgFlyout` is a non-modal, non-trapping body-portal surface. Its anchor may be an element, React ref, selector, viewport rectangle, or point. Twelve logical placements support RTL, offset, flip, shift, anchor-width matching, CSS constraints, resizing, scrolling, and explicit repositioning. Outside dismissal uses a matching pointer-down/up pair; owned nested portals and `data-cg-overlay-boundary` markers count as inside their ancestors.
+
+```tsx
+const anchor = useRef<HTMLButtonElement>(null);
+const flyout = useRef<CgFlyoutActions>(null);
+
+<button ref={anchor} onClick={() => void flyout.current?.toggle()}>Actions</button>
+<CgFlyout anchor={anchor} actionsRef={flyout} placement="bottom-end" header="Posting">
+  <button type="button">Post journal</button>
+</CgFlyout>
+```
+
+Flyout, Popup, and Window share the same controlled/uncontrolled lifecycle. Component, action, and user proposals run cancellable `onBeforeOpen`/`onBeforeClose` hooks; every newer request aborts older work, rejected thenables are reported through `onLifecycleError`, and stale completions cannot change state. Controlled props remain authoritative. Direct controlled-prop transitions skip cancellable before-hooks but emit their after-hook only after the rendered transition. `contentLoadMode` chooses `everyOpen`, `firstOpen`, or `fromMount` retention.
+
+## Popup and Window
+
+`CgPopup` is always modal. It renders a backdrop plus `dialog` or `alertdialog`, traps focus only in the topmost modal, isolates body siblings, locks body scrolling, and restores the connected opener after an accepted close. Standard header/body/footer nodes and text shortcuts may be replaced by `renderHeader`, `renderBody`, and `renderFooter`; their context supplies `close`, `focus`, and the ownership `boundaryId`. Position/alignment, dragging, eight-edge resizing, scrolling, transparent shading, and adaptive full-available-width layout below 768px are supported.
+
+`CgWindow` reuses the same chrome, sizing, content retention, focus entry, drag, resize, and viewport constraints without modal isolation or trapping. Multiple windows maintain modeless paint order and raise on pointer/focus entry. Its actions expose `show`, `close`, `showAt`, `showAtPoint`, `showNear`, `moveTo`, `moveToPoint`, and `focus`; controlled position rejection restores authoritative coordinates. Escape is scoped to the focused window or an owned descendant overlay.
+
+```tsx
+<CgPopup defaultOpen headerText="Approve journal" allowDrag allowResize>
+  Review the posting before approval.
+</CgPopup>
+
+<CgWindow defaultOpen headerText="Account lookup" defaultPosition={{ x: 160, y: 90 }}>
+  Modeless working content
+</CgWindow>
+```
+
+Body portals inherit the source `data-cg-theme`, `data-cg-density`, and computed direction. This is the deliberate React adaptation in place of Razor/DevExpress top-layer plumbing. A third-party portal rendered from an overlay template can join ownership by setting `data-cg-overlay-boundary={boundaryId}`.
+
+## MaskedInput
+
+`CgMaskedInput` follows TextBox's `value`, `defaultValue`, and `onValueChange` convention, uses `''` as empty, and forwards its `HTMLInputElement` ref plus native events and attributes. Masks are Unicode-aware: `0`, `L`, `A`, and `*` are required digit/letter/alphanumeric slots; `9`, `l`, `a`, and `?` are optional; backslash escapes the next code point. Empty masks and trailing escapes are configuration errors.
+
+```tsx
+<CgMaskedInput
+  name="phone"
+  mask="(000) 000-0000"
+  showMask="onFocus"
+  includeLiterals={false}
+  required
+  onValueChange={setPhone}
+/>
+```
+
+Prompt characters are display-only. `showMask` supports `always`, `onFocus`, and `never`; `includeLiterals` chooses raw versus formatted committed values, and `allowIncomplete` controls native/form validity. Typing, replacement, deletion, paste, cut, composition, Unicode code points, and UTF-16 caret positions share one slot model. Invalid external text retains rejected/extra/misplaced character evidence instead of becoming silently valid. The private form proxy submits only the authoritative committed value and supports external forms, reset, required/incomplete/custom validity, disabled exclusion, and invalid-focus transfer. Rich mask details are available from `onValueCommitted`, `onComplete`, `onIncomplete`, `onMaskedFocus`, and `onMaskedBlur` while native callbacks remain intact.
 
 ## Numeric editors
 
@@ -364,11 +415,12 @@ Components:
 
 - `CgIcon`, `CgButton`, `CgField`
 - `CgTextBox`, `CgMemo`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgKeyComboBox`, `CgListBox`, `CgTagBox`, `CgDropDownBox`, `CgDateEdit`
+- `CgFlyout`, `CgPopup`, `CgWindow`, `CgMaskedInput`
 - `CgRadio`, `CgRadioGroup`
 - `CgNumericEdit`, `CgSpinEdit`, `CgSearchBox`
 - `CgLoadingPanel`, `CgProgressBar`
 
-Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, and the `CgDateEdit` value/change/open/render/label contracts. There is intentionally no universal component-state interface.
+Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, the `CgDateEdit` value/change/open/render/label contracts, and the shared overlay point/rectangle/size, alignment, lifecycle, drag/resize, and position contracts. Each Phase 9 component also exports its props, actions, reasons, lifecycle details, and render/state contexts. There is intentionally no universal component-state interface.
 
 The public hooks are `useControllableState` and `useCgId`; `cx` is the public class-name utility. All other primitives and hooks are private implementation details.
 
@@ -396,7 +448,7 @@ Install browser binaries once with `npx playwright install chromium firefox webk
 
 Chromium screenshots in `tests/browser/__snapshots__` are canonical Windows/Node 24.19 baselines. Playwright snapshots are platform-specific; regenerate them on the same operating system used for comparison. Browser tests serve the prebuilt Storybook through a lifecycle-managed Vite preview server. No CI workflow is installed; browser gates run locally through `npm run verify`.
 
-The Phase 8 Node 24.19 verification completed with 132 Vitest tests, 126 semantic/Axe browser tests, 68 Chromium visual tests comparing 76 Windows snapshots, and package verification of exactly 23 runtime exports across 453 packed files. Firefox's headless software renderer still cannot start on this host; its complete 42-test project passed in headed mode. See the parity ledger for the exact gate breakdown.
+The Phase 9 Node 24.19 verification completed with 178 Vitest tests, 165 semantic/Axe browser tests (55 per engine), 87 Chromium visual tests comparing 95 Windows snapshots, and package verification of exactly 27 runtime exports across 535 packed files. Firefox's headless software renderer still cannot start on this host; its complete 55-test project passed in headed mode. See the parity ledger for the exact gate breakdown.
 
 ## Packaging
 

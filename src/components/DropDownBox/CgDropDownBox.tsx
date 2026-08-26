@@ -17,7 +17,7 @@ import {
   useMergedRefs,
   useStableCallback,
 } from '../../hooks';
-import { EditorButton, InputShell, PositionedOverlay, useFieldControl, useOverlayStack } from '../../internal';
+import { EditorButton, InputShell, OverlayOwnerProvider, PositionedOverlay, useFieldControl, useOverlayStack } from '../../internal';
 import { cx } from '../../utils';
 import styles from './CgDropDownBox.module.css';
 import type {
@@ -446,9 +446,13 @@ function CgDropDownBoxInner<TValue>(
   const dismissOnScroll = useStableCallback(() => {
     void requestClose('scroll');
   });
+  const dismissOnOutside = useStableCallback(() => requestClose('outsideClick'));
   const overlay = useOverlayStack(
     isOpen,
     closeOnEscape ? dismissOnEscape : undefined,
+    popupRef,
+    closeOnOutsideClick ? dismissOnOutside : undefined,
+    controlRef,
   );
 
   const serializedValues = useMemo(() => {
@@ -587,10 +591,12 @@ function CgDropDownBoxInner<TValue>(
           onReadyChange={setOverlayReady}
           onAnchorLost={() => { void requestClose('anchorLost'); }}
           onAnchorScroll={closeOnScroll && overlay.isTopmost ? dismissOnScroll : undefined}
-          onOutsidePointerDown={closeOnOutsideClick && overlay.isTopmost ? () => { void requestClose('outsideClick'); } : undefined}
-          style={{ zIndex: `calc(var(--cg-z-popover) + ${overlay.order})`, ...popupStyle }}
+          style={{ zIndex: overlay.rootKind === 'modal' ? `calc(var(--cg-z-modal) + ${overlay.order * 2 + 1})` : `calc(var(--cg-z-popover) + ${overlay.order})`, ...popupStyle }}
+          data-cg-overlay-id={overlay.id}
+          data-cg-overlay-owner={overlay.ownerId}
           data-cg-dropdownbox-popup=""
         >
+          <OverlayOwnerProvider id={overlay.id}>
           {renderHeader ? <div className={styles.header}>{renderHeader(context)}</div> : null}
           <div className={styles.body} aria-live={effectiveLoading || effectiveError !== undefined ? 'polite' : undefined}>
             {effectiveError !== undefined ? (
@@ -602,6 +608,7 @@ function CgDropDownBoxInner<TValue>(
             ) : renderContent(children, context)}
           </div>
           {renderFooter ? <div className={styles.footer}>{renderFooter(context)}</div> : null}
+          </OverlayOwnerProvider>
         </PositionedOverlay>
       ) : null}
     </div>

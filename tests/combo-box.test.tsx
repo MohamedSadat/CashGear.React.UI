@@ -61,7 +61,9 @@ describe('CgComboBox', () => {
     fireEvent.blur(input);
     await waitFor(() => expect(input).toHaveValue(label(customers[0]!)));
     fireEvent.change(input, { target: { value: 'Co' } });
-    fireEvent.pointerDown(screen.getByRole('button', { name: 'Outside' }));
+    const outside = screen.getByRole('button', { name: 'Outside' });
+    fireEvent.pointerDown(outside, { pointerId: 11 });
+    fireEvent.pointerUp(outside, { pointerId: 11 });
     expect(input).toHaveValue(label(customers[0]!));
   });
 
