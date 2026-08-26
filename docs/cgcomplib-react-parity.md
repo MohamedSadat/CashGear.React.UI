@@ -1,4 +1,4 @@
-# CG.CompLib → `@cashgear/ui` Phase 1–7 parity
+# CG.CompLib → `@cashgear/ui` Phase 1–8 parity
 
 ## Reference snapshot
 
@@ -278,6 +278,34 @@ Phase 7 builds on the clean React baseline `a3b88cc1c28721bad741b4ba22e55ef70be2
 
 The completion audit observed the same reference HEAD. External work had additionally modified `CashGear.App/Components/Comp/GL/UpdateJournalLineComp.razor` and `CashGear.App/Components/Pages/Purch/PO/PurchOrdersPage.razor`; no Phase 7 command wrote to, committed in, or reverted `CGWebApp`.
 
+## Phase 8 reference refresh
+
+Phase 8 builds on the clean React baseline `9abb93938a3a17ba6fd1dcc900eb8a72a8a144a8` and retains every earlier snapshot. DateEdit comparison used the read-only Razor tree below. The planning snapshot contained only `?? .claude/settings.local.json`; the mandatory re-audit immediately before React edits observed the additional concurrent changes recorded here. No Phase 8 command wrote to, committed in, or reverted `CGWebApp`.
+
+- Reference HEAD: `517e7eba58cdbcd6ad3f29087837c6ce8895ad2a`
+- Reference captured immediately before implementation: 2026-08-26
+- DateEdit evidence: `CG.CompLib/Comp/Inputs/CgDateEdit.razor`, `.razor.cs`, `.razor.css`, `.razor.js`, `CgDateEditTypes.cs`, `CgDateEditorUtilities.cs`, and `CgDateEdit.md`; `CG.CompLib.Tests/CgDateEditTests.cs`, `CgDateEditorUtilitiesTests.cs`, `CgDateEditorProductionUsageTests.cs`, and `CgDateEditBrowserTests.cs`; `CG.CompLib.Demo/Components/Pages/DateEditDemo.razor` and `.razor.css`.
+- `git status --short` immediately before implementation:
+
+```text
+ M CG.CompLib.Demo/Components/Pages/MemoDemo.razor
+ M CG.CompLib.Tests/CgBasicInputTests.cs
+ M CG.CompLib/Comp/FormLayout/README.md
+ M CG.CompLib/Comp/Inputs/CgMemo.md
+ D CG.CompLib/Comp/Inputs/CgTextArea.razor
+ D CG.CompLib/Comp/Inputs/CgTextArea.razor.css
+ M CashGear.App/Components/Comp/Inv/UpdateInvJourLineComp.razor
+ M CashGear.App/Components/Comp/Inv/UpdateInvJourRevLineComp.razor
+ M CashGear.App/Components/Comp/Purch/UpdatePurchLineComp.razor
+ M CashGear.App/Components/Pages/Accounting/LrdgerJournalPages/AddLedgerJournalPage.razor
+ M CashGear.App/Components/Pages/Accounting/LrdgerJournalPages/EditLedgerJournalPage.razor
+ M CashGear.App/Components/Pages/Accounting/Reports/LedgertransPage.razor
+ M CashGear.App/Components/Pages/Sales/OrdersReportPage.razor
+?? .claude/settings.local.json
+```
+
+The completion audit observed the same reference HEAD and exact status. No React implementation or verification command changed the Razor repository.
+
 ## Implemented inventory
 
 “Mirrored” means the user-visible contract is carried across with React/native-DOM adaptations. “Partially mirrored” identifies a deliberate Phase 2 omission. “New React implementation” has no exact Razor component.
@@ -295,6 +323,7 @@ The completion audit observed the same reference HEAD. External work had additio
 | `CgListBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgListBox.*`, `CgListBoxTypes.cs`, `CgListBoxColumn.cs`, `CgListBoxAccessors.cs`; `CG.CompLib.Demo/Components/Pages/ListBoxDemo.razor` | `src/components/ListBox/*`, `src/internal/listBox.ts`, `src/internal/useVirtualWindow.ts` | `tests/list-box.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/ListBox/CgListBox.stories.tsx` | Object-array binding and stable keys replace Razor field accessors. Fixed-row virtualization is dependency-free; remote loading/paging and richer data-grid operations remain deferred. |
 | `CgTagBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgTagBox.*`; `CG.CompLib.Demo/Components/Pages/TagBoxDemo.razor` | `src/components/TagBox/*`, `src/internal/tagBox.ts`, `src/internal/PositionedOverlay.tsx` | `tests/tag-box.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/TagBox/CgTagBox.stories.tsx` | Object-array binding replaces Razor scalar keys. Custom comparers and `ResolveValuesAsync` hydration remain deferred because selected objects carry labels. |
 | `CgDropDownBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgDropDownBox.*`, `CgDropDownBoxTypes.cs`; `CG.CompLib.Demo/Components/Pages/DropDownBoxDemo.razor` | `src/components/DropDownBox/*`, `src/internal/PositionedOverlay.tsx`, `src/internal/overlayStack.ts` | `tests/drop-down-box.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/DropDownBox/CgDropDownBox.stories.tsx` | React render contexts host arbitrary content; a native select proxy and explicit object serializer replace Blazor `EditContext` integration. The body portal replaces the browser manual-popover top layer and deliberately adds no focus trap. |
+| `CgDateEdit` | Mirrored with canonical React value contract | `CG.CompLib/Comp/Inputs/CgDateEdit.*`, `CgDateEditTypes.cs`, `CgDateEditorUtilities.cs`; `CG.CompLib.Demo/Components/Pages/DateEditDemo.razor` | `src/components/DateEdit/*`, `src/internal/PositionedOverlay.tsx`, `src/internal/overlayStack.ts` | `tests/date-edit.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/DateEdit/CgDateEdit.stories.tsx` | React exposes only canonical `YYYY-MM-DD | null` civil dates, exact documented token formats, and a private dependency-free calendar. It does not expose `Date`, DateRangePicker, or a public Calendar/Flyout. |
 | `CgSwitch` | Mirrored | `CG.CompLib/Comp/Inputs/CgCheckBox.*` switch mode | `src/components/Switch/*` | `tests/choice-controls.test.tsx` | `src/components/Switch/CgSwitch.stories.tsx` | Extracted as a separate two-state component. The source has no pending state, so React does not add one. |
 | `CgRadio` | Mirrored | `CG.CompLib/Comp/Inputs/CgRadio.*`; `CG.CompLib.Demo/Components/Pages/RadioDemo.razor` | `src/components/Radio/*` | `tests/choice-controls.test.tsx` | `src/components/Radio/CgRadio.stories.tsx` | Native grouping is preserved for uncontrolled same-name radios; typed string/number values replace C# conversion. |
 | `CgRadioGroup` | Mirrored | `CG.CompLib/Comp/Inputs/CgRadioGroup.*`; `CG.CompLib.Demo/Components/Pages/RadioDemo.razor` | `src/components/RadioGroup/*` | `tests/choice-controls.test.tsx` | `src/components/RadioGroup/CgRadioGroup.stories.tsx` | Generic React options replace reflection-based field-name mapping. |
@@ -305,6 +334,16 @@ The completion audit observed the same reference HEAD. External work had additio
 | `CgProgressBar` | New React implementation | No exact source | `src/components/ProgressBar/*` | `tests/loading-progress.test.tsx` | `src/components/ProgressBar/CgProgressBar.stories.tsx` | Native React progress semantics, logical RTL fill, and reduced-motion support. |
 
 The shared hook/primitives layer is covered in `tests/foundation.test.tsx`. The exact runtime export allow-list is guarded by `tests/public-api.test.ts`.
+
+## Phase 8 DateEdit behavior
+
+- The public value is exclusively canonical proleptic-Gregorian `YYYY-MM-DD | null` in the range `0001-01-01` through `9999-12-31`. Invalid external strings remain visible verbatim and invalid; valid values restricted by bounds or `isDateDisabled` remain formatted and invalid without mutation.
+- Edit/display patterns accept exactly `yyyy`, `M`, `MM`, `MMM`, `MMMM`, `d`, and `dd`. Punctuation and whitespace are exact literals, alphabetic literals require quotes, locale digits and localized month names parse without heuristics, and bidi marks are ignored. Locale numeric-part order supplies the default edit pattern; display defaults to edit.
+- Committed value, focused draft, validation, popup, visible period, day/month/year panel, and roving focus are separate. Enter and valid blur commit; invalid drafts persist; Escape restores authoritative text or closes and returns focus. Controlled value/open rejection remains authoritative.
+- Manual input, calendar days, and Today share bounds/disabled enforcement and one cancellable change pipeline. New attempts abort older `onBeforeValueChange` work, stale completions cannot commit, unmount aborts pending work, and non-abort errors use the supplied observer or `console.error` fallback.
+- The hidden native multi-select proxy contains only the committed canonical value. It supplies nested/external form association, required/custom validity, disabled exclusion, reset, and invalid-focus transfer while display text is never submitted. Reset restores uncontrolled defaults, closes, aborts pending work, and emits no value change.
+- The private six-week calendar retains semantic day buttons inside gridcells, adjacent-month dates, locale headers/week starts, three-column month/year panels, custom day content, logical RTL navigation, and no focus trap. It reuses the SSR-safe positioned portal and live overlay stack for viewport/nested-scroll/zoom/anchor handling and topmost dismissal.
+- Exactly eight Phase 8 Windows Chromium baselines cover the default editor, open calendar, invalid input, restrictions, year panel, dark theme, Arabic RTL, and narrow layout. DateRangePicker remains explicitly deferred.
 
 ## Phase 7 KeyComboBox behavior
 
@@ -363,32 +402,32 @@ The shared hook/primitives layer is covered in `tests/foundation.test.tsx`. The 
 
 ## Verification result
 
-Verified on 2026-08-25 with Node 24.19 from the uncommitted Phase 7 working tree:
+Verified on 2026-08-26 with the bundled supported Node 24.19 runtime from the uncommitted Phase 8 working tree:
 
 | Command/gate | Result |
 | --- | --- |
 | `npm run typecheck` | Passed (strict TypeScript 6) |
 | `npm run lint` | Passed |
-| `npm run test` | Passed: 14 files, 120 tests |
-| `npm run check:cycles` | Passed: 92 source modules, no relative-import cycles |
-| `npm run build:lib` | Passed: 88 transformed modules; declarations/maps and `dist/cashgear-ui.css` emitted |
-| `npm run build-storybook` | Passed with Storybook 10.5.10; 141 transformed modules |
-| Chromium semantic/Axe | Passed: 35 tests |
-| Firefox semantic/Axe | Passed: 35 tests with `--headed`; the default headless launch timed out before tests with Mozilla `RenderCompositorSWGL failed mapping default framebuffer` |
-| WebKit semantic/Axe | Passed: 35 tests |
-| Chromium visual | Passed: 60 tests comparing 68 Windows snapshots |
-| `npm run verify:package` | Passed: 22 runtime exports, 424 packed files, React externalization/declarations/styles/dry-run ESM import verified |
-| `npm run verify` | Every source/build/package gate passed; the monolithic headless browser step was interrupted by the Firefox launcher issue above, then completed through the equivalent headed Firefox and headless Chromium/WebKit projects |
+| `npm run test` | Passed: 15 files, 132 tests |
+| `npm run check:cycles` | Passed: 98 source modules, no relative-import cycles |
+| `npm run build:lib` | Passed: 94 transformed modules; declarations/maps and `dist/cashgear-ui.css` emitted |
+| `npm run build-storybook` | Passed with Storybook 10.5.10; 147 transformed modules |
+| Chromium semantic/Axe | Passed: 42 tests |
+| Firefox semantic/Axe | Passed: 42 tests with `--headed`; a supported-Node headless launch still timed out before tests with Mozilla `RenderCompositorSWGL failed mapping default framebuffer` |
+| WebKit semantic/Axe | Passed: 42 tests |
+| Chromium visual | Passed: 68 tests comparing 76 Windows snapshots; exactly eight DateEdit snapshots were added and no unrelated baseline was regenerated |
+| `npm run verify:package` | Passed: 23 runtime exports, 453 packed files, React externalization/declarations/styles/dry-run ESM import verified |
+| `npm run verify` | Every constituent source/build/browser/package gate passed under Node 24.19. The monolithic headless-browser form is unsupported on this host because of the Firefox launcher issue above; the equivalent complete headed Firefox and headless Chromium/WebKit projects passed. |
 
 ## Deferred inventory
 
-These rows are evidence only. No React API or implementation is included in Phase 1–7.
+These rows are evidence only. No public React API or implementation is included in Phase 1–8.
 
 | Planned component | Razor evidence | Status |
 | --- | --- | --- |
 | ContextMenu | Working-tree `CG.CompLib/Comp/ContextMenu/CgContextMenu.*` | Deferred |
-| DateEdit | `CG.CompLib/Comp/Inputs/CgDateEdit.*` | Deferred |
-| Calendar | Calendar surface inside `CG.CompLib/Comp/Inputs/CgDateEdit.*`; no standalone `CgCalendar` found | Deferred |
+| DateRangePicker | `CG.CompLib/Comp/Inputs/CgDateRangePicker.*` | Explicitly deferred after Phase 8 |
+| Calendar | Calendar surface inside `CG.CompLib/Comp/Inputs/CgDateEdit.*`; Phase 8 calendar is private | Standalone public component deferred |
 | LookupGrid | `CG.CompLib/Comp/Inputs/CgLookUpGrid.*` | Deferred |
 | Grid | Working-tree `CG.CompLib/Comp/Grid/CgGrid.*` | Deferred |
 | TreeList | Working-tree `CG.CompLib/Comp/TreeList/CgTreeList.*` | Deferred |

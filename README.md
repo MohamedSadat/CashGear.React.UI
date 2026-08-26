@@ -1,6 +1,6 @@
 # `@cashgear/ui`
 
-CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–7 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, and arbitrary-content DropDownBox in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies and add browser-verified interaction behavior.
+CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–8 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, and DateEdit in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies and add browser-verified interaction behavior.
 
 ## Install and import
 
@@ -304,6 +304,30 @@ Open/close state is controlled or uncontrolled. Editor click, F4, and Alt+ArrowD
 
 All twelve logical placements, editor/content/content-or-editor/explicit width modes, CSS size constraints, optional resize/scroll ownership, viewport flip/shift, nested scrolling, focus return, and stacked overlays are supported without focus trapping. Portal surfaces inherit the anchor's theme, density, and native direction.
 
+## DateEdit
+
+`CgDateEdit` stores only a canonical Gregorian civil date (`YYYY-MM-DD`) or `null`. Display and edit formatting never changes the submitted value, and no public state contains a JavaScript `Date`.
+
+```tsx
+<CgDateEdit
+  name="postingDate"
+  value={postingDate}
+  onValueChange={setPostingDate}
+  editFormat="dd/MM/yyyy"
+  displayFormat="d MMMM yyyy"
+  locale="en-GB"
+  minDate="2026-01-01"
+  maxDate="2026-12-31"
+  required
+/>
+```
+
+Formats use the exact tokens `yyyy`, `M`, `MM`, `MMM`, `MMMM`, `d`, and `dd`. Punctuation and whitespace are literal; alphabetic text must be quoted, as in `d 'of' MMMM yyyy`. A pattern must contain exactly one year, month, and day field. Parsing accepts locale digits and localized month names, strips bidirectional marks, and rejects missing/duplicate fields, mismatched padding or literals, and impossible dates without normalization. The default edit order comes from the locale's numeric date parts; `displayFormat` defaults to `editFormat`.
+
+The private six-week calendar includes adjacent-month days plus month and 12-year panels. It uses `Intl` names, locale week starts, integer civil-date arithmetic, logical RTL navigation, and the shared body-portal overlay stack without a focus trap. `minDate`, `maxDate`, and `isDateDisabled` apply equally to typed values, calendar choices, and Today.
+
+`onBeforeValueChange` can synchronously or asynchronously veto a proposal. It receives an `AbortSignal`; a newer attempt or unmount aborts older work, and stale completions cannot commit. A hidden native select submits only the canonical committed value and provides external-form association, reset, required/custom validity, disabled exclusion, and invalid-focus transfer. Invalid external values remain visible verbatim; valid restricted values remain formatted and invalid. DateRangePicker and a public Calendar/Flyout remain intentionally deferred.
+
 ## Numeric editors
 
 `CgNumericEdit` uses a `number | null` committed value. Invalid drafts such as `-` remain visible and internally invalid on blur/Enter without replacing the last committed value; `onInvalidValue` receives the draft. A trailing locale decimal such as `1.` remains visible while focused and commits as `1` on blur/Enter. Parsing strictly recognizes locale digits, separators, signs, and the configured currency/percent literals instead of stripping arbitrary characters. It supports grouping, precision, bounds, prefixes/suffixes, paste, and typed editor commands, and reformats when locale/format options change even when the numeric value is unchanged.
@@ -339,12 +363,12 @@ Eligibility uses the trimmed query length, but `onSearch` receives the original 
 Components:
 
 - `CgIcon`, `CgButton`, `CgField`
-- `CgTextBox`, `CgMemo`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgKeyComboBox`, `CgListBox`, `CgTagBox`, `CgDropDownBox`
+- `CgTextBox`, `CgMemo`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgKeyComboBox`, `CgListBox`, `CgTagBox`, `CgDropDownBox`, `CgDateEdit`
 - `CgRadio`, `CgRadioGroup`
 - `CgNumericEdit`, `CgSpinEdit`, `CgSearchBox`
 - `CgLoadingPanel`, `CgProgressBar`
 
-Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, and `CgEditorButtonDescriptor<T>`. There is intentionally no universal component-state interface.
+Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, and the `CgDateEdit` value/change/open/render/label contracts. There is intentionally no universal component-state interface.
 
 The public hooks are `useControllableState` and `useCgId`; `cx` is the public class-name utility. All other primitives and hooks are private implementation details.
 
@@ -372,7 +396,7 @@ Install browser binaries once with `npx playwright install chromium firefox webk
 
 Chromium screenshots in `tests/browser/__snapshots__` are canonical Windows/Node 24.19 baselines. Playwright snapshots are platform-specific; regenerate them on the same operating system used for comparison. Browser tests serve the prebuilt Storybook through a lifecycle-managed Vite preview server. No CI workflow is installed; browser gates run locally through `npm run verify`.
 
-The Phase 7 Node 24.19 verification completed with 120 Vitest tests, 105 semantic/Axe browser tests, 60 Chromium visual tests comparing 68 Windows snapshots, and package verification of exactly 22 runtime exports across 424 packed files. Firefox's headless software renderer could not start on this host; its complete 35-test project passed in headed mode. See the parity ledger for the exact gate breakdown.
+The Phase 8 Node 24.19 verification completed with 132 Vitest tests, 126 semantic/Axe browser tests, 68 Chromium visual tests comparing 76 Windows snapshots, and package verification of exactly 23 runtime exports across 453 packed files. Firefox's headless software renderer still cannot start on this host; its complete 42-test project passed in headed mode. See the parity ledger for the exact gate breakdown.
 
 ## Packaging
 

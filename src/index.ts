@@ -6,6 +6,8 @@ export { CgCheckBox } from './components/CheckBox';
 export type { CgCheckBoxProps, CgCheckedState, CgLabelPosition } from './components/CheckBox';
 export { CgComboBox } from './components/ComboBox';
 export type { CgComboBoxChangeReason, CgComboBoxErrorMessage, CgComboBoxLoadContext, CgComboBoxMinimumLengthMessage, CgComboBoxProps, CgComboBoxRenderContext, CgComboBoxSearchMode, CgComboBoxValueChangeDetails } from './components/ComboBox';
+export { CgDateEdit } from './components/DateEdit';
+export type { CgDateEditActions, CgDateEditBeforeValueChangeDetails, CgDateEditCancelableResult, CgDateEditChangeReason, CgDateEditDayRenderContext, CgDateEditLabels, CgDateEditOpenChangeDetails, CgDateEditOpenChangeReason, CgDateEditProps, CgDateEditValueChangeDetails, CgDateValue, CgDayOfWeek } from './components/DateEdit';
 export { CgDropDownBox } from './components/DropDownBox';
 export type { CgDropDownBoxActions, CgDropDownBoxAfterCloseDetails, CgDropDownBoxAfterOpenDetails, CgDropDownBoxBeforeCloseDetails, CgDropDownBoxBeforeOpenDetails, CgDropDownBoxCancelableResult, CgDropDownBoxCloseReason, CgDropDownBoxCommitMode, CgDropDownBoxContext, CgDropDownBoxDisplayContext, CgDropDownBoxErrorContext, CgDropDownBoxFormSerializer, CgDropDownBoxOpenChangeDetails, CgDropDownBoxOpenReason, CgDropDownBoxPlacement, CgDropDownBoxProps, CgDropDownBoxTransitionPhase, CgDropDownBoxValueChangeDetails, CgDropDownBoxValueChangeReason, CgDropDownBoxValueCommittedDetails, CgDropDownBoxWidthMode } from './components/DropDownBox';
 export { CgField } from './components/Field';

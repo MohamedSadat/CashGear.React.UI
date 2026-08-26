@@ -22,6 +22,9 @@ const canonicalStories = [
   'phase-5-tagbox--default',
   'phase-6-dropdownbox--default',
   'phase-7-keycombobox--default',
+  'phase-8-dateedit--default',
+  'phase-8-dateedit--open-calendar',
+  'phase-8-dateedit--arabic-rtl',
 ] as const;
 
 for (const story of canonicalStories) {
@@ -372,6 +375,107 @@ test('DropDownBox stacks nested popups and positions resizable, narrow, dark, an
   const arabicEditorBox = await arabic.boundingBox();
   const arabicPopupBox = await arabicPopup.boundingBox();
   expect(Math.abs((arabicEditorBox?.x ?? 0) - (arabicPopupBox?.x ?? 0))).toBeLessThanOrEqual(2);
+});
+
+test('DateEdit supports semantic keyboard navigation, panels, selection, Escape, and focus return', async ({ page }) => {
+  await openStory(page, 'phase-8-dateedit--open-calendar');
+  const input = page.getByRole('combobox', { name: 'Open calendar date' });
+  const dialog = page.getByRole('dialog', { name: 'Calendar' });
+  const grid = page.getByRole('grid');
+  await expect(dialog).toBeVisible();
+  await expect(input).toHaveAttribute('aria-controls', await dialog.getAttribute('id') ?? 'missing');
+  await expect(grid.getByRole('gridcell')).toHaveCount(42);
+  await expect(grid.getByRole('columnheader')).toHaveCount(7);
+  await page.locator('[data-focus-value="2026-08-21"]').focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('[data-focus-value="2026-08-22"]')).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.locator('[data-focus-value="2026-08-29"]')).toBeFocused();
+  await page.keyboard.press('Home');
+  await page.keyboard.press('End');
+  await page.keyboard.press('PageUp');
+  await page.keyboard.press('Shift+PageDown');
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(input).toBeFocused();
+
+  await input.press('ArrowDown');
+  await page.getByRole('button', { name: 'Choose month and year' }).click();
+  await expect(page.getByRole('grid').getByRole('gridcell')).toHaveCount(12);
+  await page.getByRole('button', { name: 'Choose year' }).click();
+  await expect(page.getByRole('grid').getByRole('gridcell')).toHaveCount(12);
+  await page.getByRole('button', { name: '2027' }).click();
+  await page.getByRole('button', { name: /August/u }).click();
+  await page.locator('[data-date="2027-08-24"]').click();
+  await expect(input).toHaveValue('2027-08-24');
+  await expect(input).toBeFocused();
+});
+
+test('DateEdit serializes canonical values, resets external forms, validates required input, and restores rejected controlled proposals', async ({ page }) => {
+  await openStory(page, 'phase-8-dateedit--external-form-behavior');
+  const formInput = page.getByRole('combobox', { name: 'External form invoice date' });
+  await formInput.focus();
+  await expect(formInput).toHaveValue('21/08/2026');
+  await formInput.fill('22/08/2026');
+  await formInput.press('Enter');
+  await expect(page.getByLabel('Submitted canonical date')).toHaveText('Not submitted');
+  await expect(page.locator('[data-cg-date-edit-form-proxy]')).toHaveValue('2026-08-22');
+  await page.getByRole('button', { name: 'Submit date' }).click();
+  await expect(page.getByLabel('Submitted canonical date')).toHaveText('2026-08-22');
+  await page.getByRole('button', { name: 'Reset date' }).click();
+  await expect(formInput).toHaveValue('21 August 2026');
+
+  await openStory(page, 'phase-8-dateedit--required-native-form-validation');
+  const required = page.getByRole('combobox', { name: 'Required native date' });
+  await page.getByRole('button', { name: 'Submit required date' }).click();
+  await expect(required).toBeFocused();
+  await expect(required).toHaveAttribute('aria-invalid', 'true');
+
+  await openStory(page, 'phase-8-dateedit--rejected-controlled-fixture');
+  const rejected = page.getByRole('combobox', { name: 'Authoritative date' });
+  await rejected.fill('2026-08-22');
+  await rejected.press('Enter');
+  await expect(rejected).toHaveValue('2026-08-21');
+  await expect(page.getByLabel('Attempted date')).toHaveText('2026-08-22');
+});
+
+test('DateEdit repositions and dismisses outside, supports Arabic RTL, forced colors, reduced motion, and narrow zoomed layouts', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 540 });
+  await page.emulateMedia({ forcedColors: 'active', reducedMotion: 'reduce' });
+  await openStory(page, 'phase-8-dateedit--narrow-layout');
+  const narrowInput = page.getByRole('combobox', { name: 'Narrow date' });
+  const narrowDialog = page.getByRole('dialog', { name: 'Calendar' });
+  const inputBox = await narrowInput.boundingBox();
+  const popupBox = await narrowDialog.boundingBox();
+  expect(inputBox).not.toBeNull();
+  expect(popupBox).not.toBeNull();
+  expect(popupBox?.x ?? -1).toBeGreaterThanOrEqual(3);
+  expect((popupBox?.x ?? 0) + (popupBox?.width ?? 0)).toBeLessThanOrEqual(357);
+  await page.locator('body').click({ position: { x: 2, y: 2 } });
+  await expect(narrowDialog).toHaveCount(0);
+
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.emulateMedia({ forcedColors: 'none', reducedMotion: 'no-preference' });
+  await openStory(page, 'phase-8-dateedit--arabic-rtl', 'theme:light;density:comfortable;direction:rtl');
+  const arabic = page.getByRole('combobox', { name: 'تاريخ القيد' });
+  expect(await arabic.evaluate((element) => getComputedStyle(element).direction)).toBe('rtl');
+  await expect(page.getByRole('dialog', { name: 'التقويم' })).toBeVisible();
+  await page.locator('[data-focus-value="2026-08-21"]').focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.locator('[data-focus-value="2026-08-22"]')).toBeFocused();
+});
+
+test('DateEdit observes async cancellation without committing a stale value', async ({ page }) => {
+  await openStory(page, 'phase-8-dateedit--async-before-change-cancellation');
+  const input = page.getByRole('combobox', { name: 'Approval date' });
+  await input.fill('2026-08-23');
+  await input.press('Enter');
+  await expect(page.getByLabel('Async date log')).toHaveText('Cancelled by policy');
+  await expect(input).toHaveValue('2026-08-21');
+  await input.fill('2026-08-24');
+  await input.press('Enter');
+  await expect(page.getByLabel('Async date log')).toHaveText('Accepted');
+  await expect(input).toHaveValue('2026-08-24');
 });
 
 test('LoadingPanel contains and returns focus and covers an external target', async ({ page }) => {

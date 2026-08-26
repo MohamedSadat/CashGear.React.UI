@@ -21,6 +21,7 @@ const primaryStories = [
   ['tag-box', 'phase-5-tagbox--default'],
   ['drop-down-box', 'phase-6-dropdownbox--default'],
   ['key-combo-box', 'phase-7-keycombobox--default'],
+  ['date-edit', 'phase-8-dateedit--default'],
 ] as const;
 
 for (const [name, story] of primaryStories) {
@@ -49,6 +50,7 @@ const rtlStories = [
   ['list-box', 'phase-4-listbox--arabic-rtl'],
   ['tag-box', 'phase-5-tagbox--arabic-rtl'],
   ['drop-down-box', 'phase-6-dropdownbox--arabic-rtl'],
+  ['date-edit', 'phase-8-dateedit--arabic-rtl'],
 ] as const;
 
 for (const [name, story] of rtlStories) {
@@ -67,6 +69,7 @@ const darkCompactStories = [
   ['list-box', 'phase-4-listbox--dark-compact'],
   ['tag-box', 'phase-5-tagbox--dark-compact'],
   ['drop-down-box', 'phase-6-dropdownbox--dark-compact'],
+  ['date-edit', 'phase-8-dateedit--dark-compact'],
 ] as const;
 
 for (const [name, story] of darkCompactStories) {
@@ -210,4 +213,37 @@ test('DropDownBox narrow resizable geometry', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await openStory(page, 'phase-6-dropdownbox--width-resize-and-placement');
   await expect(page).toHaveScreenshot('drop-down-box-resizable.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
+
+test('DateEdit open calendar', async ({ page }) => {
+  await openStory(page, 'phase-8-dateedit--open-calendar');
+  await expect(page.getByRole('dialog', { name: 'Calendar' })).toBeVisible();
+  await expect(page).toHaveScreenshot('date-edit-open.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
+
+test('DateEdit invalid input', async ({ page }) => {
+  await openStory(page, 'phase-8-dateedit--empty-required-invalid');
+  await expect(page.getByRole('alert')).toHaveCount(2);
+  await expect(page).toHaveScreenshot('date-edit-invalid.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
+
+test('DateEdit min max and disabled dates', async ({ page }) => {
+  await openStory(page, 'phase-8-dateedit--min-max-disabled-dates');
+  await expect(page.getByRole('dialog', { name: 'Calendar' })).toBeVisible();
+  await expect(page).toHaveScreenshot('date-edit-restrictions.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
+
+test('DateEdit year panel', async ({ page }) => {
+  await openStory(page, 'phase-8-dateedit--month-year-navigation');
+  await page.getByRole('button', { name: 'Choose month and year' }).click();
+  await page.getByRole('button', { name: 'Choose year' }).click();
+  await expect(page.getByRole('grid').getByRole('gridcell')).toHaveCount(12);
+  await expect(page).toHaveScreenshot('date-edit-year-panel.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
+
+test('DateEdit narrow layout', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 540 });
+  await openStory(page, 'phase-8-dateedit--narrow-layout');
+  await expect(page.getByRole('dialog', { name: 'Calendar' })).toBeVisible();
+  await expect(page).toHaveScreenshot('date-edit-narrow.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
 });
