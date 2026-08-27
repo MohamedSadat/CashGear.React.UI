@@ -16,6 +16,10 @@
 .resize { position: absolute; inset-block: 0; inset-inline-end: -0.25rem; z-index: 3; inline-size: 0.5rem; cursor: col-resize; touch-action: none; }
 .filterCell { padding: var(--cg-space-2); background: var(--cg-surface-subtle); border-inline-end: var(--cg-border-style); border-block-end: var(--cg-border-style); }
 .filterControl { inline-size: 100%; min-inline-size: 4rem; block-size: var(--cg-control-height-small); color: var(--cg-text); background: var(--cg-surface); border: var(--cg-border-style); border-radius: var(--cg-radius-sm); }
+.filterPanel { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--cg-space-2) var(--cg-space-4); padding: var(--cg-space-2) var(--cg-space-3); color: var(--cg-text); background: var(--cg-info-soft); border-block-end: var(--cg-border-style); }
+.filterPanel[data-suspended='true'] { color: var(--cg-text-secondary); background: var(--cg-surface-subtle); }
+.filterPanelActions { display: flex; flex-wrap: wrap; gap: var(--cg-space-2); }
+.filterProblem { flex-basis: 100%; color: var(--cg-danger-text); }
 .row:hover .cell { background: var(--cg-hover); }
 .striped .row:nth-of-type(even) .cell { background: color-mix(in srgb, var(--cg-surface-subtle) 55%, transparent); }
 .selected .cell { background: var(--cg-selected) !important; }
@@ -27,12 +31,17 @@
 .detailCell { padding: var(--cg-space-4); background: var(--cg-surface-raised); border-block-end: var(--cg-border-style); }
 .status { display: grid; place-items: center; min-block-size: 8rem; padding: var(--cg-space-5); color: var(--cg-text-secondary); text-align: center; }
 .refreshError { padding: var(--cg-space-3); color: var(--cg-danger-text); background: var(--cg-danger-soft); border-block-end: var(--cg-border-style); }
-.pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--cg-space-2); padding: var(--cg-space-3); }
+.pager { box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--cg-space-2); padding: var(--cg-space-3); }
 .pagerStatus { color: var(--cg-text-secondary); }
+.pager [data-cg-pager-summary] { display: inline-flex; }
 .editorForm { display: grid; gap: var(--cg-space-4); min-inline-size: min(28rem, 80vw); }
 .editorFields { display: grid; gap: var(--cg-space-3); }
 .editorErrors { color: var(--cg-danger-text); }
 .editorFooter { display: flex; justify-content: flex-end; gap: var(--cg-space-3); }
+.editingRow { background: color-mix(in srgb, var(--cg-primary, #2563eb) 7%, transparent); }
+.editingCell { padding: var(--cg-space-1); vertical-align: top; overflow: visible; white-space: normal; }
+.inlineEditor { min-inline-size: 8rem; }
+.visuallyHidden { position: absolute !important; inline-size: 1px !important; block-size: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; white-space: nowrap !important; border: 0 !important; }
 @media (forced-colors: active) { .root, .headerCell, .cell, .filterCell { border-color: CanvasText; } .selected .cell { outline: 2px solid Highlight; } }
 @media (prefers-reduced-motion: reduce) { .root * { scroll-behavior: auto !important; transition-duration: 0s !important; animation-duration: 0s !important; } }
 @container (max-width: 520px) { .toolbar { align-items: stretch; } .toolbar > * { flex: 1 1 100%; } .headerCell, .cell { padding-inline: var(--cg-space-3); } }

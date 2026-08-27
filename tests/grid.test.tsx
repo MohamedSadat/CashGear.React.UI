@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event';
 import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { CgGrid, CG_GRID_STATE_VERSION, calculateGridSummaries, createGridState, createGridXlsx, evaluateGridFilter, normalizeGridState, processLocalGridData, replaceFilterRowConditions, sanitizeGridExportFileName } from '../src';
+import { CgGrid, CgGridFilterConfigurationError, CG_GRID_STATE_VERSION, calculateGridSummaries, createGridDataRequest, createGridState, createGridXlsx, encodeGridDataRequest, evaluateGridFilter, normalizeGridState, processLocalGridData, replaceFilterRowConditions, sanitizeGridExportFileName } from '../src';
 import type { CgGridActions, CgGridColumnDescriptor, CgGridDataProvider, CgGridFilterNode, CgGridProps, CgGridState } from '../src';
 
 interface Row { id: number; name: string; amount: number; active: boolean; date: string; region: string }
@@ -28,6 +28,27 @@ describe('CgGrid pure contracts and engines', () => {
     expect(state.focusedColumnId).toBeNull();
   });
 
+  it.each(Array.from({ length: 9 }, (_, index) => index + 1))('characterizes and upgrades Grid state v%i through the v10 canonical filter model', (version) => {
+    const state = normalizeGridState(columns, {
+      version,
+      filter: { kind: 'condition', fieldId: 'amount', operator: 'greaterThan', value: 10 },
+      filterDisabled: true,
+      summaries: version >= 9 ? [{ id: 'total', visible: false }] : [],
+    }, { summaries: [{ id: 'total', type: 'sum', fieldId: 'amount' }] });
+    expect(state.version).toBe(10);
+    expect(state.filter).toMatchObject({ kind: 'condition', fieldId: 'amount', values: [{ kind: 'number', text: '10' }], source: version < 5 ? 'filterRow' : 'caller' });
+    expect(state.filterDisabled).toBe(false);
+    expect(state.summaries).toEqual([{ id: 'total', visible: version < 9 }]);
+  });
+
+  it('preserves v10 negation, builder ownership, suspension, and invalid saved-filter diagnostics', () => {
+    const valid = normalizeGridState(columns, { version: 10, filterDisabled: true, filter: { kind: 'group', operator: 'and', negated: true, children: [{ kind: 'condition', fieldId: 'name', operator: 'contains', values: [{ kind: 'text', text: 'x' }], source: 'builder' }] } });
+    expect(valid).toMatchObject({ filterDisabled: true, filter: { negated: true, children: [{ source: 'builder' }] }, filterProblems: [] });
+    const invalid = normalizeGridState(columns, { version: 10, filter: { kind: 'condition', fieldId: 'removed', operator: 'equals', values: [{ kind: 'text', text: 'x' }] } });
+    expect(invalid.filter).toMatchObject({ fieldId: 'removed' });
+    expect(invalid.filterProblems[0]?.kind).toBe('unknownField');
+  });
+
   it('keeps caller filters while replacing only filter-row conditions', () => {
     const caller: CgGridFilterNode = { kind: 'group', operator: 'or', children: [{ kind: 'condition', fieldId: 'name', operator: 'startsWith', value: 'A', source: 'caller' }, { kind: 'condition', fieldId: 'name', operator: 'endsWith', value: 'a', source: 'caller' }] };
     const first = replaceFilterRowConditions(caller, [{ kind: 'condition', fieldId: 'amount', operator: 'greaterThan', value: 10 }]);
@@ -37,11 +58,18 @@ describe('CgGrid pure contracts and engines', () => {
     expect(rows.filter((row) => evaluateGridFilter(second, row, new Map(columns.map((column) => [column.fieldId, column])))).map((row) => row.id)).toEqual([1, 3]);
   });
 
-  it('uses formatted text and whole-day date semantics without crashing on invalid values', () => {
+  it('uses whole-day date semantics and blocks invalid values with typed diagnostics', () => {
     const map = new Map(columns.map((column) => [column.fieldId, column]));
     expect(evaluateGridFilter({ kind: 'condition', fieldId: 'date', operator: 'equals', value: '2026-08-25' }, rows[0]!, map)).toBe(true);
     expect(evaluateGridFilter({ kind: 'condition', fieldId: 'date', operator: 'equals', value: '2026-08-25' }, rows[1]!, map)).toBe(true);
-    expect(evaluateGridFilter({ kind: 'condition', fieldId: 'date', operator: 'between', value: 'bad', secondValue: 'also-bad' }, rows[0]!, map)).toBe(false);
+    expect(() => evaluateGridFilter({ kind: 'condition', fieldId: 'date', operator: 'between', value: 'bad', secondValue: 'also-bad' }, rows[0]!, map)).toThrow(CgGridFilterConfigurationError);
+  });
+
+  it('keeps semantic provider requests source-compatible and encodes Razor wire filters safely', () => {
+    const state = normalizeGridState(columns, { version: 10, pageIndex: 1, pageSize: 25, filter: { kind: 'condition', fieldId: 'amount', operator: 'greaterThanOrEqual', value: 10, source: 'builder' } });
+    const request = createGridDataRequest(state, columns, [], []);
+    expect(request.filter).toMatchObject({ kind: 'condition', operator: 'greaterThanOrEqual', values: [{ kind: 'number', text: '10' }] });
+    expect(encodeGridDataRequest(request)).toMatchObject({ skip: 25, take: 25, searchFields: ['name', 'amount', 'active', 'date', 'region'], filter: { $type: 'condition', operator: 7, values: [{ kind: 2, text: '10' }], source: 2 } });
   });
 
   it('runs search/filter/summaries/stable-sort/group/page without mutating input', () => {
@@ -76,6 +104,31 @@ describe('CgGrid rendering and interaction', () => {
     expect(screen.getAllByRole('row')[2]).toHaveTextContent('Alpha');
     await userEvent.type(screen.getByRole('searchbox'), 'Gamma');
     await waitFor(() => expect(screen.getByText('Gamma')).toBeInTheDocument());
+  });
+
+  it('composes CgPager while Grid applies one provider request per navigation gesture', async () => {
+    const provider = vi.fn<CgGridDataProvider<Row>>(async (request) => ({ rows: rows.slice(request.skip, request.skip + request.take), totalCount: rows.length, authorizedFilteredRowCount: rows.length }));
+    render(<CgGrid dataProvider={provider} columns={columns} keySelector={(row) => row.id} defaultState={{ pageSize: 2 }} pageSizeOptions={[2, 3]} pagerMode="numericButtons" />);
+    await screen.findByText('Alpha');
+    provider.mockClear();
+    await userEvent.click(screen.getByRole('button', { name: 'Go to next page' }));
+    await waitFor(() => expect(provider).toHaveBeenCalledTimes(1));
+    expect(provider.mock.calls[0]?.[0]).toMatchObject({ skip: 2, take: 2 });
+    provider.mockClear();
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: /rows per page/i }), '3');
+    await waitFor(() => expect(provider).toHaveBeenCalledTimes(1));
+    expect(provider.mock.calls[0]?.[0]).toMatchObject({ skip: 0, take: 3 });
+  });
+
+  it('exposes first, last, go-to, page-size, and current-page refresh actions', async () => {
+    const actions = createRef<CgGridActions<Row>>();
+    render(<CgGrid data={rows} columns={columns} keySelector={(row) => row.id} defaultState={{ pageSize: 1 }} actionsRef={actions} />);
+    await act(async () => { await actions.current?.goToLastPage(); });
+    expect(actions.current?.getState().pageIndex).toBe(2);
+    await act(async () => { await actions.current?.goToFirstPage(); await actions.current?.goToPage(1); });
+    expect(actions.current?.getState().pageIndex).toBe(1);
+    await act(async () => { await actions.current?.setPageSize(2); await actions.current?.refreshCurrentPage(); });
+    expect(actions.current?.getState()).toMatchObject({ pageIndex: 0, pageSize: 2 });
   });
 
   it('selects by key, supports keyboard navigation and batches controlled proposals', async () => {
@@ -148,5 +201,25 @@ describe('CgGrid rendering and interaction', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Name' }));
     expect(change).toHaveBeenCalledWith(expect.objectContaining({ sorts: [{ fieldId: 'name', direction: 'ascending' }] }), expect.anything());
     expect(screen.getByRole('columnheader', { name: /Name/ })).not.toHaveAttribute('aria-sort');
+  });
+
+  it('shows, suspends, resumes, clears, and delegates advanced filters', async () => {
+    const requestBuilder = vi.fn();
+    render(<CgGrid data={rows} columns={columns} keySelector={(row) => row.id} onRequestFilterBuilder={requestBuilder} defaultState={{ filter: { kind: 'condition', fieldId: 'amount', operator: 'greaterThan', value: 15, source: 'builder' } }} />);
+    expect(screen.getByRole('region', { name: 'Active filters' })).toHaveTextContent(/Amount greater-than 15/u);
+    expect(screen.queryByText('Beta')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Suspend filters' }));
+    expect(screen.getByText('Beta')).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Edit filters' }));
+    expect(requestBuilder).toHaveBeenCalledWith(expect.objectContaining({ kind: 'condition', source: 'builder' }), expect.objectContaining({ actions: expect.anything() }));
+    await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+    expect(screen.queryByRole('region', { name: 'Active filters' })).not.toBeInTheDocument();
+  });
+
+  it('retains invalid provider filters as diagnostics and never forwards them', async () => {
+    const provider = vi.fn<CgGridDataProvider<Row>>(async () => ({ rows, totalCount: rows.length, authorizedFilteredRowCount: rows.length }));
+    render(<CgGrid dataProvider={provider} columns={columns} keySelector={(row) => row.id} defaultState={{ filter: { kind: 'condition', fieldId: 'removed', operator: 'equals', value: 'x' } }} />);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/unknown filter field/iu);
+    expect(provider).not.toHaveBeenCalled();
   });
 });

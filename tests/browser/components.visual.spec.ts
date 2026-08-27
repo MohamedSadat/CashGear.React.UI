@@ -209,6 +209,26 @@ for (const [name, story, globals, narrow] of [
 }
 
 for (const [name, story, globals, narrow] of [
+  ['phase-15-filterbuilder-nested', 'phase-15-filterbuilder--explicit-nested', undefined, false],
+  ['phase-15-pager-numeric', 'phase-15-pager--numeric-buttons', undefined, false],
+  ['phase-15-advanced-grid-filter-pager', 'phase-15-advanced-grid--typed-filters-and-numeric-pager', undefined, false],
+  ['phase-15-advanced-grid-dark-cell', 'phase-15-advanced-grid--dark-compact', 'theme:dark;density:compact;direction:ltr', false],
+  ['phase-15-advanced-grid-rtl-narrow', 'phase-15-advanced-grid--arabic-rtl-narrow', 'theme:light;density:comfortable;direction:rtl', true],
+] as const) {
+  test(`${name} visual`, async ({ page }) => {
+    if (narrow) await page.setViewportSize({ width: 500, height: 760 });
+    await openStory(page, story, globals);
+    await expect(page).toHaveScreenshot(`${name}.png`, { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+  });
+}
+
+test('phase-15-reduced-motion visual', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await openStory(page, 'phase-15-advanced-grid--reduced-motion');
+  await expect(page).toHaveScreenshot('phase-15-reduced-motion.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
+
+for (const [name, story, globals, narrow] of [
   ['phase-14-lookupgrid-local', 'phase-14-lookupgrid--local-item-lookup', undefined, false],
   ['phase-14-lookupgrid-filters', 'phase-14-lookupgrid--column-filter-row', undefined, false],
   ['phase-14-lookupgrid-disabled', 'phase-14-lookupgrid--disabled-ledger-rows', undefined, false],

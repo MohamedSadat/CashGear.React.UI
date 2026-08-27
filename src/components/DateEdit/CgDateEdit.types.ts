@@ -102,6 +102,8 @@ export interface CgDateEditProps extends NativeDateInputProps, CgBaseProps {
   displayFormat?: string;
   locale?: string;
   firstDayOfWeek?: CgDayOfWeek;
+  /** Overrides the calendar's current civil date. Useful for deterministic SSR, previews, and tests. */
+  today?: CgDateValue;
   minDate?: CgDateValue;
   maxDate?: CgDateValue;
   isDateDisabled?: (date: CgDateValue) => boolean;

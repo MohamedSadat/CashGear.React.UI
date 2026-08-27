@@ -109,6 +109,7 @@ function CgDateEditInner(
     displayFormat,
     locale,
     firstDayOfWeek,
+    today: todayValue,
     minDate,
     maxDate,
     isDateDisabled,
@@ -161,8 +162,10 @@ function CgDateEditInner(
 
   const minimum = minDate === undefined ? null : parseCanonicalDate(minDate);
   const maximum = maxDate === undefined ? null : parseCanonicalDate(maxDate);
+  const resolvedToday = todayValue === undefined ? todayCivilDate() : parseCanonicalDate(todayValue);
   if (minDate !== undefined && minimum === null) throw new Error('CgDateEdit minDate must be a valid canonical YYYY-MM-DD date.');
   if (maxDate !== undefined && maximum === null) throw new Error('CgDateEdit maxDate must be a valid canonical YYYY-MM-DD date.');
+  if (resolvedToday === null) throw new Error('CgDateEdit today must be a valid canonical YYYY-MM-DD date.');
   if (minimum && maximum && compareCivilDates(minimum, maximum) > 0) throw new Error('CgDateEdit minDate must not be later than maxDate.');
 
   const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
@@ -403,8 +406,7 @@ function CgDateEditInner(
   });
 
   const selectToday = useStableCallback(async (event?: Event | SyntheticEvent) => {
-    const today = todayCivilDate();
-    const accepted = await requestValueChange(toCanonicalDate(today), 'today-button', event);
+    const accepted = await requestValueChange(toCanonicalDate(resolvedToday), 'today-button', event);
     if (accepted && openRef.current) await requestClose('today-button', event, true);
   });
 
@@ -444,8 +446,7 @@ function CgDateEditInner(
   const dismissOnOutside = useStableCallback(() => requestClose('outside-click'));
   const overlay = useOverlayStack(isOpen, dismissOnEscape, popupRef, dismissOnOutside, controlRef);
   const selectedDate = committedValue === null ? null : parseCanonicalDate(committedValue);
-  const today = todayCivilDate();
-  const anchor = clampCivilDate(selectedDate ?? today, minimum, maximum);
+  const anchor = clampCivilDate(selectedDate ?? resolvedToday, minimum, maximum);
   const canClear = allowClear && !field.required && committedValue !== null && !field.disabled && !field.readOnly;
   const serializedValues = selectedDate ? [toCanonicalDate(selectedDate)] : [];
   const customStart = buttons.filter((button) => (button.placement ?? 'end') === 'start');
@@ -612,7 +613,7 @@ function CgDateEditInner(
             headingId={headingId}
             selected={selectedDate}
             anchor={anchor}
-            today={today}
+            today={resolvedToday}
             minimum={minimum}
             maximum={maximum}
             firstDayOfWeek={effectiveFirstDay}

@@ -1,6 +1,6 @@
 # `@cashgear/ui`
 
-CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–14 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, overlays, MaskedInput, command surfaces, descriptor-based navigation, responsive FormLayout, TreeView, the broad Grid surface, and the focused `CgLookUpGrid` in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies.
+CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–15 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, overlays, MaskedInput, command surfaces, descriptor-based navigation, responsive FormLayout, TreeView, the focused `CgLookUpGrid`, and the advanced Filter/Grid/Pager surface in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies.
 
 ## Install and import
 
@@ -454,9 +454,21 @@ Selection, expansion, checking, and filtering are independently controlled or un
 
 The component owns `tree`/`treeitem`/`group` structure, one roving tab stop, complete physical Left/Right tree navigation in LTR and RTL, selection/check/expansion semantics, and stable instance-scoped DOM IDs. Read-only trees remain navigable. Node and empty-area menus reuse `CgContextMenu`; opening one never selects a node, and commands revalidate their target before execution. `CgTreeViewActions` exposes focus, selection, expansion, checking, ancestor expansion, and scrolling operations. TreeList, lazy loading, virtualization, drag-and-drop, and inline editing remain deliberately outside this component.
 
+## Filter Core and FilterBuilder
+
+The UI-independent Filter Core provides immutable groups, scalar and collection aggregate conditions, explicit source ownership, canonical typed values, relative periods, safe normalization/validation, structural comparison, formatting, field-ID migration, local evaluation, predicate compilation, and saved-view helpers. It never evaluates property paths, expressions, functions, or source text: local execution requires a registered field accessor. Relative criteria require an injected clock, IANA timezone, and first weekday so calendar-day and DST behavior is deterministic.
+
+`CgFilterBuilder<TItem>` edits that same AST without mutating caller state. Explicit, immediate, and debounced apply modes retain separate draft/applied state; incomplete rows remain visible and block Apply. Stable node IDs support nested/negated groups, collection aggregates, duplicate/remove/reorder/collapse actions, accessible errors and announcements, keyboard reordering, RTL, forced colors, reduced motion, and responsive stacking. Custom field editors and displays take precedence over generated CashGear editors.
+
+Persistence and transport use the exact Razor `$type` wire discriminators and pinned numeric ordinals, while React code keeps ergonomic string literals in memory. Legacy `value`/`secondValue` operands and Grid states v1–v9 are accepted only at compatibility boundaries and normalize to the canonical typed AST.
+
+## Pager
+
+`CgPager` owns no data. It exposes zero-based state with one-based display, controlled or uncontrolled page/page-size state, authoritative or derived page counts, overflow-safe arithmetic, numeric/input/status/auto modes, first/previous/next/last controls, page-size selection, first-visible-item preservation, templates, loading/read-only/disabled behavior, Unicode decimal input, roving focus, and chronological keyboard navigation in LTR and RTL. Responsive measurement is SSR-safe and never emits navigation merely because the mode changed.
+
 ## Grid
 
-`CgGrid<TItem>` is a descriptor-driven data grid for local arrays or abortable async providers. Columns require stable `fieldId` identities and explicit typed accessors; `keySelector` supplies stable scalar row identity. The version-8 serializable state carries paging, search, sorting, filters, key selection, focus, column layout, grouping, and remote expansion paths.
+`CgGrid<TItem>` is a descriptor-driven data grid for local arrays or abortable async providers. Columns require stable `fieldId` identities and explicit typed accessors; `keySelector` supplies stable scalar row identity. Version-10 serializable state carries paging, search, sorting, canonical filters and suspension, key selection, focus, column layout, grouping, remote expansion paths, and summary identity/visibility. State migration accepts versions 1–9 and reconciles renamed fields and changed aggregate keys before a provider request is constructed.
 
 ```tsx
 const columns: ReadonlyArray<CgGridColumnDescriptor<Invoice>> = [
@@ -474,11 +486,13 @@ const columns: ReadonlyArray<CgGridColumnDescriptor<Invoice>> = [
 />
 ```
 
-Local processing is search, filter, total summaries, stable sorting, grouping, then paging. Filters are nested serializable trees and retain caller-owned conditions when the filter row changes. Provider requests use the same stable field IDs and add `rows`, `groupNodes`, and `groupItems` modes with typed group paths, cancellation, sequencing, retained refresh errors, and authoritative summaries.
+Local processing is search, validated filter, complete-set summaries, stable sorting, grouping, then paging. Filter-row and builder-owned criteria remain structurally separate; invalid saved criteria retain diagnostics but never execute or reach a provider. The default footer is controlled `CgPager`, while Grid remains the sole paging/data authority. Provider requests use stable field IDs and `rows`, `groupNodes`, and `groupItems` modes with typed group paths, cancellation, sequencing, retained refresh errors, and authoritative summaries. Razor-compatible request helpers encode/decode the wire AST without changing semantic provider callbacks.
 
-`CgGridActions<TItem>` exposes refresh, state, focus, selection, grouping, detail, CRUD, layout, and XLSX operations. Popup CRUD uses isolated caller-created models, explicit immutable editor setters, validation results, async confirmation callbacks, and caller-owned persistence. Named views use an injected `CgGridViewStore`; `CgGridBrowserViewStore` is a personal localStorage implementation and server applications can provide secured role/company stores. Local XLSX generation returns bytes before any optional SSR-guarded browser download.
+`CgGridActions<TItem>` exposes refresh, paging, filter-builder delegation, state, focus, selection, grouping, detail, editing, layout, and XLSX operations. Popup editing remains the default; inline-row, cell, and atomic batch modes add immutable draft snapshots, active-cell state, dirty navigation policies, validation focus, concurrency metadata, conflict retry/reload, and one complete batch callback. Paging, sorting, filtering, grouping, views, refresh, and external router guards share one cancellable dirty-navigation gate. The caller owns persistence and source updates; successful persistence reloads once after its callback completes.
 
-The React adaptation deliberately does not expose Razor child registration, SQL/EF/Dapper stores, or Blazor lifecycle concepts. Inline/cell/batch editing, virtualization, automatic columns, transactional inference, custom aggregates, generic HTTP adapters, TreeList, and DateRangePicker remain deferred.
+Custom summaries use stable aggregate keys and ordered input field IDs. Built-ins stay synchronous; trusted local custom delegates run through an abortable async path over complete filtered total/group scopes, and remote requests contain only serializable IDs, keys, fields, scope, and query state. Availability, loading, safe error codes, and completeness are explicit.
+
+The React adaptation deliberately does not expose Razor child registration, expressions, SQL/EF/Dapper translation, generic HTTP adapters, server persistence, or Blazor lifecycle concepts. Row/column virtualization, automatic column discovery, and unrelated deferred controls remain out of scope.
 
 ## LookUpGrid
 
@@ -564,13 +578,13 @@ Components:
 - `CgTextBox`, `CgMemo`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgKeyComboBox`, `CgLookUpGrid`, `CgListBox`, `CgTagBox`, `CgDropDownBox`, `CgDateEdit`
 - `CgFlyout`, `CgPopup`, `CgWindow`, `CgMaskedInput`
 - `CgMenu`, `CgContextMenu`, `CgDropDownButton`, `CgSplitButton`, `CgToolbar`
-- `CgLayoutBreakpoint`, `CgTabs`, `CgStepper`, `CgAccordion`, `CgTreeView`, `CgGrid`
+- `CgLayoutBreakpoint`, `CgTabs`, `CgStepper`, `CgAccordion`, `CgTreeView`, `CgFilterBuilder`, `CgPager`, `CgGrid`
 - `CgFormLayout`, `CgFormLayoutItem`, `CgFormLayoutGroup`, `CgFormLayoutTabs`
 - `CgRadio`, `CgRadioGroup`
 - `CgNumericEdit`, `CgSpinEdit`, `CgSearchBox`
 - `CgLoadingPanel`, `CgProgressBar`
 
-Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, the `CgDateEdit` contracts, the shared overlay contracts, and each descriptor component's props, actions, lifecycle details, and render/state contexts. Private menu, adaptive-layout, and TreeView normalization/check/filter engines are not exported. There is intentionally no universal component-state interface.
+Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, the Filter Core AST/registry/persistence contracts, the `CgDateEdit` contracts, the shared overlay contracts, and each descriptor component's props, actions, lifecycle details, and render/state contexts. Private menu, adaptive-layout, and TreeView normalization/check/filter engines are not exported. There is intentionally no universal component-state interface.
 
 The public hooks are `useControllableState`, `useCgId`, and `useCgContextMenuTarget`; `cx` is the public class-name utility. All other primitives and hooks are private implementation details.
 
@@ -599,6 +613,8 @@ Install browser binaries once with `npx playwright install chromium firefox webk
 Chromium screenshots in `tests/browser/__snapshots__` are canonical Windows/Node 24.19 baselines. Playwright snapshots are platform-specific; regenerate them on the same operating system used for comparison. Browser tests serve the prebuilt Storybook through a lifecycle-managed Vite preview server. No CI workflow is installed; browser gates run locally through `npm run verify`.
 
 The Phase 10 Node 24.19 verification completed with 205 Vitest tests, 68 semantic/Axe cases per engine, 108 Chromium visual tests comparing 116 Windows snapshots, and package verification of exactly 33 runtime exports across 648 packed files. Firefox's headless software renderer still cannot start on this host; all 68 cases were covered headed, with one legacy TagBox browser-context teardown flake passing immediately in isolation. See the parity ledger for the exact gate breakdown.
+
+Phase 15 verification on 2026-08-27 passed strict typecheck and lint, 36 Vitest files/351 tests, cycle analysis across 209 source modules, the 204-module library build, the 270-module Storybook build, package verification of 141 runtime exports across 988 packed files, all 163 Windows Chromium visual cases, and the final affected 16-case Chromium/WebKit semantic and Axe matrix. The complete 182-case Chromium/WebKit semantic suite also passed during acceptance; see the parity ledger for command-level detail and the Firefox host limitation.
 
 ## Packaging
 

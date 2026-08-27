@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-base-to-string -- group member keys use stable scalar fallback text. */
-import type { CgGridColumnDescriptor, CgGridGroupDescriptor, CgGridSummaryDescriptor } from './CgGrid.types';
+import type { CgGridAggregateValue, CgGridColumnDescriptor, CgGridGroupDescriptor, CgGridSummaryDescriptor } from './CgGrid.types';
 import { calculateGridSummaries } from './summaries';
 import { formatGridValue } from './columns';
 
-export interface CgGridLocalGroup<TItem> { readonly kind: 'group'; readonly key: string; readonly level: number; readonly fieldId: string; readonly value: unknown; readonly displayText: string; readonly items: ReadonlyArray<TItem>; readonly children: ReadonlyArray<CgGridLocalGroup<TItem>>; readonly summaries: Readonly<Record<string, unknown>> }
+export interface CgGridLocalGroup<TItem> { readonly kind: 'group'; readonly key: string; readonly level: number; readonly fieldId: string; readonly value: unknown; readonly displayText: string; readonly items: ReadonlyArray<TItem>; readonly children: ReadonlyArray<CgGridLocalGroup<TItem>>; readonly summaries: Readonly<Record<string, unknown>>; readonly aggregateStates?: Readonly<Record<string, CgGridAggregateValue>> }
 
 function memberKey(value: unknown): string {
   if (value === null || value === undefined || value === '') return 'blank';
@@ -11,7 +11,7 @@ function memberKey(value: unknown): string {
   return `${typeof value}:${String(value)}`;
 }
 
-export function buildLocalGroups<TItem>(items: ReadonlyArray<TItem>, groups: ReadonlyArray<CgGridGroupDescriptor>, columns: ReadonlyMap<string, CgGridColumnDescriptor<TItem>>, summaries: ReadonlyArray<CgGridSummaryDescriptor>, parentKey = ''): ReadonlyArray<CgGridLocalGroup<TItem>> {
+export function buildLocalGroups<TItem>(items: ReadonlyArray<TItem>, groups: ReadonlyArray<CgGridGroupDescriptor>, columns: ReadonlyMap<string, CgGridColumnDescriptor<TItem>>, summaries: ReadonlyArray<CgGridSummaryDescriptor<TItem>>, parentKey = ''): ReadonlyArray<CgGridLocalGroup<TItem>> {
   if (!groups.length) return [];
   const [current, ...rest] = groups;
   if (!current) return [];

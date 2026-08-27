@@ -1,0 +1,20 @@
+.root { display: grid; gap: var(--cg-space-4); inline-size: 100%; min-inline-size: 0; color: var(--cg-text); font: var(--cg-font-size-md)/var(--cg-line-height) var(--cg-font-family); container-type: inline-size; }
+.group { display: grid; gap: var(--cg-space-3); padding: var(--cg-space-3); background: var(--cg-surface-subtle); border: var(--cg-border-style); border-radius: var(--cg-radius-md); }
+.groupHeader, .row, .actions, .rowActions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cg-space-2); }
+.groupHeader { justify-content: space-between; }
+.groupControls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cg-space-2); }
+.children { display: grid; gap: var(--cg-space-3); padding-inline-start: var(--cg-space-4); }
+.row { padding: var(--cg-space-3); background: var(--cg-surface); border: var(--cg-border-style); border-radius: var(--cg-radius-sm); }
+.row[data-invalid='true'] { border-color: var(--cg-danger); }
+.select { min-block-size: var(--cg-control-height-medium); max-inline-size: 100%; padding-inline: var(--cg-space-3); color: var(--cg-text); background: var(--cg-surface); border: var(--cg-border-style); border-radius: var(--cg-radius-sm); }
+.editor { flex: 1 1 12rem; min-inline-size: 8rem; }
+.rowActions { margin-inline-start: auto; }
+.iconButton { min-inline-size: 2.5rem; min-block-size: 2.5rem; padding: var(--cg-space-1) var(--cg-space-2); color: var(--cg-text); background: transparent; border: var(--cg-border-style); border-radius: var(--cg-radius-sm); cursor: pointer; }
+.iconButton:focus-visible, .select:focus-visible { outline: var(--cg-focus-ring-width) solid var(--cg-focus-ring-color); outline-offset: var(--cg-focus-ring-offset); }
+.error { flex-basis: 100%; color: var(--cg-danger-text); font-size: var(--cg-font-size-sm); }
+.actions { justify-content: flex-end; }
+.announcement { position: absolute; inline-size: 1px; block-size: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+@container (max-width: 560px) { .row { align-items: stretch; } .row > .select, .row > .editor { flex: 1 1 100%; inline-size: 100%; } .children { padding-inline-start: 0; } .rowActions { margin-inline-start: 0; } }
+@media (pointer: coarse) { .iconButton, .select { min-block-size: 2.75rem; } }
+@media (forced-colors: active) { .group, .row, .iconButton, .select { border-color: CanvasText; } .row[data-invalid='true'] { outline: 2px solid Mark; } }
+@media (prefers-reduced-motion: reduce) { .root * { animation-duration: 0s !important; transition-duration: 0s !important; scroll-behavior: auto !important; } }

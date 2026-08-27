@@ -6,16 +6,18 @@ import { CgDateEdit } from '../DateEdit';
 import { CgNumericEdit } from '../NumericEdit';
 import { CgTextBox } from '../TextBox';
 import type { CgGridColumnDescriptor, CgGridEditorMetadata } from './CgGrid.types';
+import styles from './CgGrid.module.css';
 
 function dateValue(value: unknown): string | null { if (!value) return null; const date = value instanceof Date ? value : new Date(String(value)); return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10); }
 
-export function renderAutomaticGridEditor<TItem>(column: CgGridColumnDescriptor<TItem>, model: TItem, setModel: (model: TItem) => void, fieldErrors: Readonly<Record<string, ReadonlyArray<string>>>): ReactNode {
+export function renderAutomaticGridEditor<TItem>(column: CgGridColumnDescriptor<TItem>, model: TItem, setModel: (model: TItem) => void, fieldErrors: Readonly<Record<string, ReadonlyArray<string>>>, options?: { readonly idPrefix?: string; readonly showLabel?: boolean }): ReactNode {
   const metadata = column.editor as CgGridEditorMetadata<TItem, unknown> | undefined;
   if (!metadata || !column.accessor) return null;
   const value = column.accessor(model); const error = fieldErrors[column.fieldId]?.[0]; const set = (next: unknown) => setModel(metadata.setValue(model, next));
   const context = { model, value, setValue: set, error, disabled: metadata.disabled ?? false, readOnly: metadata.readOnly ?? false };
   if (metadata.render) return metadata.render(context);
-  const common = { disabled: metadata.disabled, readOnly: metadata.readOnly, required: metadata.required, fullWidth: true, placeholder: metadata.placeholder, validationState: error ? 'error' as const : undefined, 'aria-describedby': error ? `cg-grid-editor-error-${column.fieldId}` : undefined };
+  const identity = `${options?.idPrefix ?? 'cg-grid-editor'}-${column.fieldId}`;
+  const common = { disabled: metadata.disabled, readOnly: metadata.readOnly, required: metadata.required, fullWidth: true, placeholder: metadata.placeholder, validationState: error ? 'error' as const : undefined, 'aria-describedby': error ? `${identity}-error` : metadata.memo ? `${identity}-memo` : undefined };
   let editor: ReactNode;
   switch (metadata.kind) {
     case 'number': editor = <CgNumericEdit {...common} value={typeof value === 'number' ? value : null} min={metadata.minimum instanceof Date ? undefined : metadata.minimum} max={metadata.maximum instanceof Date ? undefined : metadata.maximum} step={metadata.step} onValueChange={set} />; break;
@@ -29,7 +31,7 @@ export function renderAutomaticGridEditor<TItem>(column: CgGridColumnDescriptor<
     }
     default: editor = <CgTextBox {...common} value={value == null ? '' : String(value)} minLength={metadata.minimumLength} maxLength={metadata.maximumLength} onValueChange={set} />; break;
   }
-  return <label style={{ display: 'grid', gap: '0.25rem' }}><span>{metadata.label ?? column.title ?? column.fieldId}{metadata.required ? ' *' : ''}</span>{editor}{error ? <span id={`cg-grid-editor-error-${column.fieldId}`} role="alert">{error}</span> : null}</label>;
+  return <label data-cg-grid-editor-field={column.fieldId} style={{ display: 'grid', gap: '0.25rem' }}>{options?.showLabel === false ? <span className={styles.visuallyHidden}>{metadata.label ?? column.title ?? column.fieldId}</span> : <span>{metadata.label ?? column.title ?? column.fieldId}{metadata.required ? ' *' : ''}</span>}{editor}{metadata.memo ? <small id={`${identity}-memo`}>{metadata.memo}</small> : null}{error ? <span id={`${identity}-error`} role="alert">{error}</span> : null}</label>;
 }
 
 export function validateAutomaticGridEditors<TItem>(columns: ReadonlyArray<CgGridColumnDescriptor<TItem>>, model: TItem): Readonly<Record<string, ReadonlyArray<string>>> {

@@ -191,7 +191,7 @@ export const ArabicRtl: Story = {
 
 export const NarrowLayout: Story = {
   parameters: { viewport: { defaultViewport: 'mobile1' } },
-  render: () => <StoryFrame source={source} difference={difference}><div style={{ width: 280, maxWidth: '100%' }}><CgField label="Narrow date"><CgDateEdit defaultValue="2026-08-21" defaultOpen fullWidth /></CgField></div></StoryFrame>,
+  render: () => <StoryFrame source={source} difference={difference}><div style={{ width: 280, maxWidth: '100%' }}><CgField label="Narrow date"><CgDateEdit defaultValue="2026-08-21" today="2026-08-26" defaultOpen fullWidth /></CgField></div></StoryFrame>,
 };
 
 export const ExternalFormBehavior: Story = {

@@ -49,6 +49,9 @@ const canonicalStories = [
   'phase-11-formlayout--standard-responsive',
   'phase-12-treeview--nested-descriptors',
   'phase-14-lookupgrid--local-item-lookup',
+  'phase-15-filterbuilder--explicit-nested',
+  'phase-15-pager--numeric-buttons',
+  'phase-15-advanced-grid--typed-filters-and-numeric-pager',
 ] as const;
 
 for (const story of canonicalStories) {
@@ -64,6 +67,39 @@ for (const story of canonicalStories) {
     expect(errors).toEqual([]);
   });
 }
+
+test('Phase 15 Pager navigates, commits Unicode digits, and preserves chronological RTL keys', async ({ page }) => {
+  await openStory(page, 'phase-15-pager--input-box');
+  const input = page.getByRole('textbox', { name: 'Page' });
+  await input.fill('١٢'); await input.press('Enter');
+  await expect(input).toHaveValue('12');
+  await openStory(page, 'phase-15-pager--numeric-buttons', 'theme:light;density:comfortable;direction:rtl');
+  const current = page.locator('button[aria-current="page"]');
+  await current.focus(); await current.press('ArrowRight');
+  await expect(page.locator('button[aria-current="page"]')).toHaveText('7');
+});
+
+test('Phase 15 FilterBuilder retains invalid rows and exposes associated validation', async ({ page }) => {
+  await openStory(page, 'phase-15-filterbuilder--invalid-draft');
+  await expect(page.getByRole('button', { name: 'Apply' })).toBeDisabled();
+  await expect(page.getByRole('alert')).toBeVisible();
+});
+
+test('Phase 15 cell editing enters by command and commits with Enter', async ({ page }) => {
+  await openStory(page, 'phase-15-advanced-grid--cell-editing');
+  await page.getByRole('button', { name: 'Edit' }).first().click();
+  const editor = page.locator('tbody').getByRole('textbox', { name: /^Customer/u });
+  await editor.fill('Updated customer'); await editor.press('Enter');
+  await expect(page.getByText('Updated customer')).toBeVisible();
+});
+
+test('Phase 15 forced-colors stories retain visible controls and focus', async ({ page }) => {
+  await page.emulateMedia({ forcedColors: 'active' });
+  await openStory(page, 'phase-15-filterbuilder--forced-colors');
+  const clear = page.getByRole('button', { name: 'Clear', exact: true }); await clear.focus();
+  await expect(clear).toBeFocused();
+  await expect.poll(() => clear.evaluate((element) => getComputedStyle(element).outlineStyle)).not.toBe('none');
+});
 
 test('ComboBox preserves ARIA ownership and keyboard and pointer selection', async ({ page }) => {
   await openStory(page, 'phase-3-combobox--controlled-local-selection');
