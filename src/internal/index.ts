@@ -9,7 +9,7 @@ export { useFocusReturn } from './useFocusReturn';
 export { isTopmostOverlay, OverlayOwnerProvider, isOverlayOwnedBy, overlayOwnsNode, raiseOverlay, requestExclusiveOverlay, useOverlayOwnerId, useOverlayStack, useOverlaySurface } from './overlayStack';
 export { useOverlayLifecycle } from './useOverlayLifecycle';
 export { OverlaySurfaceContent, overlaySurfaceStyles, surfaceStyle, useSurfaceGestures, useSurfacePosition } from './OverlaySurface';
-export { focusOverlayInitial, useFocusOrigin, useModalFocusTrap, useModalIsolation, usePortalContext } from './overlayDom';
+export { focusOverlayInitial, useBodyScrollLock, useFocusOrigin, useModalFocusTrap, useModalIsolation, usePortalContext } from './overlayDom';
 export { PositionedOverlay, useResolvedTarget, useTargetCoverStyle } from './PositionedOverlay';
 export { createListBoxTextFragments, listBoxKeyToken, listBoxTextMatches, normalizeListBoxSearch, toCssLength } from './listBox';
 export { normalizeTagBoxSearch, tagBoxKeyToken, tagBoxTextMatches } from './tagBox';

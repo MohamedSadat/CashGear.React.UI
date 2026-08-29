@@ -259,6 +259,27 @@ test('phase-17-fileuploader validation and failure visual', async ({ page }) => 
 });
 
 for (const [name, story, globals, narrow] of [
+  ['phase-18-splitter-horizontal-live', 'phase-18-splitter--horizontal-live', undefined, false],
+  ['phase-18-splitter-vertical-deferred', 'phase-18-splitter--vertical-deferred', undefined, false],
+  ['phase-18-splitter-collapsed-rails', 'phase-18-splitter--collapsed-rails', undefined, false],
+  ['phase-18-splitter-controlled-persistence', 'phase-18-splitter--controlled-persistence', undefined, false],
+  ['phase-18-splitter-arabic-rtl-narrow', 'phase-18-splitter--arabic-rtl-narrow', 'theme:light;density:comfortable;direction:rtl', true],
+  ['phase-18-splitter-dark-compact-states', 'phase-18-splitter--dark-compact-states', 'theme:dark;density:compact;direction:ltr', false],
+  ['phase-18-drawer-shrink-start', 'phase-18-drawer--shrink-start', undefined, false],
+  ['phase-18-drawer-overlay-open', 'phase-18-drawer--overlay-open', undefined, false],
+  ['phase-18-drawer-retained-mini', 'phase-18-drawer--retained-mini', undefined, false],
+  ['phase-18-drawer-arabic-rtl-end', 'phase-18-drawer--arabic-rtl-end', 'theme:light;density:comfortable;direction:rtl', false],
+  ['phase-18-drawer-responsive-narrow', 'phase-18-drawer--responsive-narrow', undefined, true],
+  ['phase-18-drawer-dark-compact', 'phase-18-drawer--dark-compact', 'theme:dark;density:compact;direction:ltr', false],
+] as const) {
+  test(`${name} visual`, async ({ page }) => {
+    if (narrow) await page.setViewportSize({ width: 390, height: 720 });
+    await openStory(page, story, globals);
+    await expect(page).toHaveScreenshot(`${name}.png`, { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+  });
+}
+
+for (const [name, story, globals, narrow] of [
   ['phase-15-filterbuilder-nested', 'phase-15-filterbuilder--explicit-nested', undefined, false],
   ['phase-15-pager-numeric', 'phase-15-pager--numeric-buttons', undefined, false],
   ['phase-15-advanced-grid-filter-pager', 'phase-15-advanced-grid--typed-filters-and-numeric-pager', undefined, false],

@@ -1,4 +1,4 @@
-# CG.CompLib → `@cashgear/ui` Phase 1–15 parity
+# CG.CompLib → `@cashgear/ui` Phase 1–18 parity
 
 ## Reference snapshot
 
@@ -545,6 +545,20 @@ Browser metadata and client validation remain advisory. Hosts must authorize upl
 
 Final Phase 17 verification on 2026-08-29 passed strict TypeScript and ESLint, 43 Vitest files/393 tests, import-cycle analysis across 228 source modules, the 222-module production library build, the 290-module Storybook build, and package verification of 148 runtime exports across 1,076 packed files. Chromium passed all 98 semantic/Axe cases and all 181 visual tests against 189 reviewed Windows baselines; exactly nine new `phase-17-fileuploader-*` baselines were added and inspected. WebKit passed all 98 semantic/Axe cases, including the real-file handler flow and the reload/reselection/resume/delete endpoint harness. Firefox remains environment-blocked before page creation: the isolated Phase 17 run reproduced the host launch timeout with `RenderCompositorSWGL failed mapping default framebuffer`.
 
+## Phase 18 — Splitter and Drawer
+
+Phase 18 started from clean React revision `5439a7b`. The Blazor repository at `D:\LiveProjects\CGWebApp\CashGear.Blazor.UI` remained strictly read-only, and implementation evidence is pinned to commit `51d7689a7d407713fa18cb6268158b1a4f461fb3` (`#Add CgSplitter and CgDrawer`): the Splitter/Drawer components, contracts, styles, JavaScript modules, demos, and tests.
+
+- `CgSplitter` replaces Razor child registration with immutable keyed descriptors and frozen render snapshots. A pure normalization layer canonicalizes numeric/fixed/flexible sizes, rejects unsafe bounds and unsupported state versions, reconciles untrusted persisted state in descriptor order, and guarantees one visible expanded pane. Flex tracks preserve declarative units until an actual pointer or keyboard resize commits a pixel pair.
+- Pointer capture, live animation-frame writes, deferred preview, throttled intermediate callbacks, final-only zero intervals, ResizeObserver cancellation, browser-resolved min/max limits, physical RTL keys, pair-total preservation, owned-root event scoping, and generation cleanup remain dependency-free. Controlled state receives proposals but stays authoritative; direct controlled updates are semantic-only.
+- `CgDrawer` is one permanent inline subtree. Full, mini, panel, backdrop, and application regions retain DOM identity across open, mode, position, and responsive changes while inactive regions become inert and hidden from accessibility APIs. SSR starts from caller intent; an effect applies the exact `max-width: breakpoint - 0.02px` presentation query.
+- Drawer lifecycle proposals are abortable and generation-safe. Controlled direct changes bypass before/open-change hooks but still receive one transition-terminal callback; refusals, reversals, responsive changes, visibility changes, disposal, and stale work cancel terminal completion. Actions report blocked, cancelled, stale, and controlled-rejected proposals as `false`.
+- The shared overlay infrastructure now supports inline modal roots and a reusable reference-counted body scroll lock. Visible open effective-overlay Drawers share ownership, outside-pair/Escape arbitration, raise order, modal isolation, focus trapping through owned portal boundaries, and connected-opener restoration with Flyout, ContextMenu, Popup, and Window.
+
+React adaptations are deliberate: immutable descriptors replace Blazor registration, `AbortSignal` replaces cancellation tokens, inline persistent React regions replace conditional Razor fragments, `matchMedia` replaces the responsive JS handle, and explicit render functions replace fragments. Visibility, disabled/read-only state, and persisted layout state are presentation/data concerns—not authorization controls.
+
+Final Phase 18 verification on 2026-08-29 passed strict TypeScript and ESLint, 46 Vitest files/420 tests, import-cycle analysis across 236 source modules, the 230-module production library build, the 298-module Storybook build, and package verification of 150 runtime exports across 1,114 packed files. Chromium passed all 105 semantic/Axe cases and all 193 visual tests against 201 reviewed Windows baselines; exactly 12 new `phase-18-*` baselines were added and inspected, and every Phase 1–17 comparison remained stable. WebKit passed all 105 semantic/Axe cases. The one permitted Firefox Phase 18 launch attempt reproduced the host-only timeout before page creation with `RenderCompositorSWGL failed mapping default framebuffer`; it was classified as environment-blocked and was not repeated through the aggregate script.
+
 ## Implemented inventory
 
 “Mirrored” means the user-visible contract is carried across with React/native-DOM adaptations. “Partially mirrored” identifies a deliberate Phase 2 omission. “New React implementation” has no exact Razor component.
@@ -561,6 +575,8 @@ Final Phase 17 verification on 2026-08-29 passed strict TypeScript and ESLint, 4
 | `CgKeyComboBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgKeyComboBox.*`; `CG.CompLib.Demo/Components/Pages/Home.razor` | `src/components/KeyComboBox/*` | `tests/key-combo-box.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/KeyComboBox/CgKeyComboBox.stories.tsx` | React keys are strings or finite numbers, `null` is the explicit empty value, and `selectedItem` provides synchronous off-page hydration. |
 | `CgLookUpGrid` | Mirrored with focused lookup descriptors | `CG.CompLib/Comp/Inputs/CgLookUpGrid.*`; `CgLookUpGrid*Tests.cs`; `LookUpGridDemo.razor`; `LookUpGridErpDemo.razor` | `src/components/LookUpGrid/*` | `tests/look-up-grid.test.tsx`, browser semantic/visual coverage | `src/components/LookUpGrid/CgLookUpGrid.stories.tsx` | Immutable descriptors, AbortSignal loaders/resolvers, `null`, caller-owned query-context equality, and a native form proxy replace registration, cancellation tokens, and EditContext. No virtualization prop is exposed. |
 | `CgFileUploader` | Mirrored with native file/endpoint adaptation | `CashGear.Blazor.UI@6fc1e4577fbb2a492150f991945c478fac8a917f: Components/Editors/CgFileUploader.*`, `CgFileUpload*` | `src/components/FileUploader/*` | `tests/file-uploader.test.tsx`, `tests/file-uploader-protocol.test.ts`, browser semantic/Axe/visual/protocol-harness coverage | `src/components/FileUploader/CgFileUploader.stories.tsx` | React owns frozen queue snapshots and AbortSignal generations; fetch/XHR implements the compatible v2 endpoint protocol. Native hidden inputs replace EditContext and expose only durable stored-file serialization. |
+| `CgSplitter` | Mirrored with immutable pane descriptors | `CashGear.Blazor.UI@51d7689a7d407713fa18cb6268158b1a4f461fb3: CgSplitter.*`, Splitter scripts/tests/demo | `src/components/Splitter/*` | `tests/splitter-state.test.ts`, `tests/splitter.test.tsx`, browser semantic/Axe/geometry/visual coverage | `src/components/Splitter/CgSplitter.stories.tsx` | Frozen descriptor/context snapshots and versioned state replace Razor registration. Flex, pointer capture, ResizeObserver, and physical RTL keyboard input replace the Blazor JS instance. |
+| `CgDrawer` | Mirrored with persistent inline regions | `CashGear.Blazor.UI@51d7689a7d407713fa18cb6268158b1a4f461fb3: CgDrawer.*`, Drawer scripts/tests/demo | `src/components/Drawer/*`, shared overlay internals | `tests/drawer.test.tsx`, browser semantic/Axe/overlay/focus/visual coverage | `src/components/Drawer/CgDrawer.stories.tsx` | One mounted subtree and matchMedia replace conditional Razor regions and its responsive JS handle; the shared React overlay stack owns modal isolation, focus, Escape/outside pairs, and scroll locking. |
 | `CgListBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgListBox.*`, `CgListBoxTypes.cs`, `CgListBoxColumn.cs`, `CgListBoxAccessors.cs`; `CG.CompLib.Demo/Components/Pages/ListBoxDemo.razor` | `src/components/ListBox/*`, `src/internal/listBox.ts`, `src/internal/useVirtualWindow.ts` | `tests/list-box.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/ListBox/CgListBox.stories.tsx` | Object-array binding and stable keys replace Razor field accessors. Fixed-row virtualization is dependency-free; remote loading/paging and richer data-grid operations remain deferred. |
 | `CgTagBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgTagBox.*`; `CG.CompLib.Demo/Components/Pages/TagBoxDemo.razor` | `src/components/TagBox/*`, `src/internal/tagBox.ts`, `src/internal/PositionedOverlay.tsx` | `tests/tag-box.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/TagBox/CgTagBox.stories.tsx` | Object-array binding replaces Razor scalar keys. Custom comparers and `ResolveValuesAsync` hydration remain deferred because selected objects carry labels. |
 | `CgDropDownBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgDropDownBox.*`, `CgDropDownBoxTypes.cs`; `CG.CompLib.Demo/Components/Pages/DropDownBoxDemo.razor` | `src/components/DropDownBox/*`, `src/internal/PositionedOverlay.tsx`, `src/internal/overlayStack.ts` | `tests/drop-down-box.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/DropDownBox/CgDropDownBox.stories.tsx` | React render contexts host arbitrary content; a native select proxy and explicit object serializer replace Blazor `EditContext` integration. The body portal replaces the browser manual-popover top layer and deliberately adds no focus trap. |
@@ -731,22 +747,22 @@ The shared hook/primitives layer is covered in `tests/foundation.test.tsx`. The 
 
 ## Verification result
 
-Verified on 2026-08-29 with the bundled supported Node 24.19 runtime from the Phase 16 working tree:
+Verified on 2026-08-29 on Windows with host Node 22.20.0/npm 10.9.3 and the locked dependency tree. The host Node version is below the package's declared supported 22.x floor; the recorded commands nevertheless completed as shown:
 
 | Command/gate | Result |
 | --- | --- |
 | `npm run typecheck` | Passed (strict TypeScript 6) |
 | `npm run lint` | Passed |
-| `npm run test` | Passed: 40 files, 367 tests |
-| `npm run check:cycles` | Passed: 221 source modules, no relative-import cycles |
-| `npm run build:lib` | Passed: 215 transformed modules; declarations/maps and `dist/cashgear-ui.css` emitted |
-| `npm run build-storybook` | Passed with Storybook 10.5.10; 282 transformed modules |
-| Chromium semantic/Axe | Passed: all 96 tests, including every Phase 16 canonical story and the combined date/feedback keyboard, lifecycle, live-region, and focus contract. |
-| Firefox semantic/Axe | Environment-blocked before page creation. The browser process launches but times out after `RenderCompositorSWGL failed mapping default framebuffer`; no story, Axe scan, or component assertion runs. |
-| WebKit semantic/Axe | Passed: all 96 tests. Acceptance found a WebKit click-origin focus-return race in Confirmation; the corrected full suite then passed cleanly. |
-| Chromium visual | Passed: all 172 tests against 180 Windows snapshots. Nine inspected `phase-16-*` baselines were added; six reviewed DateEdit images changed only for the shared-calendar extraction. |
-| `npm run verify:package` | Passed: 147 runtime exports, 1,042 packed files, React externalization/declarations/styles/dry-run ESM import verified |
-| `npm run verify` | Invoked. Typecheck, lint, the 367-test suite, cycle analysis, library/Storybook builds, and all 96 Chromium semantic/Axe cases passed in the aggregate run. It then reproduced the Firefox pre-page launch failure and was stopped after repeated identical timeouts; WebKit, Chromium visuals, post-fix source gates, and package verification passed independently. |
+| `npm run test` | Passed: 46 files, 420 tests |
+| `npm run check:cycles` | Passed: 236 source modules, no relative-import cycles |
+| `npm run build:lib` | Passed: 230 transformed modules; declarations/maps and `dist/cashgear-ui.css` emitted |
+| `npm run build-storybook` | Passed with Storybook 10.5.10; 298 transformed modules |
+| Chromium semantic/Axe | Passed: all 105 tests, including every Phase 18 canonical story and the Splitter geometry plus Drawer lifecycle/overlay/focus matrix. |
+| Firefox semantic/Axe | Environment-blocked before page creation. The single Phase 18 attempt launched the process, then timed out after `RenderCompositorSWGL failed mapping default framebuffer`; no story, Axe scan, or component assertion ran, and the launch was not repeated. |
+| WebKit semantic/Axe | Passed: all 105 tests. |
+| Chromium visual | Passed: all 193 tests against 201 Windows snapshots. Twelve inspected `phase-18-*` baselines were added; every Phase 1–17 comparison remained stable. |
+| `npm run verify:package` | Passed: 150 runtime exports, 1,114 packed files, React externalization/declarations/styles/dry-run ESM import verified |
+| `npm run verify` | Not re-invoked after the isolated Firefox failure because the aggregate necessarily repeats that same Firefox launch, contrary to the explicit one-attempt limit. Every non-Firefox constituent gate passed independently; Firefox is classified once above as environment-blocked. |
 
 ## Deferred inventory
 

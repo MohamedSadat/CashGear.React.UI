@@ -1,6 +1,6 @@
 # `@cashgear/ui`
 
-CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–17 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, Calendar, DateRangePicker, FileUploader, Toast and Confirmation providers, overlays, MaskedInput, command surfaces, descriptor-based navigation, responsive FormLayout, TreeView, the focused `CgLookUpGrid`, and the advanced Filter/Grid/Pager surface in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies.
+CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–18 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, Calendar, DateRangePicker, FileUploader, Splitter, Drawer, Toast and Confirmation providers, overlays, MaskedInput, command surfaces, descriptor-based navigation, responsive FormLayout, TreeView, the focused `CgLookUpGrid`, and the advanced Filter/Grid/Pager surface in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies.
 
 ## Install and import
 
@@ -572,6 +572,60 @@ Async loaders receive normalized search text, visible searchable field IDs, one 
 
 The input retains focus and owns `aria-activedescendant`; paging appends rows, disabled rows stay visible but cannot be selected, and the filter-row Tab path is lookup-specific. `CgLookUpGridActions` exposes popup, reload, paging, sorting, filtering, state inspection, focus, and clear operations. Multiple selection, grouping, master-detail, column chooser/reordering/resizing/freezing, CRUD, summaries, export, and row virtualization remain intentionally exclusive to `CgGrid`; no ignored or fake virtualization prop is exposed.
 
+## Splitter
+
+`CgSplitter` renders immutable keyed pane descriptors as flex tracks with adjacent accessible separators. Pane keys are trimmed and unique; numbers become pixels, fixed CSS units remain declarative, and positive `fr` or `*` weights remain flexible until an actual resize commits invariant pixel sizes.
+
+```tsx
+import { CgSplitter } from '@cashgear/ui';
+
+<CgSplitter
+  aria-label="Accounting workspace"
+  panes={[
+    {
+      key: 'navigation',
+      size: '14rem',
+      minimumSize: 120,
+      collapsible: true,
+      renderContent: () => <Navigation />,
+      renderCollapsed: () => <span>Navigation</span>,
+    },
+    { key: 'document', size: '2*', minimumSize: 240, renderContent: () => <InvoiceEditor /> },
+    { key: 'summary', size: '18rem', collapsible: true, renderContent: () => <InvoiceSummary /> },
+  ]}
+  onStateChange={(proposedState) => persistLayout(proposedState)}
+/>
+```
+
+Pointer capture scopes live or deferred resizing to the owning Splitter. Keyboard separators support arrows, Shift acceleration, Home/End bounds, and Enter collapse; horizontal arrows are physical in RTL. `CgSplitterActions` focuses the group or a pane pair, inspects/resets state, collapses/expands/toggles a pane, and proposes a pane size. Controlled state is authoritative: callbacks receive the frozen proposal, while a rejected proposal is immediately reconciled to the controlled prop.
+
+Persisted Splitter state is untrusted application data. Validate authorization and workspace ownership before loading or saving it; the component validates version, keys, and lengths, ignores unknown panes, and applies descriptor fallbacks, but it is not an access-control boundary. Likewise, `visible`, `disabled`, `readOnly`, and collapsed panes affect presentation and interaction only—never authorization.
+
+## Drawer
+
+`CgDrawer` keeps backdrop, full Drawer, retained mini Drawer, and application content mounted in one inline subtree. Shrink and overlay modes, logical start/end positioning, mini mode, and responsive overlay presentation change accessibility and layout state without remounting form, scroll, or focus nodes.
+
+```tsx
+import { CgDrawer } from '@cashgear/ui';
+
+<CgDrawer
+  open={navigationOpen}
+  onOpenChange={setNavigationOpen}
+  mode="shrink"
+  position="start"
+  miniModeEnabled
+  responsiveOverlay
+  responsiveBreakpoint={768}
+  renderDrawer={({ actions }) => <Navigation onClose={() => void actions.close()} />}
+  renderMiniDrawer={({ actions }) => <button onClick={() => void actions.open()}>Menu</button>}
+  renderApplicationContent={() => <Routes />}
+/>
+```
+
+Visible effective-overlay Drawers participate in the same owned-overlay stack as Flyout, ContextMenu, Popup, and Window. The stack arbitrates matched outside pointer pairs and Escape, raises interacted panels, traps focus through owned portal boundaries, reference-counts optional body scroll locking, isolates modal siblings, and restores a connected opener. Responsive `matchMedia` changes only the effective presentation; it does not change the authoritative open intent or emit lifecycle callbacks.
+
+`open`, `close`, and `toggle` actions are asynchronous. Before hooks receive frozen details plus an `AbortSignal`; actions resolve `false` when blocked, cancelled, stale, or rejected. Controlled direct changes bypass before/open-change hooks, still apply while disabled, and receive one terminal callback after the rendered transition. `visible` and `disabled` are UI controls only. Do not render secrets or privileged operations merely because a Drawer is invisible, inert, disabled, or closed; enforce authorization in application and server code.
+
 ## FileUploader
 
 `CgFileUploader` owns the browser `File` queue and exposes frozen item snapshots. Exactly one transport is required. Handler mode keeps storage application-owned and does not copy file contents unless `bufferToMemory` is explicitly enabled:
@@ -659,6 +713,7 @@ Components:
 - `CgIcon`, `CgButton`, `CgField`
 - `CgTextBox`, `CgMemo`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgKeyComboBox`, `CgLookUpGrid`, `CgListBox`, `CgTagBox`, `CgDropDownBox`, `CgDateEdit`, `CgCalendar`, `CgDateRangePicker`, `CgFileUploader`
 - `CgFlyout`, `CgPopup`, `CgWindow`, `CgMaskedInput`
+- `CgSplitter`, `CgDrawer`
 - `CgMenu`, `CgContextMenu`, `CgDropDownButton`, `CgSplitButton`, `CgToolbar`
 - `CgLayoutBreakpoint`, `CgTabs`, `CgStepper`, `CgAccordion`, `CgTreeView`, `CgFilterBuilder`, `CgPager`, `CgGrid`
 - `CgFormLayout`, `CgFormLayoutItem`, `CgFormLayoutGroup`, `CgFormLayoutTabs`
@@ -667,7 +722,7 @@ Components:
 - `CgLoadingPanel`, `CgProgressBar`
 - `CgToastProvider`, `CgConfirmationProvider`
 
-Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, canonical `CgDateValue`/`CgDateRangeValue`, the Filter Core AST/registry/persistence contracts, the DateEdit/Calendar/DateRangePicker contracts, the FileUploader item/transport/event/render/action contracts, Toast and Confirmation APIs, the shared overlay contracts, and each descriptor component's props, actions, lifecycle details, and render/state contexts. Private endpoint-session tokens, menu, adaptive-layout, and TreeView normalization/check/filter engines are not exported. There is intentionally no universal component-state interface.
+Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, canonical `CgDateValue`/`CgDateRangeValue`, the Filter Core AST/registry/persistence contracts, the DateEdit/Calendar/DateRangePicker contracts, the FileUploader item/transport/event/render/action contracts, the Splitter versioned-state/descriptor/detail contracts, the Drawer lifecycle/render/action contracts, Toast and Confirmation APIs, the shared overlay contracts, and each descriptor component's props, actions, lifecycle details, and render/state contexts. Private endpoint-session tokens, menu, adaptive-layout, and TreeView normalization/check/filter engines are not exported. There is intentionally no universal component-state interface.
 
 The public hooks are `useControllableState`, `useCgId`, `useCgContextMenuTarget`, `useCgToast`, and `useCgConfirmation`; `cx` is the public class-name utility. All other primitives and hooks are private implementation details.
 
@@ -702,6 +757,8 @@ Phase 15 verification on 2026-08-27 passed strict typecheck and lint, 36 Vitest 
 Phase 16 verification on 2026-08-29 passed strict typecheck and lint, 40 Vitest files/367 tests, cycle analysis across 221 source modules, the 215-module library build, the 282-module Storybook build, package verification of 147 runtime exports across 1,042 packed files, all 96 Chromium and 96 WebKit semantic/Axe cases, and all 172 Chromium visual tests against 180 inspected Windows baselines. Firefox remains blocked before page creation by the host SWGL framebuffer mapping failure; see the parity ledger for the exact classification.
 
 Phase 17 verification on 2026-08-29 passed strict typecheck and lint, 43 Vitest files/393 tests, cycle analysis across 228 source modules, the 222-module library build, the 290-module Storybook build, package verification of 148 runtime exports across 1,076 packed files, all 98 Chromium and 98 WebKit semantic/Axe cases, and all 181 Chromium visual tests against 189 reviewed Windows baselines. Firefox remains blocked before page creation by the same host SWGL framebuffer mapping failure; see the parity ledger for the exact classification.
+
+Phase 18 verification on 2026-08-29 passed strict typecheck and lint, 46 Vitest files/420 tests, cycle analysis across 236 source modules, the 230-module library build, the 298-module Storybook build, package verification of 150 runtime exports across 1,114 packed files, all 105 Chromium and 105 WebKit semantic/Axe cases, and all 193 Chromium visual tests against 201 reviewed Windows baselines. Exactly 12 new `phase-18-*` baselines were added and inspected; every Phase 1–17 comparison remained stable. A single Firefox attempt reproduced the host-only pre-page SWGL framebuffer mapping failure and was not repeated.
 
 ## Packaging
 

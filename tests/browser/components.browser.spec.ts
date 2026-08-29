@@ -57,6 +57,10 @@ const canonicalStories = [
   'phase-16-toast--positions-actions-and-limits',
   'phase-16-confirmation--variants-and-queueing',
   'phase-17-fileuploader--basic-automatic',
+  'phase-18-splitter--horizontal-live',
+  'phase-18-splitter--arabic-rtl-narrow',
+  'phase-18-drawer--shrink-start',
+  'phase-18-drawer--overlay-open',
 ] as const;
 
 for (const story of canonicalStories) {
@@ -1287,5 +1291,145 @@ test('Phase 17 FileUploader supports real files, retries, native forms, and resu
   await expect(page.getByText('resume.txt')).toHaveCount(0);
   expect(requestHeaders.some((headers) => headers['x-cg-upload-token'] === upload.token)).toBe(true);
   expect(requestHeaders.some((headers) => headers['x-story-csrf'] === 'story-csrf')).toBe(true);
+  expect(browserProblems).toEqual([]);
+});
+
+test('Phase 18 Splitter preserves pair totals for pointer, deferred, keyboard, collapse, and RTL input', async ({ page }) => {
+  const browserProblems: string[] = [];
+  page.on('pageerror', (error) => browserProblems.push(error.message));
+  page.on('console', (message) => { if (message.type() === 'error' || message.type() === 'warning') browserProblems.push(message.text()); });
+
+  await openStory(page, 'phase-18-splitter--horizontal-live');
+  let panes = page.locator('[data-cg-splitter-pane]');
+  let separator = page.getByRole('separator').first();
+  const beforeStart = await panes.nth(0).boundingBox();
+  const beforeEnd = await panes.nth(1).boundingBox();
+  const separatorBox = await separator.boundingBox();
+  expect(beforeStart && beforeEnd && separatorBox).toBeTruthy();
+  await page.mouse.move(separatorBox!.x + separatorBox!.width / 2, separatorBox!.y + separatorBox!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(separatorBox!.x + 42, separatorBox!.y + separatorBox!.height / 2);
+  await page.mouse.up();
+  const afterStart = await panes.nth(0).boundingBox();
+  const afterEnd = await panes.nth(1).boundingBox();
+  expect(afterStart!.width).toBeGreaterThan(beforeStart!.width + 25);
+  expect(Math.abs((afterStart!.width + afterEnd!.width) - (beforeStart!.width + beforeEnd!.width))).toBeLessThan(1.5);
+  await expect(separator).toHaveAttribute('aria-valuenow', /\d+/u);
+  await expect(panes.nth(0)).toHaveAttribute('style', /px/u);
+
+  await openStory(page, 'phase-18-splitter--vertical-deferred');
+  panes = page.locator('[data-cg-splitter-pane]');
+  separator = page.getByRole('separator');
+  const beforeHeight = (await panes.first().boundingBox())!.height;
+  const verticalBox = await separator.boundingBox();
+  await page.mouse.move(verticalBox!.x + verticalBox!.width / 2, verticalBox!.y + verticalBox!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(verticalBox!.x + verticalBox!.width / 2, verticalBox!.y + verticalBox!.height / 2 - 35);
+  await expect(page.locator('[data-cg-splitter-preview]')).toHaveAttribute('data-cg-visible', '');
+  expect((await panes.first().boundingBox())!.height).toBeCloseTo(beforeHeight, 0);
+  await page.mouse.up();
+  expect((await panes.first().boundingBox())!.height).toBeLessThan(beforeHeight - 20);
+
+  await openStory(page, 'phase-18-splitter--horizontal-live');
+  separator = page.getByRole('separator').first();
+  panes = page.locator('[data-cg-splitter-pane]');
+  const keyboardBefore = (await panes.first().boundingBox())!.width;
+  await separator.press('Shift+ArrowRight');
+  expect((await panes.first().boundingBox())!.width).toBeGreaterThan(keyboardBefore + 80);
+  await separator.press('Enter');
+  await expect(panes.first()).toHaveAttribute('data-cg-collapsed', 'true');
+  expect((await panes.first().boundingBox())!.width).toBeCloseTo(40, 0);
+
+  await page.setViewportSize({ width: 390, height: 680 });
+  await openStory(page, 'phase-18-splitter--arabic-rtl-narrow', 'theme:light;density:comfortable;direction:rtl');
+  separator = page.getByRole('separator');
+  panes = page.locator('[data-cg-splitter-pane]');
+  const rtlBefore = (await panes.first().boundingBox())!.width;
+  await separator.press('ArrowRight');
+  expect((await panes.first().boundingBox())!.width).toBeLessThan(rtlBefore);
+
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await openStory(page, 'phase-18-splitter--nested-splitters');
+  const roots = page.locator('[data-cg-splitter]');
+  await expect(roots).toHaveCount(2);
+  const outerNavigation = roots.first().locator('[data-cg-splitter-pane="navigation"]');
+  const outerBefore = (await outerNavigation.boundingBox())!.width;
+  await roots.nth(1).getByRole('separator').press('ArrowUp');
+  expect((await outerNavigation.boundingBox())!.width).toBeCloseTo(outerBefore, 0);
+  await expect(roots.nth(1).locator('[data-cg-splitter-pane="editor"]')).toHaveAttribute('style', /px/u);
+  expect(browserProblems).toEqual([]);
+});
+
+test('Phase 18 Drawer retains DOM state and changes responsive presentation without changing open intent', async ({ page }) => {
+  const browserProblems: string[] = [];
+  page.on('pageerror', (error) => browserProblems.push(error.message));
+  page.on('console', (message) => { if (message.type() === 'error' || message.type() === 'warning') browserProblems.push(message.text()); });
+
+  await openStory(page, 'phase-18-drawer--retained-mini');
+  const drawerInput = page.getByLabel('Quick filter');
+  await drawerInput.evaluate((element) => {
+    (window as Window & { phase18DrawerInput?: Element }).phase18DrawerInput = element;
+    (element as HTMLInputElement).value = 'persisted';
+  });
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await expect(page.locator('[data-cg-drawer]')).toHaveAttribute('data-cg-open', 'true');
+  expect(await drawerInput.evaluate((element) => element === (window as Window & { phase18DrawerInput?: Element }).phase18DrawerInput)).toBe(true);
+  await expect(drawerInput).toHaveValue('persisted');
+  await page.getByRole('button', { name: 'Close navigation' }).click();
+  await expect(page.locator('[data-cg-drawer]')).toHaveAttribute('data-cg-mini', 'true');
+  expect(await drawerInput.evaluate((element) => element === (window as Window & { phase18DrawerInput?: Element }).phase18DrawerInput)).toBe(true);
+
+  await page.setViewportSize({ width: 500, height: 700 });
+  await openStory(page, 'phase-18-drawer--responsive-narrow');
+  const root = page.locator('[data-cg-drawer]');
+  await expect(root).toHaveAttribute('data-cg-mode', 'overlay');
+  await expect(root).toHaveAttribute('data-cg-open', 'true');
+  await expect(page.getByRole('dialog', { name: 'Drawer' })).toHaveAttribute('aria-modal', 'true');
+  await expect(page.locator('[data-cg-drawer-content]')).toHaveAttribute('inert', '');
+  await page.setViewportSize({ width: 900, height: 700 });
+  await expect(root).toHaveAttribute('data-cg-mode', 'shrink');
+  await expect(root).toHaveAttribute('data-cg-open', 'true');
+  await expect(page.getByRole('complementary', { name: 'Drawer' })).not.toHaveAttribute('aria-modal');
+  expect(browserProblems).toEqual([]);
+});
+
+test('Phase 18 Drawer arbitrates nested and multiple overlays, focus return, scroll locks, and disposal', async ({ page, browserName }) => {
+  const browserProblems: string[] = [];
+  page.on('pageerror', (error) => browserProblems.push(error.message));
+  page.on('console', (message) => { if (message.type() === 'error' || message.type() === 'warning') browserProblems.push(message.text()); });
+
+  await openStory(page, 'phase-18-drawer--nested-overlay-ownership');
+  await expect(page.getByRole('dialog', { name: 'Owned approval' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Owned approval' })).toBeHidden();
+  await expect(page.locator('[data-cg-drawer]')).toHaveAttribute('data-cg-open', 'true');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('[data-cg-drawer]')).toHaveAttribute('data-cg-open', 'false');
+
+  await openStory(page, 'phase-18-drawer--multiple-overlay-drawers');
+  await expect.poll(() => page.evaluate(() => document.body.style.overflow)).toBe('hidden');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#secondary-drawer')).toHaveAttribute('data-cg-open', 'false');
+  await expect(page.locator('#primary-drawer')).toHaveAttribute('data-cg-open', 'true');
+  await expect.poll(() => page.evaluate(() => document.body.style.overflow)).toBe('hidden');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#primary-drawer')).toHaveAttribute('data-cg-open', 'false');
+  await expect.poll(() => page.evaluate(() => document.body.style.overflow)).toBe('');
+
+  await openStory(page, 'phase-18-drawer--controlled-lifecycle');
+  const opener = page.getByRole('button', { name: 'Async toggle' });
+  await opener.click();
+  await expect(page.locator('[data-cg-drawer]')).toHaveAttribute('data-cg-open', 'true');
+  await expect(page.getByRole('link', { name: 'Dashboard' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('[data-cg-drawer]')).toHaveAttribute('data-cg-open', 'false');
+  await expect(opener).toBeFocused();
+
+  await page.emulateMedia({ reducedMotion: 'reduce', forcedColors: 'active' });
+  await openStory(page, 'phase-18-drawer--overlay-open');
+  await expect(page.locator('[data-cg-drawer-panel]')).toHaveCSS('transition-duration', '0s');
+  if (browserName === 'chromium') await expect(page.locator('[data-cg-drawer-panel]')).toHaveCSS('forced-color-adjust', 'none');
+  await openStory(page, 'phase-18-drawer--shrink-start');
+  await expect.poll(() => page.evaluate(() => document.body.style.overflow)).toBe('');
   expect(browserProblems).toEqual([]);
 });

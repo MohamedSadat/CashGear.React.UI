@@ -120,26 +120,53 @@ function acquireScrollLock(): () => void {
   };
 }
 
-const modalPortals = new Map<string, HTMLElement>();
+export function useBodyScrollLock(active: boolean): void {
+  useEffect(() => {
+    if (!active) return undefined;
+    return acquireScrollLock();
+  }, [active]);
+}
+
+const modalRoots = new Map<string, HTMLElement>();
 const isolatedBodyChildren = new Map<Element, () => void>();
 let isolationObserver: MutationObserver | undefined;
-let releaseModalScroll: (() => void) | undefined;
+
+function containsOwnedOverlay(element: Element, topmostId: string): boolean {
+  const overlayIds = [
+    ...(element.hasAttribute('data-cg-overlay-id') ? [element] : []),
+    ...element.querySelectorAll('[data-cg-overlay-id]'),
+  ];
+  if (overlayIds.some((candidate) => {
+    const id = candidate.getAttribute('data-cg-overlay-id');
+    return Boolean(id && isOverlayOwnedBy(id, topmostId));
+  })) return true;
+  const boundaries = [
+    ...(element.hasAttribute('data-cg-overlay-boundary') ? [element] : []),
+    ...element.querySelectorAll('[data-cg-overlay-boundary]'),
+  ];
+  return boundaries.some((boundary) => {
+    const owner = boundary.getAttribute('data-cg-overlay-boundary');
+    return Boolean(owner && isOverlayOwnedBy(owner, topmostId));
+  });
+}
 
 function refreshModalIsolation(): void {
   const topmostId = getTopmostModalId();
-  const candidates = Array.from(document.body.children).filter((child) => {
-    if (!topmostId) return false;
-    const candidateId = child.getAttribute('data-cg-overlay-id');
-    if (candidateId && isOverlayOwnedBy(candidateId, topmostId)) return false;
-    const boundaries = [
-      ...(child.hasAttribute('data-cg-overlay-boundary') ? [child] : []),
-      ...child.querySelectorAll('[data-cg-overlay-boundary]'),
-    ];
-    return !boundaries.some((boundary) => {
-      const owner = boundary.getAttribute('data-cg-overlay-boundary');
-      return Boolean(owner && isOverlayOwnedBy(owner, topmostId));
-    });
-  });
+  const root = topmostId ? modalRoots.get(topmostId) : undefined;
+  const candidates: Element[] = [];
+  if (topmostId && root?.isConnected) {
+    let branch: Element = root;
+    let parent = branch.parentElement;
+    while (parent) {
+      for (const sibling of Array.from(parent.children)) {
+        if (sibling === branch || containsOwnedOverlay(sibling, topmostId)) continue;
+        candidates.push(sibling);
+      }
+      if (parent === document.body) break;
+      branch = parent;
+      parent = branch.parentElement;
+    }
+  }
   for (const element of candidates) {
     if (!isolatedBodyChildren.has(element)) isolatedBodyChildren.set(element, acquireInert(element));
   }
@@ -150,30 +177,34 @@ function refreshModalIsolation(): void {
   }
 }
 
-export function useModalIsolation(active: boolean, id: string, portalRef: RefObject<HTMLElement | null>): void {
+export function useModalIsolation(
+  active: boolean,
+  id: string,
+  rootRef: RefObject<HTMLElement | null>,
+  lockBodyScroll = true,
+  revision = 0,
+): void {
+  useBodyScrollLock(active && lockBodyScroll);
   useEffect(() => {
     if (!active) return undefined;
-    const portal = portalRef.current;
-    if (!portal) return undefined;
-    modalPortals.set(id, portal);
-    if (modalPortals.size === 1) {
-      releaseModalScroll = acquireScrollLock();
+    const root = rootRef.current;
+    if (!root) return undefined;
+    modalRoots.set(id, root);
+    if (modalRoots.size === 1) {
       isolationObserver = new MutationObserver(refreshModalIsolation);
-      isolationObserver.observe(document.body, { childList: true });
+      isolationObserver.observe(document.body, { childList: true, subtree: true });
     }
     refreshModalIsolation();
     return () => {
-      modalPortals.delete(id);
+      modalRoots.delete(id);
       refreshModalIsolation();
-      if (modalPortals.size !== 0) return;
+      if (modalRoots.size !== 0) return;
       isolationObserver?.disconnect();
       isolationObserver = undefined;
       isolatedBodyChildren.forEach((release) => release());
       isolatedBodyChildren.clear();
-      releaseModalScroll?.();
-      releaseModalScroll = undefined;
     };
-  }, [active, id, portalRef]);
+  }, [active, id, revision, rootRef]);
 }
 
 export function syncPortalContext(source: Element | null, target: HTMLElement | null): void {

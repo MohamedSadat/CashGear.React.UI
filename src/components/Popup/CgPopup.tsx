@@ -141,7 +141,7 @@ export const CgPopup = forwardRef<HTMLDivElement, CgPopupProps>(function CgPopup
     verticalAlignment,
   });
   useModalFocusTrap(lifecycle.open, stack.id, surfaceRef);
-  useModalIsolation(lifecycle.open, stack.id, portalRef);
+  useModalIsolation(lifecycle.open, stack.id, portalRef, true, stack.order);
   useSurfaceGestures({
     active: lifecycle.open,
     surfaceRef,
