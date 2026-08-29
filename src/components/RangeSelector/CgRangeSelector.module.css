@@ -1,0 +1,123 @@
+.root {
+  --cg-range-selector-track-block-size: 0.375rem;
+  --cg-range-selector-handle-size: 1.125rem;
+  --cg-range-selector-track-color: var(--cg-border);
+  --cg-range-selector-selection-color: var(--cg-accent);
+  --cg-range-selector-handle-color: var(--cg-surface);
+  --cg-range-selector-handle-border-color: var(--cg-accent);
+  --cg-range-selector-label-color: var(--cg-text);
+  --cg-range-selector-marker-color: var(--cg-text-secondary);
+  --cg-range-selector-chart-block-size: 3rem;
+  --cg-range-selector-start-percent: 0%;
+  --cg-range-selector-end-percent: 100%;
+  display: grid;
+  min-inline-size: 8rem;
+  gap: var(--cg-space-2);
+  color: var(--cg-range-selector-label-color);
+  font: var(--cg-font-size-sm)/var(--cg-line-height) var(--cg-font-family);
+  touch-action: none;
+  user-select: none;
+}
+
+.small { --cg-range-selector-handle-size: 0.875rem; --cg-range-selector-track-block-size: 0.25rem; }
+.large { --cg-range-selector-handle-size: 1.375rem; --cg-range-selector-track-block-size: 0.5rem; }
+
+.labels {
+  display: flex;
+  justify-content: space-between;
+  min-inline-size: 0;
+  gap: var(--cg-space-2);
+}
+
+.label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.startLabel { text-align: start; }
+.endLabel { text-align: end; }
+
+.track {
+  position: relative;
+  min-block-size: max(var(--cg-range-selector-handle-size), var(--cg-range-selector-chart-block-size, 0px));
+  cursor: pointer;
+}
+
+.rail,
+.selection {
+  position: absolute;
+  inset-block-start: 50%;
+  block-size: var(--cg-range-selector-track-block-size);
+  border-radius: 999px;
+  translate: 0 -50%;
+}
+
+.rail { inset-inline: 0; background: var(--cg-range-selector-track-color); }
+.selection {
+  inset-inline-start: var(--cg-range-selector-start-percent);
+  inline-size: calc(var(--cg-range-selector-end-percent) - var(--cg-range-selector-start-percent));
+  background: var(--cg-range-selector-selection-color);
+  cursor: grab;
+}
+.rangeDrag .selection:active { cursor: grabbing; }
+
+.chart {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.handle {
+  position: absolute;
+  z-index: 1;
+  inset-block-start: 50%;
+  box-sizing: border-box;
+  inline-size: var(--cg-range-selector-handle-size);
+  block-size: var(--cg-range-selector-handle-size);
+  border: 2px solid var(--cg-range-selector-handle-border-color);
+  border-radius: 50%;
+  background: var(--cg-range-selector-handle-color);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 22%);
+  translate: -50% -50%;
+  cursor: grab;
+  transition: box-shadow 120ms ease, scale 120ms ease;
+}
+.startHandle { inset-inline-start: var(--cg-range-selector-start-percent); }
+.endHandle { inset-inline-start: var(--cg-range-selector-end-percent); }
+.handle:hover { scale: 1.08; }
+.handle:active { cursor: grabbing; }
+.handle:focus-visible {
+  outline: var(--cg-focus-ring-width) solid var(--cg-focus-ring-color);
+  outline-offset: var(--cg-focus-ring-offset);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cg-accent) 22%, transparent);
+}
+
+:global([dir='rtl']) .handle,
+.root:dir(rtl) .handle { translate: 50% -50%; }
+
+.markers { position: relative; block-size: 0.5rem; }
+.marker {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: var(--cg-range-selector-marker-percent);
+  inline-size: 1px;
+  block-size: 0.375rem;
+  background: var(--cg-range-selector-marker-color);
+  translate: -50% 0;
+}
+:global([dir='rtl']) .marker,
+.root:dir(rtl) .marker { translate: 50% 0; }
+
+.disabled { opacity: 0.55; cursor: not-allowed; }
+.disabled .track, .disabled .handle, .disabled .selection { cursor: not-allowed; }
+.readOnly .track, .readOnly .handle, .readOnly .selection { cursor: default; }
+
+@media (pointer: coarse) {
+  .handle::before { content: ''; position: absolute; inset: -0.625rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .handle { transition: none; }
+}
+
+@media (forced-colors: active) {
+  .root { --cg-range-selector-track-color: GrayText; --cg-range-selector-selection-color: Highlight; --cg-range-selector-handle-color: Canvas; --cg-range-selector-handle-border-color: ButtonText; }
+  .handle:focus-visible { outline-color: Highlight; box-shadow: none; }
+}

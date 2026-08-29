@@ -61,6 +61,9 @@ const canonicalStories = [
   'phase-18-splitter--arabic-rtl-narrow',
   'phase-18-drawer--shrink-start',
   'phase-18-drawer--overlay-open',
+  'phase-19-rangeselector--number-range',
+  'phase-19-tooltip--hover-focus',
+  'phase-19-statusbadge--types-and-appearances',
 ] as const;
 
 for (const story of canonicalStories) {
@@ -1432,4 +1435,68 @@ test('Phase 18 Drawer arbitrates nested and multiple overlays, focus return, scr
   await openStory(page, 'phase-18-drawer--shrink-start');
   await expect.poll(() => page.evaluate(() => document.body.style.overflow)).toBe('');
   expect(browserProblems).toEqual([]);
+});
+
+test('Phase 19 RangeSelector supports exact pointer, range, track, keyboard, RTL, and cancellation behavior', async ({ page }) => {
+  const browserProblems: string[] = [];
+  page.on('pageerror', (error) => browserProblems.push(error.message));
+  page.on('console', (message) => { if (message.type() === 'error' || message.type() === 'warning') browserProblems.push(message.text()); });
+  await openStory(page, 'phase-19-rangeselector--number-range');
+  const start = page.getByRole('slider', { name: 'Start value' });
+  const end = page.getByRole('slider', { name: 'End value' });
+  await expect(start).toHaveAttribute('aria-valuemin', '0'); await expect(start).toHaveAttribute('aria-valuenow', '18'); await expect(end).toHaveAttribute('aria-valuemax', '100');
+  const startBox = await start.boundingBox(); expect(startBox).toBeTruthy();
+  await page.mouse.move(startBox!.x + startBox!.width / 2, startBox!.y + startBox!.height / 2); await page.mouse.down(); await page.mouse.move(startBox!.x + 120, startBox!.y + startBox!.height / 2); await page.mouse.up();
+  expect(Number(await start.getAttribute('aria-valuenow'))).toBeGreaterThan(25);
+
+  await openStory(page, 'phase-19-rangeselector--range-dragging');
+  const selection = page.locator('[data-cg-range-selection]'); const selectionBox = await selection.boundingBox();
+  const rangeStart = page.getByRole('slider', { name: 'Start value' }); const beforeStart = Number(await rangeStart.getAttribute('aria-valuenow'));
+  await page.mouse.move(selectionBox!.x + selectionBox!.width / 2, selectionBox!.y + selectionBox!.height / 2); await page.mouse.down(); await page.mouse.move(selectionBox!.x + selectionBox!.width / 2 + 90, selectionBox!.y + selectionBox!.height / 2); await page.mouse.up();
+  expect(Number(await rangeStart.getAttribute('aria-valuenow'))).toBeGreaterThan(beforeStart);
+  const trackBox = await page.locator('[data-cg-range-track]').boundingBox(); await page.mouse.click(trackBox!.x + 25, trackBox!.y + trackBox!.height / 2);
+  expect(Number(await rangeStart.getAttribute('aria-valuenow'))).toBeLessThan(20);
+
+  await openStory(page, 'phase-19-rangeselector--span-constraints');
+  const constrained = page.getByRole('slider', { name: 'Start value' });
+  await constrained.press('End'); await expect(constrained).toHaveAttribute('aria-valuenow', '35'); await constrained.press('Home'); await expect(constrained).toHaveAttribute('aria-valuenow', '10'); await constrained.press('PageUp'); await expect(constrained).toHaveAttribute('aria-valuenow', '35');
+
+  await openStory(page, 'phase-19-rangeselector--controlled-value-rejection');
+  const authoritative = page.getByRole('slider', { name: 'Start value' }); await expect(authoritative).toHaveAttribute('aria-valuenow', '22.5'); await authoritative.press('ArrowUp');
+  await expect(page.getByLabel('Attempted range')).toContainText('30'); await expect(authoritative).toHaveAttribute('aria-valuenow', '22.5');
+  const authoritativeBox = await authoritative.boundingBox(); await page.mouse.move(authoritativeBox!.x + authoritativeBox!.width / 2, authoritativeBox!.y); await page.mouse.down(); await page.mouse.move(authoritativeBox!.x + 80, authoritativeBox!.y); await page.setViewportSize({ width: 1100, height: 700 }); await page.mouse.up();
+  await expect(authoritative).toHaveAttribute('aria-valuenow', '22.5');
+
+  await page.setViewportSize({ width: 1280, height: 720 }); await openStory(page, 'phase-19-rangeselector--arabic-rtl', 'theme:light;density:comfortable;direction:rtl');
+  const rtlStart = page.getByRole('slider', { name: 'بداية النطاق' }); await expect(rtlStart).toHaveAttribute('aria-valuenow', '15'); await rtlStart.press('ArrowRight'); await expect(rtlStart).toHaveAttribute('aria-valuenow', '14'); await rtlStart.press('ArrowUp'); await expect(rtlStart).toHaveAttribute('aria-valuenow', '15');
+  expect(browserProblems).toEqual([]);
+});
+
+test('Phase 19 Tooltip coordinates timing, interactive boundaries, overlay dismissal, placement, and ARIA ownership', async ({ page }) => {
+  const browserProblems: string[] = [];
+  page.on('pageerror', (error) => browserProblems.push(error.message));
+  page.on('console', (message) => { if (message.type() === 'error' || message.type() === 'warning') browserProblems.push(message.text()); });
+  await openStory(page, 'phase-19-tooltip--hover-focus');
+  const hoverTarget = page.getByRole('button', { name: 'Account help' }); await hoverTarget.hover(); await expect(page.getByRole('tooltip')).toBeVisible();
+  const tooltipId = await page.getByRole('tooltip').getAttribute('id'); await expect(hoverTarget).toHaveAttribute('aria-describedby', new RegExp(tooltipId!));
+  await page.mouse.move(10, 10); await expect(page.getByRole('tooltip')).toBeHidden(); await expect(hoverTarget).not.toHaveAttribute('aria-describedby'); await hoverTarget.focus(); await expect(page.getByRole('tooltip')).toBeVisible();
+
+  await openStory(page, 'phase-19-tooltip--interactive-content'); await page.getByRole('button', { name: 'Invoice status' }).click();
+  const inside = page.getByRole('link', { name: 'Open invoice' }); await expect(inside).toBeVisible(); await inside.focus(); await expect(inside).toBeFocused(); await page.keyboard.press('Escape'); await expect(inside).toBeHidden();
+
+  await openStory(page, 'phase-19-tooltip--click'); await page.getByRole('button', { name: 'Click for details' }).click(); await expect(page.getByRole('tooltip')).toBeVisible(); await page.mouse.click(1000, 500); await expect(page.getByRole('tooltip')).toBeHidden();
+  await openStory(page, 'phase-19-tooltip--edge-flip-and-shift');
+  for (const surface of await page.getByRole('tooltip').all()) { const box = await surface.boundingBox(); expect(box && box.x >= 0 && box.y >= 0 && box.x + box.width <= 1280 && box.y + box.height <= 720).toBe(true); }
+  await openStory(page, 'phase-19-tooltip--arabic-rtl', 'theme:light;density:comfortable;direction:rtl'); await expect(page.getByRole('tooltip')).toHaveAttribute('data-side', 'left');
+  expect(browserProblems).toEqual([]);
+});
+
+test('Phase 19 StatusBadge dismisses once and remains legible across forced colors, dark RTL, and reduced motion', async ({ page, browserName }) => {
+  await openStory(page, 'phase-19-statusbadge--dismissible-and-async');
+  const dismiss = page.getByRole('button', { name: 'Dismiss status' }); await dismiss.evaluate((button: HTMLButtonElement) => { button.click(); button.click(); });
+  await expect(page.getByText('Needs review')).toBeHidden(); await expect(page.getByText('Dismissed once')).toBeVisible(); await page.getByRole('button', { name: 'Re-arm badge' }).click(); await expect(page.getByText('Needs review')).toBeVisible();
+  await page.emulateMedia({ forcedColors: 'active', reducedMotion: 'reduce' }); await openStory(page, 'phase-19-statusbadge--forced-colors');
+  if (browserName === 'chromium') await expect(page.locator('[data-cg-status-badge]').first()).toHaveCSS('border-top-color', 'rgb(0, 0, 0)');
+  await openStory(page, 'phase-19-tooltip--reduced-motion'); await expect(page.getByRole('tooltip')).toHaveCSS('transition-duration', '0s');
+  await page.emulateMedia({ forcedColors: 'none', reducedMotion: 'no-preference' }); await openStory(page, 'phase-19-statusbadge--arabic-rtl', 'theme:dark;density:compact;direction:rtl'); await expect(page.locator('[data-cg-status-badge]')).toHaveCount(2);
 });

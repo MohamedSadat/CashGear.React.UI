@@ -601,3 +601,29 @@ for (const [name, story, globals, narrow] of [
     await expect(page).toHaveScreenshot(`${name}.png`, { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
   });
 }
+
+for (const [name, story, globals, action] of [
+  ['phase-19-range-numeric', 'phase-19-rangeselector--number-range', undefined, undefined],
+  ['phase-19-range-decimal-date', 'phase-19-rangeselector--decimal-and-date-visual', undefined, undefined],
+  ['phase-19-range-chart-markers', 'phase-19-rangeselector--markers-labels-and-chart', undefined, undefined],
+  ['phase-19-range-disabled-readonly', 'phase-19-rangeselector--disabled-and-read-only', undefined, undefined],
+  ['phase-19-range-dark-compact', 'phase-19-rangeselector--dark-compact', 'theme:dark;density:compact;direction:ltr', undefined],
+  ['phase-19-range-arabic-rtl', 'phase-19-rangeselector--arabic-rtl', 'theme:light;density:comfortable;direction:rtl', undefined],
+  ['phase-19-tooltip-hover', 'phase-19-tooltip--hover-focus', undefined, 'Account help'],
+  ['phase-19-tooltip-interactive-click', 'phase-19-tooltip--interactive-content', undefined, 'Invoice status'],
+  ['phase-19-tooltip-edge', 'phase-19-tooltip--edge-flip-and-shift', undefined, undefined],
+  ['phase-19-tooltip-dark-rtl', 'phase-19-tooltip--arabic-rtl', 'theme:dark;density:compact;direction:rtl', undefined],
+  ['phase-19-status-variants', 'phase-19-statusbadge--types-and-appearances', undefined, undefined],
+  ['phase-19-status-dismissible', 'phase-19-statusbadge--dismissible-and-async', undefined, undefined],
+  ['phase-19-status-dark-rtl', 'phase-19-statusbadge--arabic-rtl', 'theme:dark;density:compact;direction:rtl', undefined],
+] as const) {
+  test(`${name} visual`, async ({ page }) => {
+    await openStory(page, story, globals);
+    await page.evaluate(() => document.fonts.ready);
+    if (action) await page.getByRole('button', { name: action }).hover().then(async () => {
+      if (action === 'Invoice status') await page.getByRole('button', { name: action }).click();
+    });
+    if (name.includes('tooltip')) await expect(page.getByRole('tooltip').first()).toBeVisible();
+    await expect(page).toHaveScreenshot(`${name}.png`, { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+  });
+}

@@ -1,0 +1,56 @@
+.target {
+  display: inline-flex;
+  max-inline-size: 100%;
+}
+
+.surface {
+  --cg-tooltip-background: var(--cg-text);
+  --cg-tooltip-color: var(--cg-surface);
+  --cg-tooltip-border-color: transparent;
+  --cg-tooltip-radius: var(--cg-radius-sm);
+  --cg-tooltip-padding-block: var(--cg-space-1);
+  --cg-tooltip-padding-inline: var(--cg-space-2);
+  --cg-tooltip-arrow-size: 0.42rem;
+  --cg-tooltip-arrow-x: 50%;
+  --cg-tooltip-arrow-y: 50%;
+  z-index: var(--cg-z-tooltip, 1300);
+  box-sizing: border-box;
+  padding-block: var(--cg-tooltip-padding-block);
+  padding-inline: var(--cg-tooltip-padding-inline);
+  border: 1px solid var(--cg-tooltip-border-color);
+  border-radius: var(--cg-tooltip-radius);
+  background: var(--cg-tooltip-background);
+  color: var(--cg-tooltip-color);
+  box-shadow: var(--cg-shadow-md);
+  overflow-wrap: anywhere;
+  font: var(--cg-font-size-sm)/var(--cg-line-height) var(--cg-font-family);
+  pointer-events: none;
+  opacity: 1;
+  transform: translateZ(0) scale(1);
+  transform-origin: center;
+  transition: opacity 100ms ease, transform 100ms ease;
+}
+
+.interactive { pointer-events: auto; }
+
+.arrow {
+  position: absolute;
+  inline-size: calc(var(--cg-tooltip-arrow-size) * 2);
+  block-size: calc(var(--cg-tooltip-arrow-size) * 2);
+  border: inherit;
+  background: inherit;
+  rotate: 45deg;
+  pointer-events: none;
+}
+.surface[data-side='top'] .arrow { inset-inline-start: var(--cg-tooltip-arrow-x); inset-block-end: calc(-1 * var(--cg-tooltip-arrow-size)); translate: -50% 0; border-block-start: 0; border-inline-start: 0; }
+.surface[data-side='bottom'] .arrow { inset-inline-start: var(--cg-tooltip-arrow-x); inset-block-start: calc(-1 * var(--cg-tooltip-arrow-size)); translate: -50% 0; border-block-end: 0; border-inline-end: 0; }
+.surface[data-side='left'] .arrow { inset-inline-end: calc(-1 * var(--cg-tooltip-arrow-size)); inset-block-start: var(--cg-tooltip-arrow-y); translate: 0 -50%; border-block-end: 0; border-inline-start: 0; }
+.surface[data-side='right'] .arrow { inset-inline-start: calc(-1 * var(--cg-tooltip-arrow-size)); inset-block-start: var(--cg-tooltip-arrow-y); translate: 0 -50%; border-block-start: 0; border-inline-end: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .surface { transition: none; }
+}
+
+@media (forced-colors: active) {
+  .surface { --cg-tooltip-background: Canvas; --cg-tooltip-color: CanvasText; --cg-tooltip-border-color: CanvasText; box-shadow: none; forced-color-adjust: auto; }
+}

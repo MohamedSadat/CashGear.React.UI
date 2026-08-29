@@ -13,6 +13,16 @@ export type PositionedOverlayPlacement =
 
 export type PositionedOverlayWidthMode = 'editor' | 'content' | 'contentOrEditor' | 'explicit';
 
+export interface PositionedOverlayPositionDetails {
+  readonly placement: PositionedOverlayPlacement;
+  readonly side: 'top' | 'bottom' | 'left' | 'right';
+  readonly left: number;
+  readonly top: number;
+  readonly width: number;
+  readonly height: number;
+  readonly anchor: Readonly<{ left: number; top: number; right: number; bottom: number; width: number; height: number }>;
+}
+
 function viewportBounds() {
   const viewport = window.visualViewport;
   const left = viewport?.offsetLeft ?? 0;
@@ -67,6 +77,8 @@ export interface PositionedOverlayProps extends Omit<HTMLAttributes<HTMLDivEleme
   getAnchorRect?: () => { left: number; top: number; width: number; height: number; right?: number; bottom?: number } | null;
   children: React.ReactNode;
   placement?: PositionedOverlayPlacement;
+  /** Optional ordered candidates for overlays such as tooltips. Existing callers retain legacy placement behavior. */
+  placementCandidates?: ReadonlyArray<PositionedOverlayPlacement>;
   offset?: number;
   flipOnOverflow?: boolean;
   shiftOnOverflow?: boolean;
@@ -85,6 +97,7 @@ export interface PositionedOverlayProps extends Omit<HTMLAttributes<HTMLDivEleme
   onAnchorLost?: () => void;
   onAnchorScroll?: () => void;
   onPlacementChange?: (side: 'top' | 'bottom' | 'left' | 'right') => void;
+  onPositioned?: (details: PositionedOverlayPositionDetails) => void;
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -122,6 +135,7 @@ export const PositionedOverlay = forwardRef<HTMLDivElement, PositionedOverlayPro
     getAnchorRect,
     children,
     placement = 'bottom-start',
+    placementCandidates,
     offset = 0,
     flipOnOverflow = true,
     shiftOnOverflow = true,
@@ -140,6 +154,7 @@ export const PositionedOverlay = forwardRef<HTMLDivElement, PositionedOverlayPro
     onAnchorLost,
     onAnchorScroll,
     onPlacementChange,
+    onPositioned,
     style,
     ...props
   },
@@ -193,6 +208,7 @@ export const PositionedOverlay = forwardRef<HTMLDivElement, PositionedOverlayPro
       const usesLegacyEditorSizing = scrollable === undefined
         && widthMode === 'editor'
         && placement === 'bottom-start'
+        && placementCandidates === undefined
         && overlayWidth === undefined
         && overlayHeight === undefined
         && minWidth === undefined
@@ -227,8 +243,6 @@ export const PositionedOverlay = forwardRef<HTMLDivElement, PositionedOverlayPro
         setReady(renderedHeight > 0);
         return;
       }
-      const { side: preferredSide, alignment } = splitPlacement(placement);
-      const vertical = preferredSide === 'top' || preferredSide === 'bottom';
       const spaces = {
         top: Math.max(0, anchorRect.top - bounds.top - VIEWPORT_MARGIN - offset),
         bottom: Math.max(0, bounds.bottom - anchorRect.bottom - VIEWPORT_MARGIN - offset),
@@ -236,13 +250,38 @@ export const PositionedOverlay = forwardRef<HTMLDivElement, PositionedOverlayPro
         right: Math.max(0, bounds.right - anchorRect.right - VIEWPORT_MARGIN - offset),
       };
       const opposite = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' } as const;
-      const naturalWidth = Math.max(overlay.getBoundingClientRect().width, Math.min(overlay.scrollWidth, bounds.right - bounds.left));
-      const naturalHeight = Math.max(overlay.getBoundingClientRect().height, Math.min(overlay.scrollHeight, bounds.bottom - bounds.top));
+      const overlayRect = overlay.getBoundingClientRect();
+      // Candidate surfaces can contain decorative absolutely positioned arrows.
+      // Their scroll extent belongs in the placement gap, not the surface's fit size.
+      const naturalWidth = placementCandidates?.length
+        ? overlayRect.width
+        : Math.max(overlayRect.width, Math.min(overlay.scrollWidth, bounds.right - bounds.left));
+      const naturalHeight = placementCandidates?.length
+        ? overlayRect.height
+        : Math.max(overlayRect.height, Math.min(overlay.scrollHeight, bounds.bottom - bounds.top));
       const desiredHeight = naturalHeight;
+      let selectedPlacement = placement;
+      if (placementCandidates?.length) {
+        const fit = placementCandidates.find((candidate) => {
+          const candidateSide = splitPlacement(candidate).side as keyof typeof spaces;
+          const desired = candidateSide === 'top' || candidateSide === 'bottom' ? desiredHeight : naturalWidth;
+          return spaces[candidateSide] >= desired;
+        });
+        selectedPlacement = fit ?? placementCandidates.reduce((best, candidate) => {
+          const bestSide = splitPlacement(best).side as keyof typeof spaces;
+          const candidateSide = splitPlacement(candidate).side as keyof typeof spaces;
+          return spaces[candidateSide] > spaces[bestSide] ? candidate : best;
+        }, placementCandidates[0] ?? placement);
+      }
+      const selected = splitPlacement(selectedPlacement);
+      const selectedSide = selected.side;
+      const vertical = selectedSide === 'top' || selectedSide === 'bottom';
       const desiredMain = vertical ? desiredHeight : naturalWidth;
-      const side = flipOnOverflow && spaces[preferredSide as keyof typeof spaces] < desiredMain && spaces[opposite[preferredSide as keyof typeof opposite]] > spaces[preferredSide as keyof typeof spaces]
-        ? opposite[preferredSide as keyof typeof opposite]
-        : preferredSide;
+      const side = !placementCandidates?.length && flipOnOverflow && spaces[selectedSide as keyof typeof spaces] < desiredMain && spaces[opposite[selectedSide as keyof typeof opposite]] > spaces[selectedSide as keyof typeof spaces]
+        ? opposite[selectedSide as keyof typeof opposite]
+        : selectedSide;
+      const resolvedPlacement = side === selectedSide ? selectedPlacement : (selectedPlacement.replace(selectedSide, side) as PositionedOverlayPlacement);
+      const { alignment } = splitPlacement(resolvedPlacement);
       const availableMain = spaces[side as keyof typeof spaces];
       const availableWidth = Math.max(0, bounds.right - bounds.left - VIEWPORT_MARGIN * 2);
       const availableHeight = Math.max(0, bounds.bottom - bounds.top - VIEWPORT_MARGIN * 2);
@@ -262,6 +301,15 @@ export const PositionedOverlay = forwardRef<HTMLDivElement, PositionedOverlayPro
         top = clamp(top, bounds.top + VIEWPORT_MARGIN, bounds.bottom - VIEWPORT_MARGIN - measuredHeight);
       }
       notifyPlacement(side as 'top' | 'bottom' | 'left' | 'right');
+      onPositioned?.(Object.freeze({
+        placement: resolvedPlacement,
+        side: side as 'top' | 'bottom' | 'left' | 'right',
+        left,
+        top,
+        width: measuredWidth,
+        height: measuredHeight,
+        anchor: Object.freeze({ ...anchorRect }),
+      }));
       setPosition({
         position: 'fixed',
         inset: 'auto',
@@ -288,7 +336,7 @@ export const PositionedOverlay = forwardRef<HTMLDivElement, PositionedOverlayPro
       cleanup();
       setReady(false);
     };
-  }, [anchorRef, contextRef, flipOnOverflow, getAnchorRect, maxHeight, maxWidth, minHeight, minWidth, notifyAnchorLost, notifyPlacement, offset, overlayHeight, overlayWidth, placement, resizable, revision, scrollable, setReady, shiftOnOverflow, widthMode]);
+  }, [anchorRef, contextRef, flipOnOverflow, getAnchorRect, maxHeight, maxWidth, minHeight, minWidth, notifyAnchorLost, notifyPlacement, offset, onPositioned, overlayHeight, overlayWidth, placement, placementCandidates, resizable, revision, scrollable, setReady, shiftOnOverflow, widthMode]);
 
   useEffect(() => {
     if (!onAnchorScroll) return undefined;

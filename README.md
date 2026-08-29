@@ -1,6 +1,6 @@
 # `@cashgear/ui`
 
-CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–18 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, Calendar, DateRangePicker, FileUploader, Splitter, Drawer, Toast and Confirmation providers, overlays, MaskedInput, command surfaces, descriptor-based navigation, responsive FormLayout, TreeView, the focused `CgLookUpGrid`, and the advanced Filter/Grid/Pager surface in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies.
+CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–19 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, Calendar, DateRangePicker, FileUploader, RangeSelector, Tooltip, StatusBadge, Splitter, Drawer, Toast and Confirmation providers, overlays, MaskedInput, command surfaces, descriptor-based navigation, responsive FormLayout, TreeView, the focused `CgLookUpGrid`, and the advanced Filter/Grid/Pager surface in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies.
 
 ## Install and import
 
@@ -659,6 +659,45 @@ The native file input is deliberately unnamed. Only successful durable `storedFi
 
 Client extensions, sizes, MIME types, names, hashes, metadata, stored IDs, and resumable tokens are untrusted. The server must independently authorize the caller and upload session, enforce count/size/type/content rules, sanitize names, validate every chunk and final object, constrain metadata, scan content as appropriate, and prevent cross-tenant read/delete access. Session and antiforgery tokens are transport-only and are never exposed in public item snapshots or rendered output.
 
+## RangeSelector
+
+`CgRangeSelector` uses one immutable `{ start, end }` value and a required `valueKind`. A `null` start resolves to `minimum`; a `null` end resolves to `maximum`. Interaction output canonicalizes those two domain boundaries back to `null`, while explicit external endpoints remain valid and authoritative.
+
+```tsx
+import { CgRangeSelector, normalizeCgDecimalValue } from '@cashgear/ui';
+
+<CgRangeSelector
+  valueKind="decimal"
+  minimum={normalizeCgDecimalValue('0')}
+  maximum={normalizeCgDecimalValue('100000000000000000000.01')}
+  step={normalizeCgDecimalValue('0.01')}
+  value={amountRange}
+  onValueChange={setAmountRange}
+/>
+```
+
+The built-in kinds are finite `number`, native `bigint`, normalized exact `decimal`, canonical civil `date`, normalized `datetime-local`, and normalized offset-bearing `instant`. Decimal strings are exact values, not localized or display-formatted numbers; use `formatValue` only for presentation. `normalizeCgDecimalValue`, `normalizeCgLocalDateTimeValue`, and `normalizeCgInstantValue` construct branded canonical values. Exact kinds use BigInt-backed internal wires, whole-day date intervals, and integer-millisecond date-time/instant intervals without JavaScript `Date`. Instant comparison is UTC-based, and generated values retain the minimum instant's `Z` or explicit offset token.
+
+Both handles are accessible horizontal sliders. Pointer capture supports handle swap, selected-range drag, and track centering; keyboard arrows honor physical RTL, Up/Down stay numeric, Page keys use ten steps, and Home/End respect span bounds. Controlled values are authoritative and are never silently snapped. `CgRangeSelectorActions` focuses a handle, returns the frozen current value, cancels an active preview, and recalculates geometry.
+
+## Tooltip and StatusBadge
+
+`CgTooltip` keeps a stable target wrapper and lazily mounts only its `role="tooltip"` surface through the shared body portal and positioned-overlay engine. Hover/focus, click, and manual triggers support cancellable delays, controlled state, logical placement, viewport flip/shift, optional interactive content, exact `aria-describedby` token ownership, and generation-safe `onShown`/`onHidden` callbacks. Click tooltips share topmost Escape and matched outside-interaction arbitration with other overlays.
+
+Use Tooltip for short contextual descriptions that do not move focus. Use `CgFlyout` when content needs disclosure semantics, richer application structure, focus actions, headers/footers, resizing, or explicit popover lifecycle. Neither component accepts HTML strings or loads data automatically.
+
+```tsx
+<CgTooltip text="Uses the posting date from the source document.">
+  <button type="button">Posting date help</button>
+</CgTooltip>
+
+<CgStatusBadge type="success" appearance="soft" indicator>Posted</CgStatusBadge>
+```
+
+`CgStatusBadge` is compact presentation, not authorization, permission, or workflow truth. It has no role by default; opt into `status` or `alert` only for a real live-region update. Icons and indicators are decorative. Dismissal hides immediately, invokes `onDismiss` at most once, observes async rejection, and re-arms only after `visible` changes from false to true. It is not a toast and allocates no listener, observer, portal, or timer.
+
+Consumer formatters, render functions, class names, styles, and safe attributes are trusted developer inputs. Do not pass untrusted user HTML, CSS, or executable values through them; these APIs deliberately do not sanitize application code.
+
 ## MaskedInput
 
 `CgMaskedInput` follows TextBox's `value`, `defaultValue`, and `onValueChange` convention, uses `''` as empty, and forwards its `HTMLInputElement` ref plus native events and attributes. Masks are Unicode-aware: `0`, `L`, `A`, and `*` are required digit/letter/alphanumeric slots; `9`, `l`, `a`, and `?` are optional; backslash escapes the next code point. Empty masks and trailing escapes are configuration errors.
@@ -714,6 +753,7 @@ Components:
 - `CgTextBox`, `CgMemo`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgKeyComboBox`, `CgLookUpGrid`, `CgListBox`, `CgTagBox`, `CgDropDownBox`, `CgDateEdit`, `CgCalendar`, `CgDateRangePicker`, `CgFileUploader`
 - `CgFlyout`, `CgPopup`, `CgWindow`, `CgMaskedInput`
 - `CgSplitter`, `CgDrawer`
+- `CgRangeSelector`, `CgTooltip`, `CgStatusBadge`
 - `CgMenu`, `CgContextMenu`, `CgDropDownButton`, `CgSplitButton`, `CgToolbar`
 - `CgLayoutBreakpoint`, `CgTabs`, `CgStepper`, `CgAccordion`, `CgTreeView`, `CgFilterBuilder`, `CgPager`, `CgGrid`
 - `CgFormLayout`, `CgFormLayoutItem`, `CgFormLayoutGroup`, `CgFormLayoutTabs`
@@ -759,6 +799,8 @@ Phase 16 verification on 2026-08-29 passed strict typecheck and lint, 40 Vitest 
 Phase 17 verification on 2026-08-29 passed strict typecheck and lint, 43 Vitest files/393 tests, cycle analysis across 228 source modules, the 222-module library build, the 290-module Storybook build, package verification of 148 runtime exports across 1,076 packed files, all 98 Chromium and 98 WebKit semantic/Axe cases, and all 181 Chromium visual tests against 189 reviewed Windows baselines. Firefox remains blocked before page creation by the same host SWGL framebuffer mapping failure; see the parity ledger for the exact classification.
 
 Phase 18 verification on 2026-08-29 passed strict typecheck and lint, 46 Vitest files/420 tests, cycle analysis across 236 source modules, the 230-module library build, the 298-module Storybook build, package verification of 150 runtime exports across 1,114 packed files, all 105 Chromium and 105 WebKit semantic/Axe cases, and all 193 Chromium visual tests against 201 reviewed Windows baselines. Exactly 12 new `phase-18-*` baselines were added and inspected; every Phase 1–17 comparison remained stable. A single Firefox attempt reproduced the host-only pre-page SWGL framebuffer mapping failure and was not repeated.
+
+Phase 19 verification on 2026-08-29 passed strict typecheck and lint, 50 Vitest files/457 tests, cycle analysis across 246 source modules, the 240-module library build, the 308-module Storybook build, package verification of 156 runtime exports across 1,161 packed files, all 111 Chromium semantic/Axe cases, and all 206 Chromium visual tests against 214 reviewed Windows baselines. The WebKit full run passed 108 cases and exposed two RangeSelector resize-observer warnings plus one transient Phase 13 navigation timeout; after the generation-safe animation-frame fix and rebuild, the affected tests passed 2/2 and 1/1 respectively, giving passing evidence for all 111 cases. Exactly 13 new `phase-19-*` baselines were added and inspected; every Phase 1–18 snapshot remained stable. The single permitted Firefox attempt reproduced the host-only pre-page SWGL framebuffer mapping failure and was not repeated through the aggregate verifier.
 
 ## Packaging
 
