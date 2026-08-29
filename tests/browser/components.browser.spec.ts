@@ -56,6 +56,7 @@ const canonicalStories = [
   'phase-16-daterangepicker--explicit-with-presets',
   'phase-16-toast--positions-actions-and-limits',
   'phase-16-confirmation--variants-and-queueing',
+  'phase-17-fileuploader--basic-automatic',
 ] as const;
 
 for (const story of canonicalStories) {
@@ -1182,5 +1183,109 @@ test('Phase 16 date and feedback families support semantic interaction and focus
   await expect(dialog).toBeHidden();
   await expect(trigger).toBeFocused();
 
+  expect(browserProblems).toEqual([]);
+});
+
+test('Phase 17 FileUploader supports real files, retries, native forms, and resumable endpoint recovery', async ({ page }) => {
+  test.slow();
+  const browserProblems: string[] = [];
+  page.on('pageerror', (error) => browserProblems.push(error.message));
+  page.on('console', (message) => { if (message.type() === 'error' || message.type() === 'warning') browserProblems.push(message.text()); });
+  const selectFile = async (name: string, content: string, lastModified = 1_777_000_000_000) => {
+    await page.locator('input[type="file"]').evaluate((element, payload) => {
+      const transfer = new DataTransfer();
+      transfer.items.add(new File([payload.content], payload.name, { type: payload.name.endsWith('.pdf') ? 'application/pdf' : 'text/plain', lastModified: payload.lastModified }));
+      Object.defineProperty(element, 'files', { configurable: true, value: transfer.files });
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+    }, { name, content, lastModified });
+  };
+
+  await openStory(page, 'phase-17-fileuploader--basic-automatic');
+  await selectFile('invoice.pdf', 'invoice');
+  await expect(page.getByText('Uploaded', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Remove invoice.pdf' }).click();
+  await expect(page.getByText('invoice.pdf')).toHaveCount(0);
+  await selectFile('invoice.pdf', 'invoice');
+  await expect(page.getByText('Uploaded', { exact: true })).toBeVisible();
+
+  await openStory(page, 'phase-17-fileuploader--manual-upload');
+  await selectFile('evidence.pdf', 'evidence');
+  await expect(page.getByText('Ready', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Upload', exact: true }).click();
+  await expect(page.getByText('Uploaded', { exact: true })).toHaveCount(2);
+
+  await openStory(page, 'phase-17-fileuploader--failed-retry');
+  await selectFile('retry.pdf', 'retry');
+  await expect(page.getByRole('alert')).toContainText('Virus scanner');
+  await page.getByRole('button', { name: 'Retry retry.pdf' }).click();
+  await expect(page.getByText('Uploaded', { exact: true })).toBeVisible();
+
+  await openStory(page, 'phase-17-fileuploader--native-form');
+  await page.getByRole('button', { name: 'Submit attachments' }).click();
+  await expect(page.getByLabel('Submitted attachment IDs')).toHaveText('invoice-2026');
+  await page.getByRole('button', { name: 'Remove invoice-2026.pdf' }).click();
+  await page.getByRole('button', { name: 'Submit attachments' }).click();
+  await expect(page.locator('input[type="file"]')).toBeFocused();
+  await page.getByRole('button', { name: 'Reset attachments' }).click();
+  await expect(page.getByText('invoice-2026.pdf')).toBeVisible();
+
+  await openStory(page, 'phase-17-fileuploader--paused-recovery');
+  await expect(page.getByText('Select the same file to resume', { exact: true })).toBeVisible();
+  await expect.poll(async () => (await page.locator('input[type="file"]').boundingBox())?.height ?? 0).toBeGreaterThan(100);
+  const recoveredDropZone = await page.locator('input[type="file"]').locator('..').boundingBox();
+  const recoveredRow = await page.locator('[data-status="awaiting-reselection"]').boundingBox();
+  expect(recoveredDropZone && recoveredRow && recoveredRow.y >= recoveredDropZone.y + recoveredDropZone.height).toBe(true);
+
+  const upload = { id: 'browser-upload-1', token: 'browser-private-token', chunkSize: 4, received: new Set<number>() };
+  let firstChunk = true;
+  let releaseFirstChunk: (() => void) | undefined;
+  const requestHeaders: Array<Record<string, string>> = [];
+  await page.route('**/_cg-story-upload/**', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    requestHeaders.push(request.headers());
+    if (url.pathname.endsWith('/antiforgery')) {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ headerName: 'X-Story-CSRF', requestToken: 'story-csrf' }) }); return;
+    }
+    if (request.method() === 'GET') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ state: 'uploading', chunkSize: upload.chunkSize, receivedChunks: [...upload.received] }) }); return;
+    }
+    if (request.method() === 'PUT') {
+      const chunk = Number(url.pathname.split('/').at(-1));
+      if (firstChunk) {
+        firstChunk = false;
+        await new Promise<void>((resolve) => { releaseFirstChunk = resolve; });
+      }
+      upload.received.add(chunk);
+      try { await route.fulfill({ status: 204 }); } catch { /* The first XHR is deliberately aborted by Pause. */ }
+      return;
+    }
+    if (request.method() === 'POST' && url.pathname.endsWith('/complete')) {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ storedFile: { id: 'endpoint-stored-1', location: '/files/endpoint-stored-1', name: 'resume.txt', size: 10, contentType: 'text/plain', metadata: {} } }) }); return;
+    }
+    if (request.method() === 'DELETE') { await route.fulfill({ status: 204 }); return; }
+    await route.fallback();
+  });
+  await page.route('**/_cg-story-upload', async (route) => {
+    if (route.request().method() !== 'POST') { await route.fallback(); return; }
+    requestHeaders.push(route.request().headers());
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ state: 'uploading', uploadId: upload.id, sessionToken: upload.token, chunkSize: upload.chunkSize, receivedChunks: [] }) });
+  });
+
+  await openStory(page, 'phase-17-fileuploader--endpoint-resumable');
+  await selectFile('resume.txt', '0123456789');
+  await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
+  await page.getByRole('button', { name: 'Pause' }).click();
+  await expect(page.getByText('Paused', { exact: true })).toBeVisible();
+  releaseFirstChunk?.();
+  await openStory(page, 'phase-17-fileuploader--endpoint-resumable');
+  await expect(page.getByText('Select the same file to resume')).toBeVisible();
+  await selectFile('resume.txt', '0123456789');
+  await expect(page.getByText('Uploaded', { exact: true })).toBeVisible();
+  await expect(page.locator('body')).not.toContainText(upload.token);
+  await page.getByRole('button', { name: 'Remove resume.txt' }).click();
+  await expect(page.getByText('resume.txt')).toHaveCount(0);
+  expect(requestHeaders.some((headers) => headers['x-cg-upload-token'] === upload.token)).toBe(true);
+  expect(requestHeaders.some((headers) => headers['x-story-csrf'] === 'story-csrf')).toBe(true);
   expect(browserProblems).toEqual([]);
 });

@@ -209,6 +209,56 @@ for (const [name, story, globals, narrow] of [
 }
 
 for (const [name, story, globals, narrow] of [
+  ['phase-17-fileuploader-paused-recovery', 'phase-17-fileuploader--paused-recovery', undefined, false],
+  ['phase-17-fileuploader-disabled-readonly', 'phase-17-fileuploader--disabled-and-read-only', undefined, false],
+  ['phase-17-fileuploader-dark-compact', 'phase-17-fileuploader--dark-compact', 'theme:dark;density:compact;direction:ltr', false],
+  ['phase-17-fileuploader-rtl', 'phase-17-fileuploader--arabic-rtl', 'theme:light;density:comfortable;direction:rtl', false],
+  ['phase-17-fileuploader-narrow', 'phase-17-fileuploader--narrow-layout', undefined, true],
+] as const) {
+  test(`${name} visual`, async ({ page }) => {
+    if (narrow) await page.setViewportSize({ width: 390, height: 720 });
+    await openStory(page, story, globals);
+    await expect(page).toHaveScreenshot(`${name}.png`, { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+  });
+}
+
+test('phase-17-fileuploader basic uploaded visual', async ({ page }) => {
+  await openStory(page, 'phase-17-fileuploader--basic-automatic');
+  await page.locator('input[type="file"]').setInputFiles({ name: 'invoice.pdf', mimeType: 'application/pdf', buffer: Buffer.from('invoice') });
+  await expect(page.getByText('Uploaded', { exact: true })).toBeVisible();
+  await expect(page).toHaveScreenshot('phase-17-fileuploader-basic.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
+
+test('phase-17-fileuploader manual queue visual', async ({ page }) => {
+  await openStory(page, 'phase-17-fileuploader--manual-upload');
+  await page.locator('input[type="file"]').setInputFiles({ name: 'evidence.pdf', mimeType: 'application/pdf', buffer: Buffer.from('evidence') });
+  await expect(page.getByText('Ready', { exact: true })).toBeVisible();
+  await expect(page).toHaveScreenshot('phase-17-fileuploader-manual.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
+
+test('phase-17-fileuploader multiple progress visual', async ({ page }) => {
+  await openStory(page, 'phase-17-fileuploader--multiple-progress');
+  await page.locator('input[type="file"]').setInputFiles([
+    { name: 'large-ledger.csv', mimeType: 'text/csv', buffer: Buffer.alloc(200, 1) },
+    { name: 'small-ledger.csv', mimeType: 'text/csv', buffer: Buffer.alloc(40, 2) },
+  ]);
+  await expect(page.getByText('Uploading…').first()).toBeVisible();
+  await expect(page.getByRole('progressbar')).toHaveCount(2);
+  await expect(page).toHaveScreenshot('phase-17-fileuploader-progress.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
+
+test('phase-17-fileuploader validation and failure visual', async ({ page }) => {
+  await openStory(page, 'phase-17-fileuploader--validation-and-failure');
+  await page.locator('input[type="file"]').setInputFiles([
+    { name: 'invalid.txt', mimeType: 'text/plain', buffer: Buffer.from('invalid') },
+    { name: 'invoice.pdf', mimeType: 'application/pdf', buffer: Buffer.from('invoice') },
+  ]);
+  await expect(page.getByText('The storage service rejected this file.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Only .pdf files are allowed.', { exact: true })).toBeVisible();
+  await expect(page).toHaveScreenshot('phase-17-fileuploader-validation.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+});
+
+for (const [name, story, globals, narrow] of [
   ['phase-15-filterbuilder-nested', 'phase-15-filterbuilder--explicit-nested', undefined, false],
   ['phase-15-pager-numeric', 'phase-15-pager--numeric-buttons', undefined, false],
   ['phase-15-advanced-grid-filter-pager', 'phase-15-advanced-grid--typed-filters-and-numeric-pager', undefined, false],

@@ -10,6 +10,7 @@ export * from './DateRangePicker';
 export * from './DropDownButton';
 export * from './DropDownBox';
 export * from './Field';
+export * from './FileUploader';
 export * from './Flyout';
 export * from './FilterBuilder';
 export * from './FormLayout';

@@ -28,6 +28,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'CgDropDownBox',
   'CgDropDownButton',
   'CgField',
+  'CgFileUploader',
   'CgFilterBuilder',
   'CgFilterCodecError',
   'CgFilterEvaluationError',

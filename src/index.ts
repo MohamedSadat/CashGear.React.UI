@@ -27,6 +27,8 @@ export { CgDropDownBox } from './components/DropDownBox';
 export type { CgDropDownBoxActions, CgDropDownBoxAfterCloseDetails, CgDropDownBoxAfterOpenDetails, CgDropDownBoxBeforeCloseDetails, CgDropDownBoxBeforeOpenDetails, CgDropDownBoxCancelableResult, CgDropDownBoxCloseReason, CgDropDownBoxCommitMode, CgDropDownBoxContext, CgDropDownBoxDisplayContext, CgDropDownBoxErrorContext, CgDropDownBoxFormSerializer, CgDropDownBoxOpenChangeDetails, CgDropDownBoxOpenReason, CgDropDownBoxPlacement, CgDropDownBoxProps, CgDropDownBoxTransitionPhase, CgDropDownBoxValueChangeDetails, CgDropDownBoxValueChangeReason, CgDropDownBoxValueCommittedDetails, CgDropDownBoxWidthMode } from './components/DropDownBox';
 export { CgField } from './components/Field';
 export type { CgFieldProps } from './components/Field';
+export { CgFileUploader } from './components/FileUploader';
+export type { CgFileUploadContext, CgFileUploadEventReason, CgFileUploadHandler, CgFileUploadItem, CgFileUploadMetadataProvider, CgFileUploadProgressDetails, CgFileUploadResult, CgFileUploadRunDetails, CgFileUploadStatus, CgFileUploadTransportMode, CgFileUploadValidationMode, CgFileUploaderActions, CgFileUploaderCommonProps, CgFileUploaderEndpointProps, CgFileUploaderEventDetails, CgFileUploaderFileRenderContext, CgFileUploaderHandlerProps, CgFileUploaderLabels, CgFileUploaderProps, CgFileUploaderRenderContext, CgStoredFile } from './components/FileUploader';
 export { CgFlyout } from './components/Flyout';
 export type { CgFlyoutActions, CgFlyoutAfterCloseDetails, CgFlyoutAnchor, CgFlyoutBeforeCloseDetails, CgFlyoutCloseDetails, CgFlyoutCloseReason, CgFlyoutOpenChangeDetails, CgFlyoutPlacement, CgFlyoutProps } from './components/Flyout';
 export { CgIcon } from './components/Icon';

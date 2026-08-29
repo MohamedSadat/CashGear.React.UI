@@ -1,6 +1,6 @@
 # `@cashgear/ui`
 
-CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–16 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, Calendar, DateRangePicker, Toast and Confirmation providers, overlays, MaskedInput, command surfaces, descriptor-based navigation, responsive FormLayout, TreeView, the focused `CgLookUpGrid`, and the advanced Filter/Grid/Pager surface in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies.
+CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–17 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, Calendar, DateRangePicker, FileUploader, Toast and Confirmation providers, overlays, MaskedInput, command surfaces, descriptor-based navigation, responsive FormLayout, TreeView, the focused `CgLookUpGrid`, and the advanced Filter/Grid/Pager surface in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies.
 
 ## Install and import
 
@@ -572,6 +572,39 @@ Async loaders receive normalized search text, visible searchable field IDs, one 
 
 The input retains focus and owns `aria-activedescendant`; paging appends rows, disabled rows stay visible but cannot be selected, and the filter-row Tab path is lookup-specific. `CgLookUpGridActions` exposes popup, reload, paging, sorting, filtering, state inspection, focus, and clear operations. Multiple selection, grouping, master-detail, column chooser/reordering/resizing/freezing, CRUD, summaries, export, and row virtualization remain intentionally exclusive to `CgGrid`; no ignored or fake virtualization prop is exposed.
 
+## FileUploader
+
+`CgFileUploader` owns the browser `File` queue and exposes frozen item snapshots. Exactly one transport is required. Handler mode keeps storage application-owned and does not copy file contents unless `bufferToMemory` is explicitly enabled:
+
+```tsx
+<CgFileUploader
+  name="attachmentId"
+  allowedExtensions={['pdf', 'png']}
+  upload={async ({ file, signal, reportProgress, metadata }) => {
+    const storedFile = await attachmentStore.put(file, { signal, metadata, reportProgress });
+    return { succeeded: true, storedFile };
+  }}
+  getUploadMetadata={() => ({ module: 'payables' })}
+/>
+```
+
+Endpoint mode implements the CashGear v2 initiate/status/chunk/complete/delete protocol. JSON/status calls use `fetch`; chunk uploads use XHR for byte progress; SHA-256 chunk hashes and a bounded first/last 64 KiB file fingerprint use Web Crypto. A stable `persistenceKey` enables session-storage recovery after hydration, but the exact browser file must be reselected before upload can resume.
+
+```tsx
+<CgFileUploader
+  name="attachmentId"
+  uploadEndpoint="/api/uploads/v2"
+  persistenceKey="vendor-invoice-attachments"
+  maxConcurrentUploads={2}
+  maxChunkRetries={3}
+  deleteRemoteOnRemove
+/>
+```
+
+The native file input is deliberately unnamed. Only successful durable `storedFile` values produce repeated hidden inputs under `name`; the default serializer submits `storedFile.id`. `required` plus `validationMode="require-all-succeeded"` blocks submission while an accepted file remains incomplete. Form reset aborts transient work, clears resumable state, and restores `defaultStoredFiles`; disabled uploaders submit nothing, while read-only uploaders retain their durable values.
+
+Client extensions, sizes, MIME types, names, hashes, metadata, stored IDs, and resumable tokens are untrusted. The server must independently authorize the caller and upload session, enforce count/size/type/content rules, sanitize names, validate every chunk and final object, constrain metadata, scan content as appropriate, and prevent cross-tenant read/delete access. Session and antiforgery tokens are transport-only and are never exposed in public item snapshots or rendered output.
+
 ## MaskedInput
 
 `CgMaskedInput` follows TextBox's `value`, `defaultValue`, and `onValueChange` convention, uses `''` as empty, and forwards its `HTMLInputElement` ref plus native events and attributes. Masks are Unicode-aware: `0`, `L`, `A`, and `*` are required digit/letter/alphanumeric slots; `9`, `l`, `a`, and `?` are optional; backslash escapes the next code point. Empty masks and trailing escapes are configuration errors.
@@ -624,7 +657,7 @@ Eligibility uses the trimmed query length, but `onSearch` receives the original 
 Components:
 
 - `CgIcon`, `CgButton`, `CgField`
-- `CgTextBox`, `CgMemo`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgKeyComboBox`, `CgLookUpGrid`, `CgListBox`, `CgTagBox`, `CgDropDownBox`, `CgDateEdit`, `CgCalendar`, `CgDateRangePicker`
+- `CgTextBox`, `CgMemo`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgKeyComboBox`, `CgLookUpGrid`, `CgListBox`, `CgTagBox`, `CgDropDownBox`, `CgDateEdit`, `CgCalendar`, `CgDateRangePicker`, `CgFileUploader`
 - `CgFlyout`, `CgPopup`, `CgWindow`, `CgMaskedInput`
 - `CgMenu`, `CgContextMenu`, `CgDropDownButton`, `CgSplitButton`, `CgToolbar`
 - `CgLayoutBreakpoint`, `CgTabs`, `CgStepper`, `CgAccordion`, `CgTreeView`, `CgFilterBuilder`, `CgPager`, `CgGrid`
@@ -634,7 +667,7 @@ Components:
 - `CgLoadingPanel`, `CgProgressBar`
 - `CgToastProvider`, `CgConfirmationProvider`
 
-Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, canonical `CgDateValue`/`CgDateRangeValue`, the Filter Core AST/registry/persistence contracts, the DateEdit/Calendar/DateRangePicker contracts, Toast and Confirmation APIs, the shared overlay contracts, and each descriptor component's props, actions, lifecycle details, and render/state contexts. Private menu, adaptive-layout, and TreeView normalization/check/filter engines are not exported. There is intentionally no universal component-state interface.
+Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, canonical `CgDateValue`/`CgDateRangeValue`, the Filter Core AST/registry/persistence contracts, the DateEdit/Calendar/DateRangePicker contracts, the FileUploader item/transport/event/render/action contracts, Toast and Confirmation APIs, the shared overlay contracts, and each descriptor component's props, actions, lifecycle details, and render/state contexts. Private endpoint-session tokens, menu, adaptive-layout, and TreeView normalization/check/filter engines are not exported. There is intentionally no universal component-state interface.
 
 The public hooks are `useControllableState`, `useCgId`, `useCgContextMenuTarget`, `useCgToast`, and `useCgConfirmation`; `cx` is the public class-name utility. All other primitives and hooks are private implementation details.
 
@@ -667,6 +700,8 @@ The Phase 10 Node 24.19 verification completed with 205 Vitest tests, 68 semanti
 Phase 15 verification on 2026-08-27 passed strict typecheck and lint, 36 Vitest files/351 tests, cycle analysis across 209 source modules, the 204-module library build, the 270-module Storybook build, package verification of 141 runtime exports across 988 packed files, all 163 Windows Chromium visual cases, and the final affected 16-case Chromium/WebKit semantic and Axe matrix. The complete 182-case Chromium/WebKit semantic suite also passed during acceptance; see the parity ledger for command-level detail and the Firefox host limitation.
 
 Phase 16 verification on 2026-08-29 passed strict typecheck and lint, 40 Vitest files/367 tests, cycle analysis across 221 source modules, the 215-module library build, the 282-module Storybook build, package verification of 147 runtime exports across 1,042 packed files, all 96 Chromium and 96 WebKit semantic/Axe cases, and all 172 Chromium visual tests against 180 inspected Windows baselines. Firefox remains blocked before page creation by the host SWGL framebuffer mapping failure; see the parity ledger for the exact classification.
+
+Phase 17 verification on 2026-08-29 passed strict typecheck and lint, 43 Vitest files/393 tests, cycle analysis across 228 source modules, the 222-module library build, the 290-module Storybook build, package verification of 148 runtime exports across 1,076 packed files, all 98 Chromium and 98 WebKit semantic/Axe cases, and all 181 Chromium visual tests against 189 reviewed Windows baselines. Firefox remains blocked before page creation by the same host SWGL framebuffer mapping failure; see the parity ledger for the exact classification.
 
 ## Packaging
 
