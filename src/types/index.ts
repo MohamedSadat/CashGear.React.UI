@@ -35,3 +35,5 @@ export type {
   CgOverlaySize,
   CgOverlayVerticalAlignment,
 } from './overlay';
+
+export type { CgDateRangeValue, CgDateValue, CgDayOfWeek } from './date';

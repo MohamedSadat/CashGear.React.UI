@@ -1,4 +1,4 @@
-import type { CgDayOfWeek } from './CgDateEdit.types';
+import type { CgDayOfWeek } from '../../types/date';
 import type { CivilDate } from './dateMath';
 import { isCivilDate } from './dateMath';
 

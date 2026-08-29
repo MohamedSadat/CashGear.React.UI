@@ -13,14 +13,14 @@ import {
   parseCanonicalDate,
   todayCivilDate,
   toCanonicalDate,
-} from '../src/components/DateEdit/dateMath';
+} from '../src/internal/date/dateMath';
 import {
   defaultDatePattern,
   formatCivilDate,
   localeFirstDayOfWeek,
   parseDatePattern,
   parseFormattedDate,
-} from '../src/components/DateEdit/dateFormat';
+} from '../src/internal/date/dateFormat';
 
 describe('CgDateEdit civil-date utilities', () => {
   it('validates canonical values, leap years, saturating arithmetic, and six-week matrices', () => {

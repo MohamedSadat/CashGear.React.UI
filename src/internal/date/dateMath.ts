@@ -137,3 +137,35 @@ export function todayCivilDate(): CivilDate {
 export function decadeGridStart(year: number): number {
   return Math.min(9988, Math.max(1, Math.floor(year / 10) * 10 - 1));
 }
+
+export function inclusiveDayCount(start: CivilDate, end: CivilDate): number {
+  return civilToDayNumber(end) - civilToDayNumber(start) + 1;
+}
+
+export function startOfWeek(value: CivilDate, firstDayOfWeek: number): CivilDate {
+  return addDays(value, -daysFromWeekStart(value, firstDayOfWeek));
+}
+
+export function endOfWeek(value: CivilDate, firstDayOfWeek: number): CivilDate {
+  return addDays(startOfWeek(value, firstDayOfWeek), 6);
+}
+
+export function endOfMonth(value: CivilDate): CivilDate {
+  return { year: value.year, month: value.month, day: daysInMonth(value.year, value.month) };
+}
+
+export function startOfQuarter(value: CivilDate): CivilDate {
+  return { year: value.year, month: Math.floor((value.month - 1) / 3) * 3 + 1, day: 1 };
+}
+
+export function endOfQuarter(value: CivilDate): CivilDate {
+  return endOfMonth(addMonths(startOfQuarter(value), 2));
+}
+
+export function startOfYear(value: CivilDate): CivilDate {
+  return { year: value.year, month: 1, day: 1 };
+}
+
+export function endOfYear(value: CivilDate): CivilDate {
+  return { year: value.year, month: 12, day: 31 };
+}

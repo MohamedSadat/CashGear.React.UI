@@ -472,6 +472,24 @@ test('Phase 10 DropDownButton busy visual', async ({ page }) => {
   await expect(page).toHaveScreenshot('phase-10-dropdown-busy.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
 });
 
+for (const [name, story, globals, narrow] of [
+  ['phase-16-calendar-range', 'phase-16-calendar--single-and-range', undefined, false],
+  ['phase-16-calendar-dark-compact', 'phase-16-calendar--dark-compact', 'theme:dark;density:compact;direction:ltr', false],
+  ['phase-16-calendar-rtl-narrow', 'phase-16-calendar--arabic-rtl', 'theme:light;density:comfortable;direction:rtl', true],
+  ['phase-16-date-range-presets', 'phase-16-daterangepicker--explicit-with-presets', undefined, false],
+  ['phase-16-date-range-validation', 'phase-16-daterangepicker--validation-and-restrictions', undefined, false],
+  ['phase-16-toast-stacks', 'phase-16-toast--stable-visual-stacks', undefined, false],
+  ['phase-16-toast-dark', 'phase-16-toast--dark-compact', 'theme:dark;density:compact;direction:ltr', false],
+  ['phase-16-confirmation-destructive', 'phase-16-confirmation--destructive-visual', undefined, false],
+  ['phase-16-confirmation-rtl', 'phase-16-confirmation--arabic-rtl', 'theme:light;density:comfortable;direction:rtl', false],
+] as const) {
+  test(`${name} visual`, async ({ page }) => {
+    if (narrow) await page.setViewportSize({ width: 390, height: 720 });
+    await openStory(page, story, globals);
+    await expect(page).toHaveScreenshot(`${name}.png`, { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+  });
+}
+
 for (const [name, story, globals] of [
   ['phase-10-toolbar-full-mixed', 'phase-10-toolbar--full', undefined],
   ['phase-10-toolbar-adaptive-overflow', 'phase-10-toolbar--narrow-overflow', undefined],

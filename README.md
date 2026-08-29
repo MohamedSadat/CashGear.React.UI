@@ -1,6 +1,6 @@
 # `@cashgear/ui`
 
-CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–15 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, overlays, MaskedInput, command surfaces, descriptor-based navigation, responsive FormLayout, TreeView, the focused `CgLookUpGrid`, and the advanced Filter/Grid/Pager surface in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies.
+CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–16 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, Calendar, DateRangePicker, Toast and Confirmation providers, overlays, MaskedInput, command surfaces, descriptor-based navigation, responsive FormLayout, TreeView, the focused `CgLookUpGrid`, and the advanced Filter/Grid/Pager surface in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies.
 
 ## Install and import
 
@@ -324,9 +324,58 @@ All twelve logical placements, editor/content/content-or-editor/explicit width m
 
 Formats use the exact tokens `yyyy`, `M`, `MM`, `MMM`, `MMMM`, `d`, and `dd`. Punctuation and whitespace are literal; alphabetic text must be quoted, as in `d 'of' MMMM yyyy`. A pattern must contain exactly one year, month, and day field. Parsing accepts locale digits and localized month names, strips bidirectional marks, and rejects missing/duplicate fields, mismatched padding or literals, and impossible dates without normalization. The default edit order comes from the locale's numeric date parts; `displayFormat` defaults to `editFormat`.
 
-The private six-week calendar includes adjacent-month days plus month and 12-year panels. It uses `Intl` names, locale week starts, integer civil-date arithmetic, logical RTL navigation, and the shared body-portal overlay stack without a focus trap. `minDate`, `maxDate`, and `isDateDisabled` apply equally to typed values, calendar choices, and Today.
+The shared `CgCalendar` six-week engine includes adjacent-month days plus month and 12-year panels. It uses `Intl` names, locale week starts, integer civil-date arithmetic, physical RTL arrow behavior, and the shared body-portal overlay stack without a focus trap. `minDate`, `maxDate`, and `isDateDisabled` apply equally to typed values, calendar choices, and Today.
 
-`onBeforeValueChange` can synchronously or asynchronously veto a proposal. It receives an `AbortSignal`; a newer attempt or unmount aborts older work, and stale completions cannot commit. A hidden native select submits only the canonical committed value and provides external-form association, reset, required/custom validity, disabled exclusion, and invalid-focus transfer. Invalid external values remain visible verbatim; valid restricted values remain formatted and invalid. DateRangePicker and a public Calendar remain intentionally deferred.
+`onBeforeValueChange` can synchronously or asynchronously veto a proposal. It receives an `AbortSignal`; a newer attempt or unmount aborts older work, and stale completions cannot commit. A hidden native select submits only the canonical committed value and provides external-form association, reset, required/custom validity, disabled exclusion, and invalid-focus transfer. Invalid external values remain visible verbatim; valid restricted values remain formatted and invalid.
+
+## Calendar and DateRangePicker
+
+`CgCalendar` supports controlled or uncontrolled single dates and ranges, one or two month panels, range preview, day templates, deterministic `today`, date restrictions, Today/Clear controls, localized announcements, roving grid focus, day/month/year panels, and complete keyboard navigation. Only a completed second endpoint emits a range, and pointer-selected endpoints are normalized chronologically.
+
+`CgDateRangePicker` composes that calendar with the editor and overlay primitives. Its canonical empty value is `null`; partial, all-null-object, reversed, malformed, disabled, and constrained caller values remain observable invalid state.
+
+```tsx
+<CgDateRangePicker
+  startName="periodStart"
+  endName="periodEnd"
+  value={period}
+  onValueChange={setPeriod}
+  editFormat="dd/MM/yyyy"
+  displayFormat="d MMM yyyy"
+  commitMode="explicit"
+  showPresets
+  today="2026-08-21"
+  minimumRangeDays={2}
+  maximumRangeDays={92}
+/>
+```
+
+Explicit mode snapshots a draft and applies only through Apply; Cancel, Escape, outside/programmatic close, and anchor loss discard it. Immediate mode commits a valid second calendar endpoint or preset. Manual text scans every separator boundary and commits only one exact, unambiguous formatted pair. Two hidden native form proxies submit canonical endpoints and support external forms, reset, required validity, disabled exclusion, custom validity, and invalid-focus transfer.
+
+## Toast and Confirmation providers
+
+Feedback state is provider-local: there are no module singletons. Toasts support six logical positions, visible-item limits with FIFO queues, duplicate suppression, exact remaining-duration pause/resume behavior, stable live regions, and async actions. Use `subscribeToNavigation` to clear a provider from a router callback without importing a router.
+
+```tsx
+<CgToastProvider>
+  <App />
+</CgToastProvider>
+
+const toast = useCgToast();
+toast.success('Invoice posted', { title: 'Complete' });
+```
+
+`CgConfirmationProvider` resolves FIFO confirmation requests to booleans. Escape, close, and navigation resolve `false`; an `AbortSignal` rejects its queued or active request with `AbortError`, and provider unmount rejects every pending request with a lifecycle error. The default 420px alert dialog focuses Cancel and composes `CgPopup` with `CgButton`.
+
+```tsx
+const { confirm } = useCgConfirmation();
+const accepted = await confirm({
+  title: 'Delete vendor?',
+  content: 'This action cannot be undone.',
+  confirmLabel: 'Delete',
+  confirmIntent: 'danger',
+});
+```
 
 ## Flyout and overlay lifecycle
 
@@ -575,7 +624,7 @@ Eligibility uses the trimmed query length, but `onSearch` receives the original 
 Components:
 
 - `CgIcon`, `CgButton`, `CgField`
-- `CgTextBox`, `CgMemo`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgKeyComboBox`, `CgLookUpGrid`, `CgListBox`, `CgTagBox`, `CgDropDownBox`, `CgDateEdit`
+- `CgTextBox`, `CgMemo`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgKeyComboBox`, `CgLookUpGrid`, `CgListBox`, `CgTagBox`, `CgDropDownBox`, `CgDateEdit`, `CgCalendar`, `CgDateRangePicker`
 - `CgFlyout`, `CgPopup`, `CgWindow`, `CgMaskedInput`
 - `CgMenu`, `CgContextMenu`, `CgDropDownButton`, `CgSplitButton`, `CgToolbar`
 - `CgLayoutBreakpoint`, `CgTabs`, `CgStepper`, `CgAccordion`, `CgTreeView`, `CgFilterBuilder`, `CgPager`, `CgGrid`
@@ -583,10 +632,11 @@ Components:
 - `CgRadio`, `CgRadioGroup`
 - `CgNumericEdit`, `CgSpinEdit`, `CgSearchBox`
 - `CgLoadingPanel`, `CgProgressBar`
+- `CgToastProvider`, `CgConfirmationProvider`
 
-Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, the Filter Core AST/registry/persistence contracts, the `CgDateEdit` contracts, the shared overlay contracts, and each descriptor component's props, actions, lifecycle details, and render/state contexts. Private menu, adaptive-layout, and TreeView normalization/check/filter engines are not exported. There is intentionally no universal component-state interface.
+Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, canonical `CgDateValue`/`CgDateRangeValue`, the Filter Core AST/registry/persistence contracts, the DateEdit/Calendar/DateRangePicker contracts, Toast and Confirmation APIs, the shared overlay contracts, and each descriptor component's props, actions, lifecycle details, and render/state contexts. Private menu, adaptive-layout, and TreeView normalization/check/filter engines are not exported. There is intentionally no universal component-state interface.
 
-The public hooks are `useControllableState`, `useCgId`, and `useCgContextMenuTarget`; `cx` is the public class-name utility. All other primitives and hooks are private implementation details.
+The public hooks are `useControllableState`, `useCgId`, `useCgContextMenuTarget`, `useCgToast`, and `useCgConfirmation`; `cx` is the public class-name utility. All other primitives and hooks are private implementation details.
 
 ## Development
 
@@ -615,6 +665,8 @@ Chromium screenshots in `tests/browser/__snapshots__` are canonical Windows/Node
 The Phase 10 Node 24.19 verification completed with 205 Vitest tests, 68 semantic/Axe cases per engine, 108 Chromium visual tests comparing 116 Windows snapshots, and package verification of exactly 33 runtime exports across 648 packed files. Firefox's headless software renderer still cannot start on this host; all 68 cases were covered headed, with one legacy TagBox browser-context teardown flake passing immediately in isolation. See the parity ledger for the exact gate breakdown.
 
 Phase 15 verification on 2026-08-27 passed strict typecheck and lint, 36 Vitest files/351 tests, cycle analysis across 209 source modules, the 204-module library build, the 270-module Storybook build, package verification of 141 runtime exports across 988 packed files, all 163 Windows Chromium visual cases, and the final affected 16-case Chromium/WebKit semantic and Axe matrix. The complete 182-case Chromium/WebKit semantic suite also passed during acceptance; see the parity ledger for command-level detail and the Firefox host limitation.
+
+Phase 16 verification on 2026-08-29 passed strict typecheck and lint, 40 Vitest files/367 tests, cycle analysis across 221 source modules, the 215-module library build, the 282-module Storybook build, package verification of 147 runtime exports across 1,042 packed files, all 96 Chromium and 96 WebKit semantic/Axe cases, and all 172 Chromium visual tests against 180 inspected Windows baselines. Firefox remains blocked before page creation by the host SWGL framebuffer mapping failure; see the parity ledger for the exact classification.
 
 ## Packaging
 

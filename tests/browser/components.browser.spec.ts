@@ -52,6 +52,10 @@ const canonicalStories = [
   'phase-15-filterbuilder--explicit-nested',
   'phase-15-pager--numeric-buttons',
   'phase-15-advanced-grid--typed-filters-and-numeric-pager',
+  'phase-16-calendar--single-and-range',
+  'phase-16-daterangepicker--explicit-with-presets',
+  'phase-16-toast--positions-actions-and-limits',
+  'phase-16-confirmation--variants-and-queueing',
 ] as const;
 
 for (const story of canonicalStories) {
@@ -1141,6 +1145,42 @@ test('Phase 14 LookUpGrid covers lookup interaction, ERP context, accessibility,
     await expect(selectedRow).toHaveCSS('forced-color-adjust', 'none');
     await page.emulateMedia({ forcedColors: 'none' });
   }
+
+  expect(browserProblems).toEqual([]);
+});
+
+test('Phase 16 date and feedback families support semantic interaction and focus contracts', async ({ page }) => {
+  const browserProblems: string[] = [];
+  page.on('pageerror', (error) => browserProblems.push(error.message));
+  page.on('console', (message) => { if (message.type() === 'error' || message.type() === 'warning') browserProblems.push(message.text()); });
+
+  await openStory(page, 'phase-16-calendar--single-and-range');
+  const singleCalendar = page.getByRole('grid').first();
+  const selectedDay = singleCalendar.getByRole('button', { name: /August 21, 2026/u });
+  await selectedDay.focus();
+  await selectedDay.press('ArrowRight');
+  await expect(singleCalendar.locator('[data-date="2026-08-22"]')).toBeFocused();
+
+  await openStory(page, 'phase-16-daterangepicker--explicit-with-presets');
+  const editor = page.getByRole('combobox', { name: 'Posting period' });
+  await expect(editor).toHaveAttribute('aria-expanded', 'true');
+  await page.getByRole('button', { name: 'Prior month' }).click();
+  await page.getByRole('button', { name: 'Apply' }).click();
+  await expect(editor).toHaveAttribute('aria-expanded', 'false');
+
+  await openStory(page, 'phase-16-toast--positions-actions-and-limits');
+  await page.getByRole('button', { name: 'Error toast' }).click();
+  await expect(page.getByRole('alert')).toContainText('Posting failed.');
+  await page.getByRole('button', { name: 'Dismiss notification' }).click();
+
+  await openStory(page, 'phase-16-confirmation--variants-and-queueing');
+  const trigger = page.getByRole('button', { name: 'Destructive confirmation' });
+  await trigger.click();
+  const dialog = page.getByRole('alertdialog', { name: 'Delete vendor?' });
+  await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(trigger).toBeFocused();
 
   expect(browserProblems).toEqual([]);
 });

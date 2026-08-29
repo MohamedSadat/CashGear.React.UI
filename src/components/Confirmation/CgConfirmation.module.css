@@ -1,0 +1,8 @@
+.popup { max-inline-size:calc(100vw - 24px); }
+.content { display:flex; align-items:flex-start; gap:.875rem; }
+.icon { display:grid; place-items:center; flex:0 0 1.5rem; inline-size:1.5rem; block-size:1.5rem; color:var(--cg-color-primary,#276ef1); }
+.icon svg { inline-size:100%; block-size:100%; }
+.message { min-inline-size:0; overflow-wrap:anywhere; }
+.actions { display:flex; flex-wrap:wrap; gap:.625rem; justify-content:flex-end; }
+@media(max-width:30rem){.actions>*{flex:1 1 auto;min-block-size:2.75rem}}
+@media(forced-colors:active){.popup{forced-color-adjust:auto}}

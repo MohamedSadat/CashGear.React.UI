@@ -14,10 +14,9 @@ import type {
   CgSizeMode,
   CgValidationState,
 } from '../../types';
+import type { CgDateValue, CgDayOfWeek } from '../../types/date';
 
-/** A Gregorian civil date in canonical YYYY-MM-DD form. */
-export type CgDateValue = string;
-export type CgDayOfWeek = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday';
+export type { CgDateValue, CgDayOfWeek } from '../../types/date';
 export type CgDateEditChangeReason = 'manual-input' | 'calendar-selection' | 'today-button' | 'clear-button';
 export type CgDateEditOpenChangeReason =
   | 'programmatic'

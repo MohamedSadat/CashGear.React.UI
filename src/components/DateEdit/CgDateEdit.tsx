@@ -35,16 +35,16 @@ import {
   localeFirstDayOfWeek,
   parseDatePattern,
   parseFormattedDate,
-} from './dateFormat';
+} from '../../internal/date/dateFormat';
 import {
   clampCivilDate,
   compareCivilDates,
   parseCanonicalDate,
   todayCivilDate,
   toCanonicalDate,
-} from './dateMath';
-import type { CivilDate } from './dateMath';
-import { DateCalendar } from './DateCalendar';
+} from '../../internal/date/dateMath';
+import type { CivilDate } from '../../internal/date/dateMath';
+import { CgCalendar } from '../Calendar';
 import styles from './CgDateEdit.module.css';
 
 const ENGLISH_LABELS: CgDateEditLabels = {
@@ -176,8 +176,6 @@ function CgDateEditInner(
   const mergedInputRef = useMergedRefs(inputElementRef, inputRefProp, forwardedRef);
   const baseId = useCgId(field.id);
   const popupId = `${baseId}-calendar-popup`;
-  const calendarId = `${baseId}-calendar`;
-  const headingId = `${baseId}-calendar-heading`;
   const errorId = `${baseId}-date-error`;
   const resolvedDirection = useDirection(inputElementRef, direction);
   const [committedValue, setCommittedValue] = useControllableState<CgDateValue | null>(value, defaultValue, 'CgDateEdit');
@@ -608,31 +606,45 @@ function CgDateEditInner(
           data-cg-overlay-owner={overlay.ownerId}
           data-cg-date-edit-popup=""
         >
-          <OverlayOwnerProvider id={overlay.id}><DateCalendar
-            id={calendarId}
-            headingId={headingId}
-            selected={selectedDate}
-            anchor={anchor}
-            today={resolvedToday}
-            minimum={minimum}
-            maximum={maximum}
-            firstDayOfWeek={effectiveFirstDay}
+          <OverlayOwnerProvider id={overlay.id}><CgCalendar
+            className={styles.calendar}
+            autoFocus
+            value={committedValue}
+            defaultVisibleDate={toCanonicalDate(anchor)}
+            today={toCanonicalDate(resolvedToday)}
+            minDate={minimum ? toCanonicalDate(minimum) : undefined}
+            maxDate={maximum ? toCanonicalDate(maximum) : undefined}
+            firstDayOfWeek={firstDayOfWeek}
             locale={resolvedLocale}
             direction={resolvedDirection}
-            labels={resolvedLabels}
+            labels={{
+              calendar: resolvedLabels.calendarDialog,
+              previousPeriod: resolvedLabels.previousPeriod,
+              nextPeriod: resolvedLabels.nextPeriod,
+              chooseMonthAndYear: resolvedLabels.chooseMonthAndYear,
+              chooseYear: resolvedLabels.chooseYear,
+              today: resolvedLabels.today,
+              clear: resolvedLabels.clear,
+              selected: resolvedLabels.selected,
+              unavailable: resolvedLabels.unavailable,
+            }}
             renderDay={renderDay}
-            isDateDisabled={(date) => Boolean(isDateDisabled?.(toCanonicalDate(date)))}
+            isDateDisabled={(date) => Boolean(isDateDisabled?.(date))}
             showTodayButton={showTodayButton}
             showClearButton={showClearButton && allowClear && !field.required}
-            canClear={canClear}
-            pending={pending}
-            onSelect={(date, event) => {
-              void requestValueChange(toCanonicalDate(date), 'calendar-selection', event).then((accepted) => {
-                if (accepted) void requestClose('calendar-selection', event, true);
+            allowClear={canClear}
+            disabled={field.disabled || pending}
+            readOnly={field.readOnly}
+            onValueChange={(next, details) => {
+              const reason: CgDateEditChangeReason = details.reason === 'today'
+                ? 'today-button'
+                : details.reason === 'clear'
+                  ? 'clear-button'
+                  : 'calendar-selection';
+              void requestValueChange(next, reason, details.event).then((accepted) => {
+                if (accepted) void requestClose(reason, details.event, true);
               });
             }}
-            onToday={(event) => { void selectToday(event); }}
-            onClear={(event) => { void clearValue(event); }}
             onEscape={(event) => { void requestClose('escape', event, true); }}
           /></OverlayOwnerProvider>
         </PositionedOverlay>

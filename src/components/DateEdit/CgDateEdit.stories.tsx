@@ -152,7 +152,7 @@ export const EmptyRequiredInvalid: Story = {
 };
 
 export const MinMaxDisabledDates: Story = {
-  render: () => <StoryFrame source={source} difference={difference}><CgField label="Restricted accounting date"><CgDateEdit defaultValue="2026-08-14" minDate="2026-08-10" maxDate="2026-08-25" isDateDisabled={(date) => date.endsWith('-15') || date.endsWith('-16')} editFormat="yyyy-MM-dd" defaultOpen /></CgField></StoryFrame>,
+  render: () => <StoryFrame source={source} difference={difference}><CgField label="Restricted accounting date"><CgDateEdit defaultValue="2026-08-14" today="2026-08-26" minDate="2026-08-10" maxDate="2026-08-25" isDateDisabled={(date) => date.endsWith('-15') || date.endsWith('-16')} editFormat="yyyy-MM-dd" defaultOpen /></CgField></StoryFrame>,
 };
 
 export const CustomDayContent: Story = {
@@ -168,11 +168,11 @@ export const StatesAndCustomButtons: Story = {
 };
 
 export const OpenCalendar: Story = {
-  render: () => <StoryFrame source={source} difference={difference}><CgField label="Open calendar date"><CgDateEdit defaultValue="2026-08-21" editFormat="yyyy-MM-dd" defaultOpen /></CgField></StoryFrame>,
+  render: () => <StoryFrame source={source} difference={difference}><CgField label="Open calendar date"><CgDateEdit defaultValue="2026-08-21" today="2026-08-26" editFormat="yyyy-MM-dd" defaultOpen /></CgField></StoryFrame>,
 };
 
 export const MonthYearNavigation: Story = {
-  render: () => <StoryFrame source={source} difference={difference}><CgField label="Calendar navigation"><CgDateEdit defaultValue="2026-08-21" defaultOpen /></CgField><small>Use the calendar heading to open the month and year panels.</small></StoryFrame>,
+  render: () => <StoryFrame source={source} difference={difference}><CgField label="Calendar navigation"><CgDateEdit defaultValue="2026-08-21" today="2026-08-26" defaultOpen /></CgField><small>Use the calendar heading to open the month and year panels.</small></StoryFrame>,
 };
 
 export const TodayBehavior: Story = {
@@ -181,12 +181,12 @@ export const TodayBehavior: Story = {
 
 export const DarkCompact: Story = {
   globals: { theme: 'dark', density: 'compact' },
-  render: () => <StoryFrame source={source} difference={difference}><CgField label="Compact close date"><CgDateEdit defaultValue="2026-08-21" size="small" density="compact" defaultOpen /></CgField></StoryFrame>,
+  render: () => <StoryFrame source={source} difference={difference}><CgField label="Compact close date"><CgDateEdit defaultValue="2026-08-21" today="2026-08-26" size="small" density="compact" defaultOpen /></CgField></StoryFrame>,
 };
 
 export const ArabicRtl: Story = {
   globals: { direction: 'rtl' },
-  render: () => <StoryFrame source={source} difference={difference}><div dir="rtl"><CgField label="تاريخ القيد"><CgDateEdit aria-label="تاريخ القيد" defaultValue="2026-08-21" locale="ar-EG" direction="rtl" editFormat="dd/MM/yyyy" displayFormat="d MMMM yyyy" defaultOpen /></CgField></div></StoryFrame>,
+  render: () => <StoryFrame source={source} difference={difference}><div dir="rtl"><CgField label="تاريخ القيد"><CgDateEdit aria-label="تاريخ القيد" defaultValue="2026-08-21" today="2026-08-26" locale="ar-EG" direction="rtl" editFormat="dd/MM/yyyy" displayFormat="d MMMM yyyy" defaultOpen /></CgField></div></StoryFrame>,
 };
 
 export const NarrowLayout: Story = {
