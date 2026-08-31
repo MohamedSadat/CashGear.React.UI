@@ -65,6 +65,7 @@ const canonicalStories = [
   'phase-19-tooltip--hover-focus',
   'phase-19-statusbadge--types-and-appearances',
   'phase-20-chart--cartesian-mixed',
+  'phase-21-treelist--flat-chart-of-accounts',
 ] as const;
 
 for (const story of canonicalStories) {
@@ -1599,6 +1600,89 @@ test('Phase 20 Chart retains semantics in tables, dense data, reduced motion, an
   if (browserName === 'chromium') {
     await expect(page.locator('[data-cg-chart-series] path').first()).toHaveCSS('forced-color-adjust', 'auto');
   }
+  const axe = await new AxeBuilder({ page }).analyze();
+  const serious = axe.violations.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical');
+  expect(serious, serious.map((violation) => violation.id).join(', ')).toEqual([]);
+});
+
+test('Phase 21 TreeList implements treegrid focus, physical hierarchy arrows, selection, and recursive checks', async ({ page }) => {
+  const browserProblems: string[] = [];
+  page.on('pageerror', (error) => browserProblems.push(error.message));
+  page.on('console', (message) => { if (message.type() === 'error' || message.type() === 'warning') browserProblems.push(message.text()); });
+
+  await openStory(page, 'phase-21-treelist--flat-chart-of-accounts');
+  const treegrid = page.getByRole('treegrid', { name: 'Chart of accounts' });
+  await expect(treegrid).toHaveAttribute('aria-colcount', '5');
+  const assetsRow = page.locator('[data-key="1000"]');
+  await expect(assetsRow).toHaveAttribute('aria-level', '1');
+  await expect(assetsRow).toHaveAttribute('aria-posinset', '1');
+  await expect(assetsRow).toHaveAttribute('aria-expanded', 'true');
+  await page.getByRole('button', { name: /Collapse 1000/u }).click();
+  await expect(page.getByText('Cash and cash equivalents')).toHaveCount(0);
+  await expect(assetsRow).toHaveAttribute('aria-selected', 'false');
+  const hierarchyCell = assetsRow.getByRole('gridcell').first();
+  await hierarchyCell.focus();
+  await hierarchyCell.press('ArrowRight');
+  await expect(page.getByText('Cash and cash equivalents')).toBeVisible();
+  await hierarchyCell.press('ArrowRight');
+  await expect(page.locator('[data-key="1100"] [role="gridcell"]').first()).toBeFocused();
+
+  await openStory(page, 'phase-21-treelist--multiple-selection');
+  const operating = page.locator('[data-key="1110"]');
+  const receivable = page.locator('[data-key="1200"]');
+  await operating.click();
+  await receivable.click({ modifiers: ['Control'] });
+  await expect(operating).toHaveAttribute('aria-selected', 'true');
+  await expect(receivable).toHaveAttribute('aria-selected', 'true');
+
+  await openStory(page, 'phase-21-treelist--recursive-checks-disabled-unloaded');
+  const assetsCheck = page.getByRole('checkbox', { name: /Check 1000/u });
+  await expect(assetsCheck).toHaveAttribute('aria-checked', 'mixed');
+  const lockedRow = page.locator('[data-key="2200"]');
+  await expect(lockedRow.getByRole('checkbox')).toBeDisabled();
+
+  await openStory(page, 'phase-21-treelist--arabic-rtl', 'theme:light;density:comfortable;direction:rtl');
+  const rtlCell = page.locator('[data-key="1"] [role="gridcell"]').first();
+  await rtlCell.focus();
+  await rtlCell.press('ArrowLeft');
+  await expect(page.locator('[data-key="1"]')).toHaveAttribute('aria-expanded', 'false');
+  await rtlCell.press('ArrowRight');
+  await expect(page.locator('[data-key="1"]')).toHaveAttribute('aria-expanded', 'true');
+  expect(browserProblems).toEqual([]);
+});
+
+test('Phase 21 TreeList contains lazy failures, virtualizes fixed rows, and recovers popup conflicts', async ({ page }) => {
+  await openStory(page, 'phase-21-treelist--lazy-children-load-more-retry');
+  await page.getByRole('button', { name: /Expand 1000/u }).click();
+  await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible();
+  await page.getByRole('button', { name: 'Retry' }).click();
+  await expect(page.getByText('Cash and cash equivalents')).toBeVisible();
+
+  await openStory(page, 'phase-21-treelist--row-and-column-virtualization');
+  const virtualTree = page.getByRole('treegrid', { name: 'Virtual cost centers' });
+  await expect(virtualTree).toHaveAttribute('aria-rowcount', '220');
+  expect(await page.locator('tr[data-row-token]').count()).toBeLessThan(40);
+  expect(await page.locator('[data-column-id]').count()).toBeLessThan(220 * 15);
+
+  await openStory(page, 'phase-21-treelist--popup-editing-conflict-recovery');
+  await page.getByRole('button', { name: 'Edit operating account' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  await expect(dialog.getByRole('alert')).toContainText('changed on the server');
+  await dialog.getByRole('button', { name: 'Retry conflict' }).click();
+  await expect(dialog).toHaveCount(0);
+});
+
+test('Phase 21 TreeList remains usable in forced colors, reduced motion, narrow width, and 400% zoom', async ({ page, browserName }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce', forcedColors: 'active' });
+  await page.setViewportSize({ width: 360, height: 720 });
+  await openStory(page, 'phase-21-treelist--narrow-mobile-layout');
+  await page.evaluate(() => { document.body.style.zoom = '400%'; });
+  const scroller = page.locator('[data-cg-tree-list]').locator('div').filter({ has: page.getByRole('treegrid') }).first();
+  await expect(page.getByRole('treegrid')).toBeVisible();
+  expect(await scroller.evaluate((element) => element.scrollWidth >= element.clientWidth)).toBe(true);
+  if (browserName === 'chromium') await expect(page.locator('[data-row-token]').first()).toHaveCSS('forced-color-adjust', 'auto');
   const axe = await new AxeBuilder({ page }).analyze();
   const serious = axe.violations.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical');
   expect(serious, serious.map((violation) => violation.id).join(', ')).toEqual([]);

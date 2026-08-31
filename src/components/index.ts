@@ -47,4 +47,5 @@ export * from './Toolbar';
 export * from './Tooltip';
 export * from './Toast';
 export * from './TreeView';
+export * from './TreeList';
 export * from './Window';

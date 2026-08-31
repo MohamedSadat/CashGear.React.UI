@@ -209,6 +209,35 @@ for (const [name, story, globals, narrow] of [
 }
 
 for (const [name, story, globals, narrow] of [
+  ['phase-21-treelist-flat-accounts', 'phase-21-treelist--flat-chart-of-accounts', undefined, false],
+  ['phase-21-treelist-nested-bom', 'phase-21-treelist--nested-bill-of-materials', undefined, false],
+  ['phase-21-treelist-selection-checks', 'phase-21-treelist--recursive-checks-disabled-unloaded', undefined, false],
+  ['phase-21-treelist-search-filter', 'phase-21-treelist--search-and-filter-modes', undefined, false],
+  ['phase-21-treelist-lazy-failure', 'phase-21-treelist--lazy-children-load-more-retry', undefined, false],
+  ['phase-21-treelist-inline-edit', 'phase-21-treelist--inline-editing', undefined, false],
+  ['phase-21-treelist-popup-conflict', 'phase-21-treelist--popup-editing-conflict-recovery', undefined, false],
+  ['phase-21-treelist-details-group-summaries', 'phase-21-treelist--sibling-grouping-and-summaries', undefined, false],
+  ['phase-21-treelist-provider-virtual', 'phase-21-treelist--row-and-column-virtualization', undefined, false],
+  ['phase-21-treelist-personalization', 'phase-21-treelist--column-personalization', undefined, false],
+  ['phase-21-treelist-disabled-readonly', 'phase-21-treelist--disabled-read-only-permissions', undefined, false],
+  ['phase-21-treelist-dark-compact', 'phase-21-treelist--dark-compact-theme', 'theme:dark;density:compact;direction:ltr', false],
+  ['phase-21-treelist-arabic-rtl', 'phase-21-treelist--arabic-rtl', 'theme:light;density:comfortable;direction:rtl', false],
+  ['phase-21-treelist-narrow-mobile', 'phase-21-treelist--narrow-mobile-layout', undefined, true],
+  ['phase-21-treelist-forced-colors', 'phase-21-treelist--flat-chart-of-accounts', undefined, false],
+] as const) {
+  test(`${name} visual`, async ({ page }) => {
+    if (narrow) await page.setViewportSize({ width: 360, height: 720 });
+    if (name.includes('forced-colors')) await page.emulateMedia({ forcedColors: 'active' });
+    await openStory(page, story, globals);
+    await page.evaluate(() => document.fonts.ready);
+    if (name.includes('lazy-failure')) { await page.getByRole('button', { name: /Expand 1000/u }).click(); await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible(); }
+    if (name.includes('inline-edit')) { await page.getByRole('button', { name: 'Edit operating account' }).click(); }
+    if (name.includes('popup-conflict')) { await page.getByRole('button', { name: 'Edit operating account' }).click(); await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click(); await expect(page.getByRole('alert')).toBeVisible(); }
+    await expect(page).toHaveScreenshot(`${name}.png`, { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+  });
+}
+
+for (const [name, story, globals, narrow] of [
   ['phase-17-fileuploader-paused-recovery', 'phase-17-fileuploader--paused-recovery', undefined, false],
   ['phase-17-fileuploader-disabled-readonly', 'phase-17-fileuploader--disabled-and-read-only', undefined, false],
   ['phase-17-fileuploader-dark-compact', 'phase-17-fileuploader--dark-compact', 'theme:dark;density:compact;direction:ltr', false],

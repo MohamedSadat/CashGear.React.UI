@@ -698,6 +698,42 @@ Selection and series visibility support controlled and uncontrolled state. Contr
 
 `getSvg` and `exportSvg` clone only the chart SVG, inline computed paint/font properties, and remove hit targets, focus state, and interactive metadata. They do not include surrounding application markup or fetch remote assets. Descriptor callbacks, CSS classes/colors, formatter output, titles, annotations, and data are trusted application inputs: React escapes rendered text, but hosts must not treat charts, hidden series, disabled legends, exported files, or shortened labels as authorization or confidentiality boundaries. Enforce access and tenant isolation before supplying data. Large sources are intentionally bounded by `maxPointsPerSeries` (5,000 by default); pre-aggregate application data when thousands of individually navigable points are not useful.
 
+## TreeList
+
+`CgTreeList<TItem, TKey>` renders hierarchical business records as a true ARIA treegrid. It has three mutually exclusive source modes: flat local parent keys, nested local children, and an abortable bounded provider. Parent absence is explicit, so `0` is a valid key and never an implicit root marker.
+
+```tsx
+import { CgTreeList } from '@cashgear/ui';
+import type { CgTreeListColumn } from '@cashgear/ui';
+
+const columns: ReadonlyArray<CgTreeListColumn<Account, number>> = [
+  {
+    type: 'text', fieldId: 'code', title: 'Account', hierarchy: true,
+    getValue: (account) => account.code,
+  },
+  { type: 'text', fieldId: 'name', title: 'Name', getValue: (account) => account.name },
+  { type: 'number', fieldId: 'balance', title: 'Balance', getValue: (account) => account.balance },
+];
+
+<CgTreeList
+  data={accounts}
+  columns={columns}
+  getKey={(account) => account.id}
+  getParentKey={(account) => account.parentId == null
+    ? { kind: 'none' }
+    : { kind: 'key', key: account.parentId }}
+  defaultExpandedKeys={new Set([1000])}
+  selectionMode="multiple"
+  checkMode="recursive"
+/>
+```
+
+All hierarchy construction and traversal is iterative. Flat duplicates throw; nested repeats are first-parent-wins; self parents, missing parents, cycles, and depth overflow fail or recover according to explicit rules without recursion. Sorting is sibling-only. Search and the shared Filter AST support match-only, ancestor context, and ancestor/descendant modes without modifying host expansion state. Selection, cell focus, recursive checks, detail expansion, and sibling groups remain independent.
+
+Lazy and provider work uses per-operation abort controllers plus generations, so collapse, reload, removal, replacement, and unmount cannot attach stale results. Editing and add/delete/move handlers receive immutable contexts and remain host-owned; client permissions are presentation only. Providers must enforce tenant/company/user authorization, whitelisted fields and queries, count protection, membership, cycles, and versions.
+
+Root `CgPager`, per-parent loading, fixed-height row and fixed-edge column virtualization, versioned view state, `CgContextMenu`, `CgPopup`, local/authorized summaries, XLSX outlines, hierarchy print layout, and an optional host PDF adapter are integrated. Complete-tree output requires an authorized snapshot provider when loaded data is incomplete. QuestPDF is deliberately not a browser dependency, pointer drag-and-drop is deferred, and variable-height virtualization is outside Phase 21. See [`src/components/TreeList/README.md`](src/components/TreeList/README.md) for the full contract and trust boundary.
+
 ## RangeSelector
 
 `CgRangeSelector` uses one immutable `{ start, end }` value and a required `valueKind`. A `null` start resolves to `minimum`; a `null` end resolves to `maximum`. Interaction output canonicalizes those two domain boundaries back to `null`, while explicit external endpoints remain valid and authoritative.
@@ -794,14 +830,14 @@ Components:
 - `CgSplitter`, `CgDrawer`
 - `CgChart`, `CgRangeSelector`, `CgTooltip`, `CgStatusBadge`
 - `CgMenu`, `CgContextMenu`, `CgDropDownButton`, `CgSplitButton`, `CgToolbar`
-- `CgLayoutBreakpoint`, `CgTabs`, `CgStepper`, `CgAccordion`, `CgTreeView`, `CgFilterBuilder`, `CgPager`, `CgGrid`
+- `CgLayoutBreakpoint`, `CgTabs`, `CgStepper`, `CgAccordion`, `CgTreeView`, `CgTreeList`, `CgFilterBuilder`, `CgPager`, `CgGrid`
 - `CgFormLayout`, `CgFormLayoutItem`, `CgFormLayoutGroup`, `CgFormLayoutTabs`
 - `CgRadio`, `CgRadioGroup`
 - `CgNumericEdit`, `CgSpinEdit`, `CgSearchBox`
 - `CgLoadingPanel`, `CgProgressBar`
 - `CgToastProvider`, `CgConfirmationProvider`
 
-Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, canonical `CgDateValue`/`CgDateRangeValue`, the Filter Core AST/registry/persistence contracts, the DateEdit/Calendar/DateRangePicker contracts, the FileUploader item/transport/event/render/action contracts, the Chart descriptor/axis/selection/action/localization contracts, the Splitter versioned-state/descriptor/detail contracts, the Drawer lifecycle/render/action contracts, Toast and Confirmation APIs, the shared overlay contracts, and each descriptor component's props, actions, lifecycle details, and render/state contexts. Private chart model/layout/browser modules, endpoint-session tokens, menu, adaptive-layout, and TreeView normalization/check/filter engines are not exported. There is intentionally no universal component-state interface.
+Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, canonical `CgDateValue`/`CgDateRangeValue`, the Filter Core AST/registry/persistence contracts, the DateEdit/Calendar/DateRangePicker contracts, the FileUploader item/transport/event/render/action contracts, the Chart descriptor/axis/selection/action/localization contracts, the TreeList binding/column/node/provider/mutation/output/state/render/action contracts, the Splitter versioned-state/descriptor/detail contracts, the Drawer lifecycle/render/action contracts, Toast and Confirmation APIs, the shared overlay contracts, and each descriptor component's props, actions, lifecycle details, and render/state contexts. Private chart model/layout/browser modules, endpoint-session tokens, menu, adaptive-layout, TreeView normalization/check/filter engines, and TreeList hierarchy/projection internals are not exported. There is intentionally no universal component-state interface.
 
 The public hooks are `useControllableState`, `useCgId`, `useCgContextMenuTarget`, `useCgToast`, and `useCgConfirmation`; `cx` is the public class-name utility. All other primitives and hooks are private implementation details.
 
@@ -842,6 +878,8 @@ Phase 18 verification on 2026-08-29 passed strict typecheck and lint, 46 Vitest 
 Phase 19 verification on 2026-08-29 passed strict typecheck and lint, 50 Vitest files/457 tests, cycle analysis across 246 source modules, the 240-module library build, the 308-module Storybook build, package verification of 156 runtime exports across 1,161 packed files, all 111 Chromium semantic/Axe cases, and all 206 Chromium visual tests against 214 reviewed Windows baselines. The WebKit full run passed 108 cases and exposed two RangeSelector resize-observer warnings plus one transient Phase 13 navigation timeout; after the generation-safe animation-frame fix and rebuild, the affected tests passed 2/2 and 1/1 respectively, giving passing evidence for all 111 cases. Exactly 13 new `phase-19-*` baselines were added and inspected; every Phase 1–18 snapshot remained stable. The single permitted Firefox attempt reproduced the host-only pre-page SWGL framebuffer mapping failure and was not repeated through the aggregate verifier.
 
 Phase 20 verification on 2026-08-31 passed strict typecheck and lint, 52 Vitest files/481 tests, cycle analysis across 263 source modules, the 257-module library build, the 327-module Storybook build, package verification of 158 runtime exports across 1,245 packed files, and all 115 Chromium and 115 WebKit semantic/Axe cases. Chromium produced passing evidence for all 220 visual tests against 228 Windows baselines: the complete run passed 219 cases, one existing remote ComboBox loading capture advanced to results during screenshot stabilization, and that unchanged case passed immediately in isolation. Exactly 14 reviewed `phase-20-chart-*` baselines were added; all 214 prior baseline files remain unchanged. The aggregate verifier passed every gate through Chromium, then reproduced the host-only Firefox pre-page SWGL framebuffer failure; it was terminated when Playwright began replacement-worker launches, so the already-passing package gate was retained from its independent run and Firefox was not invoked again.
+
+Phase 21 verification on 2026-08-31 passed strict typecheck and lint, 53 Vitest files/509 tests, cycle analysis across 270 source modules, the 264-module library build, the 334-module Storybook build, package verification of 168 runtime exports across 1,280 packed files, and all 119 Chromium and 119 WebKit semantic/Axe cases. All 235 Chromium visual tests passed against 243 Windows baselines. Exactly 15 reviewed `phase-21-treelist-*` baselines were added, and all 228 older snapshots passed unchanged. Firefox remains environment-blocked before page creation by the host SWGL framebuffer mapping failure; no TreeList assertion or Axe scan ran in Firefox.
 
 ## Packaging
 
