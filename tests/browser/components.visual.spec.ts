@@ -627,3 +627,27 @@ for (const [name, story, globals, action] of [
     await expect(page).toHaveScreenshot(`${name}.png`, { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
   });
 }
+
+for (const [name, story, globals, narrow] of [
+  ['phase-20-chart-cartesian', 'phase-20-chart--cartesian-mixed', undefined, false],
+  ['phase-20-chart-horizontal', 'phase-20-chart--horizontal-grouped-bars', undefined, false],
+  ['phase-20-chart-stacks', 'phase-20-chart--positive-negative-stacks', undefined, false],
+  ['phase-20-chart-missing', 'phase-20-chart--missing-value-policies', undefined, false],
+  ['phase-20-chart-exact', 'phase-20-chart--exact-numeric-axis', undefined, false],
+  ['phase-20-chart-annotations', 'phase-20-chart--axes-constants-and-annotations', undefined, false],
+  ['phase-20-chart-pie-donut', 'phase-20-chart--pie-and-donut', undefined, false],
+  ['phase-20-chart-selection', 'phase-20-chart--controlled-selection', undefined, false],
+  ['phase-20-chart-states-tables', 'phase-20-chart--tables-and-states', undefined, false],
+  ['phase-20-chart-splitter', 'phase-20-chart--splitter-resize-host', undefined, false],
+  ['phase-20-chart-dark-compact', 'phase-20-chart--dark-compact', 'theme:dark;density:compact;direction:ltr', false],
+  ['phase-20-chart-arabic-rtl', 'phase-20-chart--arabic-rtl', 'theme:light;density:comfortable;direction:rtl', false],
+  ['phase-20-chart-narrow', 'phase-20-chart--narrow-responsive', undefined, true],
+  ['phase-20-chart-dense', 'phase-20-chart--dense-reduced-motion', undefined, false],
+] as const) {
+  test(`${name} visual`, async ({ page }) => {
+    if (narrow) await page.setViewportSize({ width: 360, height: 720 });
+    await openStory(page, story, globals);
+    await page.evaluate(() => document.fonts.ready);
+    await expect(page).toHaveScreenshot(`${name}.png`, { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
+  });
+}

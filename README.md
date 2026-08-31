@@ -1,6 +1,6 @@
 # `@cashgear/ui`
 
-CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–19 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, Calendar, DateRangePicker, FileUploader, RangeSelector, Tooltip, StatusBadge, Splitter, Drawer, Toast and Confirmation providers, overlays, MaskedInput, command surfaces, descriptor-based navigation, responsive FormLayout, TreeView, the focused `CgLookUpGrid`, and the advanced Filter/Grid/Pager surface in `CG.CompLib` without Bootstrap or DevExpress runtime dependencies.
+CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–20 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, Calendar, DateRangePicker, FileUploader, RangeSelector, Chart, Tooltip, StatusBadge, Splitter, Drawer, Toast and Confirmation providers, overlays, MaskedInput, command surfaces, descriptor-based navigation, responsive FormLayout, TreeView, the focused `CgLookUpGrid`, and the advanced Filter/Grid/Pager surface in `CG.CompLib` without Bootstrap, DevExpress, or a charting runtime dependency.
 
 ## Install and import
 
@@ -659,6 +659,45 @@ The native file input is deliberately unnamed. Only successful durable `storedFi
 
 Client extensions, sizes, MIME types, names, hashes, metadata, stored IDs, and resumable tokens are untrusted. The server must independently authorize the caller and upload session, enforce count/size/type/content rules, sanitize names, validate every chunk and final object, constrain metadata, scan content as appropriate, and prevent cross-tenant read/delete access. Session and antiforgery tokens are transport-only and are never exposed in public item snapshots or rendered output.
 
+## Chart
+
+`CgChart<TItem>` renders bar, line, area, pie, and donut series as dependency-free SVG from immutable descriptors. Accessors retain the original item, argument, and value for callbacks and formatting. Source construction is separate from visibility projection and pixel layout, so ResizeObserver bucket changes do not rerun accessors or `customizePoint`; hiding a series deliberately recalculates stacks, domains, and geometry.
+
+```tsx
+import { CgChart } from '@cashgear/ui';
+
+<CgChart
+  data={monthlyResults}
+  series={[
+    {
+      type: 'bar',
+      name: 'Revenue',
+      argument: (item) => item.month,
+      value: (item) => item.revenue,
+      cornerRadius: 4,
+    },
+    {
+      type: 'line',
+      name: 'Margin',
+      argument: (item) => item.month,
+      value: (item) => item.margin,
+      lineStyle: 'monotone',
+    },
+  ]}
+  title="Monthly performance"
+  description="Revenue and margin by month"
+  selectionMode="multiple"
+  legend={{ position: 'top', mode: 'toggle' }}
+  dataTableMode="collapsed"
+/>
+```
+
+Numeric public values are finite `number`, native `bigint`, or normalized `CgDecimalValue`; temporal arguments reuse canonical `CgDateValue`, `CgLocalDateTimeValue`, and `CgInstantValue`. Public values never expose JavaScript `Date`. Set `argumentAxis.valueType` to `numeric` or `date` for branded strings, because automatic inference treats runtime strings as categories. A date axis rejects mixed civil-date, local-date-time, and instant representations. Exact comparison, stacking, domains, and relative distances use BigInt-backed decimal arithmetic; conversion to `number` is limited to bounded pixel ratios.
+
+Selection and series visibility support controlled and uncontrolled state. Controlled props stay authoritative after rejected proposals. `CgChartActions` synchronously focuses, refreshes, serializes or downloads standalone SVG, changes visibility, changes selection, and reports the active point; DOM-unavailable operations return `false` or `null`. Keyboard navigation uses one roving chart-point tab stop, physical RTL arrows, cross-series movement, Enter/Space activation, and Escape dismissal. Disabling keyboard navigation changes the SVG to accessible image semantics. The accessible data table can be hidden, visually hidden, collapsed, or visible and remains available during loading and too-small states.
+
+`getSvg` and `exportSvg` clone only the chart SVG, inline computed paint/font properties, and remove hit targets, focus state, and interactive metadata. They do not include surrounding application markup or fetch remote assets. Descriptor callbacks, CSS classes/colors, formatter output, titles, annotations, and data are trusted application inputs: React escapes rendered text, but hosts must not treat charts, hidden series, disabled legends, exported files, or shortened labels as authorization or confidentiality boundaries. Enforce access and tenant isolation before supplying data. Large sources are intentionally bounded by `maxPointsPerSeries` (5,000 by default); pre-aggregate application data when thousands of individually navigable points are not useful.
+
 ## RangeSelector
 
 `CgRangeSelector` uses one immutable `{ start, end }` value and a required `valueKind`. A `null` start resolves to `minimum`; a `null` end resolves to `maximum`. Interaction output canonicalizes those two domain boundaries back to `null`, while explicit external endpoints remain valid and authoritative.
@@ -753,7 +792,7 @@ Components:
 - `CgTextBox`, `CgMemo`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgKeyComboBox`, `CgLookUpGrid`, `CgListBox`, `CgTagBox`, `CgDropDownBox`, `CgDateEdit`, `CgCalendar`, `CgDateRangePicker`, `CgFileUploader`
 - `CgFlyout`, `CgPopup`, `CgWindow`, `CgMaskedInput`
 - `CgSplitter`, `CgDrawer`
-- `CgRangeSelector`, `CgTooltip`, `CgStatusBadge`
+- `CgChart`, `CgRangeSelector`, `CgTooltip`, `CgStatusBadge`
 - `CgMenu`, `CgContextMenu`, `CgDropDownButton`, `CgSplitButton`, `CgToolbar`
 - `CgLayoutBreakpoint`, `CgTabs`, `CgStepper`, `CgAccordion`, `CgTreeView`, `CgFilterBuilder`, `CgPager`, `CgGrid`
 - `CgFormLayout`, `CgFormLayoutItem`, `CgFormLayoutGroup`, `CgFormLayoutTabs`
@@ -762,7 +801,7 @@ Components:
 - `CgLoadingPanel`, `CgProgressBar`
 - `CgToastProvider`, `CgConfirmationProvider`
 
-Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, canonical `CgDateValue`/`CgDateRangeValue`, the Filter Core AST/registry/persistence contracts, the DateEdit/Calendar/DateRangePicker contracts, the FileUploader item/transport/event/render/action contracts, the Splitter versioned-state/descriptor/detail contracts, the Drawer lifecycle/render/action contracts, Toast and Confirmation APIs, the shared overlay contracts, and each descriptor component's props, actions, lifecycle details, and render/state contexts. Private endpoint-session tokens, menu, adaptive-layout, and TreeView normalization/check/filter engines are not exported. There is intentionally no universal component-state interface.
+Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, canonical `CgDateValue`/`CgDateRangeValue`, the Filter Core AST/registry/persistence contracts, the DateEdit/Calendar/DateRangePicker contracts, the FileUploader item/transport/event/render/action contracts, the Chart descriptor/axis/selection/action/localization contracts, the Splitter versioned-state/descriptor/detail contracts, the Drawer lifecycle/render/action contracts, Toast and Confirmation APIs, the shared overlay contracts, and each descriptor component's props, actions, lifecycle details, and render/state contexts. Private chart model/layout/browser modules, endpoint-session tokens, menu, adaptive-layout, and TreeView normalization/check/filter engines are not exported. There is intentionally no universal component-state interface.
 
 The public hooks are `useControllableState`, `useCgId`, `useCgContextMenuTarget`, `useCgToast`, and `useCgConfirmation`; `cx` is the public class-name utility. All other primitives and hooks are private implementation details.
 
@@ -801,6 +840,8 @@ Phase 17 verification on 2026-08-29 passed strict typecheck and lint, 43 Vitest 
 Phase 18 verification on 2026-08-29 passed strict typecheck and lint, 46 Vitest files/420 tests, cycle analysis across 236 source modules, the 230-module library build, the 298-module Storybook build, package verification of 150 runtime exports across 1,114 packed files, all 105 Chromium and 105 WebKit semantic/Axe cases, and all 193 Chromium visual tests against 201 reviewed Windows baselines. Exactly 12 new `phase-18-*` baselines were added and inspected; every Phase 1–17 comparison remained stable. A single Firefox attempt reproduced the host-only pre-page SWGL framebuffer mapping failure and was not repeated.
 
 Phase 19 verification on 2026-08-29 passed strict typecheck and lint, 50 Vitest files/457 tests, cycle analysis across 246 source modules, the 240-module library build, the 308-module Storybook build, package verification of 156 runtime exports across 1,161 packed files, all 111 Chromium semantic/Axe cases, and all 206 Chromium visual tests against 214 reviewed Windows baselines. The WebKit full run passed 108 cases and exposed two RangeSelector resize-observer warnings plus one transient Phase 13 navigation timeout; after the generation-safe animation-frame fix and rebuild, the affected tests passed 2/2 and 1/1 respectively, giving passing evidence for all 111 cases. Exactly 13 new `phase-19-*` baselines were added and inspected; every Phase 1–18 snapshot remained stable. The single permitted Firefox attempt reproduced the host-only pre-page SWGL framebuffer mapping failure and was not repeated through the aggregate verifier.
+
+Phase 20 verification on 2026-08-31 passed strict typecheck and lint, 52 Vitest files/481 tests, cycle analysis across 263 source modules, the 257-module library build, the 327-module Storybook build, package verification of 158 runtime exports across 1,245 packed files, and all 115 Chromium and 115 WebKit semantic/Axe cases. Chromium produced passing evidence for all 220 visual tests against 228 Windows baselines: the complete run passed 219 cases, one existing remote ComboBox loading capture advanced to results during screenshot stabilization, and that unchanged case passed immediately in isolation. Exactly 14 reviewed `phase-20-chart-*` baselines were added; all 214 prior baseline files remain unchanged. The aggregate verifier passed every gate through Chromium, then reproduced the host-only Firefox pre-page SWGL framebuffer failure; it was terminated when Playwright began replacement-worker launches, so the already-passing package gate was retained from its independent run and Firefox was not invoked again.
 
 ## Packaging
 

@@ -574,6 +574,20 @@ Phase 19 stories cover every exact value kind, span/swap/range/track interaction
 
 Final Phase 19 verification on 2026-08-29 passed strict TypeScript and ESLint, 50 Vitest files/457 tests, import-cycle analysis across 246 source modules, the 240-module production library build, the 308-module Storybook build, and package verification of 156 runtime exports across 1,161 packed files. Chromium passed all 111 semantic/Axe cases and all 206 visual tests against 214 reviewed Windows baselines. Exactly 13 new `phase-19-*` baselines were added and inspected; every Phase 1–18 snapshot remained stable. WebKit's full run passed 108 cases while exposing two RangeSelector `ResizeObserver` delivery warnings and one transient Phase 13 navigation timeout; after the resize callback was moved to a generation-guarded animation frame and Storybook rebuilt, the affected RangeSelector tests passed 2/2 and the Phase 13 test passed 1/1, giving passing evidence for all 111 cases. The single permitted Firefox launch timed out before page creation with `RenderCompositorSWGL failed mapping default framebuffer`; it was classified as environment-blocked and neither retried nor invoked through the aggregate verifier.
 
+## Phase 20 — Dependency-free React SVG Chart
+
+Phase 20 evidence is pinned to clean CashGear.Blazor.UI commit `51d7689a7d407713fa18cb6268158b1a4f461fb3`. Read-only `git show` inspection covered `Components/Data/Chart/*` and its demo/test counterparts; the separate working tree was not modified.
+
+- `CgChart<TItem>` replaces Razor registration and the DevExpress chart runtime with frozen bar, line, area, pie, and donut descriptors, a pure exact-value source model, a visibility projection, and a separate SVG layout. Resize buckets rebuild only layout. Visibility changes intentionally rebuild stacks, domains, tables, and geometry.
+- Finite numbers, bigint, and Phase 19 exact decimal strings share BigInt-backed comparison, stacking, tick, and bounded-ratio operations. Civil dates, local date-times, and instants remain branded strings and never cross the public API as `Date`; explicit date axes reject mixed temporal representations.
+- Cartesian category unions preserve declaration order and first duplicates, synthesize gaps, and apply gap/zero/skip policies. Numeric/date scales, indexed 1/2/5/10 ticks, calendar ticks, grouped/horizontal bars, positive/negative/full stacks, monotone paths, area fills, arcs, labels/connectors, constant lines, and annotations are dependency-free pure modules.
+- One semantic chart group owns one SVG, one delegated tooltip surface, one live region, and an optional accessible table. Roving graphics-symbol points, physical RTL arrows, cross-series navigation, native legend buttons, accepted-state selection callbacks, responsive measurement, Strict Mode cleanup, and standalone SVG export remain browser-safe and generation-guarded.
+- Controlled selection and visibility are proposal-only until the parent reconciles them. Rejected values do not change SVG, legend, or announcements. Export clones inline computed SVG paint/font properties and removes hit targets, focus state, and interactive metadata. Hidden/disabled presentation remains explicitly outside any authorization boundary.
+
+Phase 20 stories cover Cartesian and radial families, grouped/horizontal/positive/negative/full stacking, missing-value policies, exact numeric and all temporal arguments, multiple axes, constants, annotations, labels, selection, legend visibility, tables, loading/empty/too-small states, theme/density/RTL/narrow layouts, dense data, reduced motion, lifecycle/export, and a real resizable Splitter host. Pure Vitest and component suites cover immutable modeling, exact arithmetic, ticks/calendars, geometry/paths, SSR, controlled rejection, callbacks, actions, semantics, and cleanup; Playwright adds delegated pointer/keyboard behavior, resize bucketing, export, forced colors, Axe, and reviewed Phase 20 Windows baselines.
+
+Final Phase 20 verification on 2026-08-31 passed strict TypeScript and ESLint, 52 Vitest files/481 tests, import-cycle analysis across 263 source modules, the 257-module production library build, the 327-module Storybook build, and package verification of 158 runtime exports across 1,245 packed files. Chromium and WebKit each passed all 115 semantic/Axe cases. Chromium produced passing evidence for all 220 visual cases against 228 Windows snapshots: the full run passed 219 while one pre-existing remote ComboBox loading capture resolved to results during screenshot stabilization, and that unchanged test passed 1/1 immediately in isolation. Exactly 14 inspected `phase-20-chart-*` baselines were added, and Git confirms all 214 Phase 1–19 baseline files are unchanged. The aggregate verifier passed through Chromium before Firefox reproduced `RenderCompositorSWGL failed mapping default framebuffer` before page creation; the process tree was stopped as Playwright began replacement workers, no further Firefox command was invoked, and the independently passing package gate was not repeated.
+
 ## Implemented inventory
 
 “Mirrored” means the user-visible contract is carried across with React/native-DOM adaptations. “Partially mirrored” identifies a deliberate Phase 2 omission. “New React implementation” has no exact Razor component.
@@ -593,6 +607,7 @@ Final Phase 19 verification on 2026-08-29 passed strict TypeScript and ESLint, 5
 | `CgSplitter` | Mirrored with immutable pane descriptors | `CashGear.Blazor.UI@51d7689a7d407713fa18cb6268158b1a4f461fb3: CgSplitter.*`, Splitter scripts/tests/demo | `src/components/Splitter/*` | `tests/splitter-state.test.ts`, `tests/splitter.test.tsx`, browser semantic/Axe/geometry/visual coverage | `src/components/Splitter/CgSplitter.stories.tsx` | Frozen descriptor/context snapshots and versioned state replace Razor registration. Flex, pointer capture, ResizeObserver, and physical RTL keyboard input replace the Blazor JS instance. |
 | `CgDrawer` | Mirrored with persistent inline regions | `CashGear.Blazor.UI@51d7689a7d407713fa18cb6268158b1a4f461fb3: CgDrawer.*`, Drawer scripts/tests/demo | `src/components/Drawer/*`, shared overlay internals | `tests/drawer.test.tsx`, browser semantic/Axe/overlay/focus/visual coverage | `src/components/Drawer/CgDrawer.stories.tsx` | One mounted subtree and matchMedia replace conditional Razor regions and its responsive JS handle; the shared React overlay stack owns modal isolation, focus, Escape/outside pairs, and scroll locking. |
 | `CgRangeSelector` | Mirrored with exact discriminated values | `CashGear.Blazor.UI@51d7689a7d407713fa18cb6268158b1a4f461fb3: Components/Data/RangeSelector/*`, demos/tests | `src/components/RangeSelector/*` | `tests/range-selector-value.test.ts`, `tests/range-selector.test.tsx`, browser semantic/Axe/geometry/visual coverage | `src/components/RangeSelector/CgRangeSelector.stories.tsx` | One frozen atomic value and exact BigInt-backed decimal/temporal wires replace generic C# values and the Blazor JS handle; no `Date`, form serialization, or arbitrary adapter is exposed. |
+| `CgChart` | Mirrored with dependency-free SVG descriptors | `CashGear.Blazor.UI@51d7689a7d407713fa18cb6268158b1a4f461fb3: Components/Data/Chart/*`, demos/tests | `src/components/Chart/*` | `tests/chart-engine.test.ts`, `tests/chart.test.tsx`, browser semantic/Axe/interaction/visual coverage | `src/components/Chart/CgChart.stories.tsx` | Frozen descriptors and exact BigInt-backed models replace Razor registration and the DevExpress runtime. Visibility projection, layout, delegated interaction, accessible tables, and sanitized standalone SVG export remain separate. |
 | `CgTooltip` | Mirrored through the shared overlay engine | `CashGear.Blazor.UI@51d7689a7d407713fa18cb6268158b1a4f461fb3: Components/Feedback/Tooltip/*`, demos/tests | `src/components/Tooltip/*`, `src/internal/PositionedOverlay.tsx` | `tests/tooltip.test.tsx`, browser semantic/Axe/placement/visual coverage | `src/components/Tooltip/CgTooltip.stories.tsx` | A stable wrapper, lazy body portal, exact descendant ARIA token ownership, and click-only overlay registration replace Blazor element handles without adding disclosure or focus semantics. |
 | `CgStatusBadge` | Mirrored as resource-free presentation | `CashGear.Blazor.UI@51d7689a7d407713fa18cb6268158b1a4f461fb3: Components/Feedback/StatusBadge/*`, demos/tests | `src/components/StatusBadge/*` | `tests/status-badge.test.tsx`, browser semantic/Axe/visual coverage | `src/components/StatusBadge/CgStatusBadge.stories.tsx` | Role remains opt-in, icon/indicator content is decorative, and native one-shot dismissal observes async rejection without becoming a toast or allocating global resources. |
 | `CgListBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgListBox.*`, `CgListBoxTypes.cs`, `CgListBoxColumn.cs`, `CgListBoxAccessors.cs`; `CG.CompLib.Demo/Components/Pages/ListBoxDemo.razor` | `src/components/ListBox/*`, `src/internal/listBox.ts`, `src/internal/useVirtualWindow.ts` | `tests/list-box.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/ListBox/CgListBox.stories.tsx` | Object-array binding and stable keys replace Razor field accessors. Fixed-row virtualization is dependency-free; remote loading/paging and richer data-grid operations remain deferred. |
@@ -765,22 +780,22 @@ The shared hook/primitives layer is covered in `tests/foundation.test.tsx`. The 
 
 ## Verification result
 
-Verified on 2026-08-29 on Windows with host Node 22.20.0/npm 10.9.3 and the locked dependency tree. The host Node version is below the package's declared supported 22.x floor; the recorded commands nevertheless completed as shown:
+Verified on 2026-08-31 on Windows with host Node 22.20.0/npm 10.9.3 and the locked dependency tree. The host Node version is below the package's declared supported 22.x floor; the recorded commands nevertheless completed as shown:
 
 | Command/gate | Result |
 | --- | --- |
 | `npm run typecheck` | Passed (strict TypeScript 6) |
 | `npm run lint` | Passed |
-| `npm run test` | Passed: 50 files, 457 tests |
-| `npm run check:cycles` | Passed: 246 source modules, no relative-import cycles |
-| `npm run build:lib` | Passed: 240 transformed modules; declarations/maps and `dist/cashgear-ui.css` emitted |
-| `npm run build-storybook` | Passed with Storybook 10.5.10; 308 transformed modules |
-| Chromium semantic/Axe | Passed: all 111 tests, including every Phase 19 canonical story and the RangeSelector, Tooltip, and StatusBadge interaction matrix. |
-| Firefox semantic/Axe | Environment-blocked before page creation. The single Phase 19 attempt launched the process, then timed out after `RenderCompositorSWGL failed mapping default framebuffer`; no story, Axe scan, or component assertion ran, and the launch was not repeated. |
-| WebKit semantic/Axe | Passing evidence for all 111 tests: 108 passed in the full run; after the reported RangeSelector resize fix/rebuild, the two affected RangeSelector tests passed 2/2 and the unrelated transient Phase 13 navigation case passed 1/1. |
-| Chromium visual | Passed: all 206 tests against 214 Windows snapshots. Thirteen inspected `phase-19-*` baselines were added; every Phase 1–18 comparison remained stable. |
-| `npm run verify:package` | Passed: 156 runtime exports, 1,161 packed files, React externalization/declarations/styles/dry-run ESM import verified |
-| `npm run verify` | Not re-invoked after the isolated Firefox failure because the aggregate necessarily repeats that same Firefox launch, contrary to the explicit one-attempt limit. Every non-Firefox constituent gate passed independently; Firefox is classified once above as environment-blocked. |
+| `npm run test` | Passed: 52 files, 481 tests |
+| `npm run check:cycles` | Passed: 263 source modules, no relative-import cycles |
+| `npm run build:lib` | Passed: 257 transformed modules; declarations/maps and `dist/cashgear-ui.css` emitted |
+| `npm run build-storybook` | Passed with Storybook 10.5.10; 327 transformed modules |
+| Chromium semantic/Axe | Passed: all 115 tests, including the Phase 20 canonical chart story and interaction/Axe matrix. |
+| Firefox semantic/Axe | Environment-blocked before page creation by `RenderCompositorSWGL failed mapping default framebuffer`. The aggregate was stopped when Playwright began replacement-worker launches; no story, Axe scan, or component assertion ran, and no further Firefox command was invoked. |
+| WebKit semantic/Axe | Passed: all 115 tests in the complete run. |
+| Chromium visual | Passing evidence for all 220 tests against 228 Windows snapshots. The complete run passed 219; one unchanged remote ComboBox loading capture advanced to results during stabilization and passed 1/1 in isolation. Fourteen inspected `phase-20-chart-*` baselines were added; all 214 older baseline files remain unchanged. |
+| `npm run verify:package` | Passed: 158 runtime exports, 1,245 packed files, React externalization/declarations/styles/dry-run ESM import verified |
+| `npm run verify` | Passed typecheck, lint, 481 Vitest tests, cycles, both builds, and all 115 Chromium semantic/Axe cases, then was stopped at the known Firefox pre-page environment failure to prevent further replacement-worker launches. The remaining non-Firefox constituents passed independently as recorded above. |
 
 ## Deferred inventory
 
@@ -793,7 +808,6 @@ These rows are evidence only. No public React API or implementation is included 
 | TreeList | Working-tree `CG.CompLib/Comp/TreeList/CgTreeList.*` | Deferred |
 | Scheduler | `CG.CompLib/Comp/Scheduler/CgScheduler.*` | Deferred |
 | PivotTable | `CG.CompLib/Comp/Pivot/CgPivotTable.*` | Deferred |
-| Chart | `CG.CompLib/Comp/Chart/CgChart.*` | Deferred |
 
 ## Remaining gaps
 

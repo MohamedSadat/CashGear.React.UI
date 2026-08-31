@@ -64,6 +64,7 @@ const canonicalStories = [
   'phase-19-rangeselector--number-range',
   'phase-19-tooltip--hover-focus',
   'phase-19-statusbadge--types-and-appearances',
+  'phase-20-chart--cartesian-mixed',
 ] as const;
 
 for (const story of canonicalStories) {
@@ -1499,4 +1500,106 @@ test('Phase 19 StatusBadge dismisses once and remains legible across forced colo
   if (browserName === 'chromium') await expect(page.locator('[data-cg-status-badge]').first()).toHaveCSS('border-top-color', 'rgb(0, 0, 0)');
   await openStory(page, 'phase-19-tooltip--reduced-motion'); await expect(page.getByRole('tooltip')).toHaveCSS('transition-duration', '0s');
   await page.emulateMedia({ forcedColors: 'none', reducedMotion: 'no-preference' }); await openStory(page, 'phase-19-statusbadge--arabic-rtl', 'theme:dark;density:compact;direction:rtl'); await expect(page.locator('[data-cg-status-badge]')).toHaveCount(2);
+});
+
+test('Phase 20 Chart coordinates delegated tooltips, keyboard navigation, selection, and controlled legends', async ({ page }) => {
+  const browserProblems: string[] = [];
+  page.on('pageerror', (error) => browserProblems.push(error.message));
+  page.on('console', (message) => { if (message.type() === 'error' || message.type() === 'warning') browserProblems.push(message.text()); });
+
+  await openStory(page, 'phase-20-chart--cartesian-mixed');
+  const points = page.locator('[data-cg-chart-point]');
+  await expect(points).toHaveCount(17);
+  await points.first().hover();
+  const tooltip = page.getByRole('tooltip');
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toContainText('Revenue');
+  await expect(tooltip).toContainText('January');
+  await points.first().focus();
+  await points.first().press('ArrowRight');
+  await expect(points.nth(1)).toBeFocused();
+  await points.nth(1).press('ArrowDown');
+  await expect(page.locator('[data-cg-chart-point][data-cg-series-name="Expense"][data-cg-point-index="1"]')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(tooltip).toBeHidden();
+
+  await openStory(page, 'phase-20-chart--controlled-selection');
+  const selectable = page.locator('[data-cg-chart-point]');
+  await selectable.first().click();
+  await expect(page.getByLabel('Accepted chart selection')).toContainText('Revenue[0]');
+  await selectable.nth(1).click({ modifiers: ['Control'] });
+  await expect(page.getByLabel('Accepted chart selection')).toContainText('Revenue[0], Revenue[1]');
+  await expect(page.locator('[data-cg-selected="true"]')).toHaveCount(2);
+
+  await openStory(page, 'phase-20-chart--controlled-legend-visibility');
+  const expense = page.getByRole('button', { name: 'Expense' });
+  await expect(expense).toHaveAttribute('aria-pressed', 'false');
+  await expense.click();
+  await expect(expense).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-cg-chart-series="Expense"]')).toBeVisible();
+
+  await openStory(page, 'phase-20-chart--arabic-rtl', 'theme:light;density:comfortable;direction:rtl');
+  const rtlPoints = page.locator('[data-cg-chart-point]');
+  await expect(page.getByRole('button', { name: 'الإيرادات' })).toBeVisible();
+  await rtlPoints.first().focus();
+  await rtlPoints.first().press('ArrowLeft');
+  await expect(rtlPoints.nth(1)).toBeFocused();
+  expect(browserProblems).toEqual([]);
+});
+
+test('Phase 20 Chart buckets responsive Splitter measurements and survives zoom and lifecycle disposal', async ({ page }) => {
+  const browserProblems: string[] = [];
+  page.on('pageerror', (error) => browserProblems.push(error.message));
+  page.on('console', (message) => { if (message.type() === 'error' || message.type() === 'warning') browserProblems.push(message.text()); });
+
+  await openStory(page, 'phase-20-chart--splitter-resize-host');
+  const chart = page.locator('[data-cg-chart]');
+  const initialWidth = Number(await chart.getAttribute('data-cg-chart-width'));
+  expect(initialWidth % 16).toBe(0);
+  const separator = page.getByRole('separator');
+  const box = await separator.boundingBox();
+  expect(box).toBeTruthy();
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box!.x + 96, box!.y + box!.height / 2);
+  await page.mouse.up();
+  await expect.poll(async () => Number(await chart.getAttribute('data-cg-chart-width'))).not.toBe(initialWidth);
+  const resizedWidth = Number(await chart.getAttribute('data-cg-chart-width'));
+  expect(resizedWidth % 16).toBe(0);
+  await page.evaluate(() => { document.body.style.zoom = '125%'; });
+  await expect.poll(async () => Number(await chart.getAttribute('data-cg-chart-width')) % 16).toBe(0);
+
+  await openStory(page, 'phase-20-chart--actions-and-lifecycle');
+  await page.getByRole('button', { name: 'Read SVG' }).click();
+  await expect(page.getByLabel('Chart action result')).toContainText(/\d+ SVG characters/u);
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export SVG' }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe('quarterly chart.svg');
+  await page.locator('[data-cg-chart-point]').first().hover();
+  await expect(page.getByRole('tooltip')).toBeVisible();
+  await page.getByRole('button', { name: 'Unmount chart' }).click();
+  await expect(page.getByText('Chart unmounted cleanly')).toBeVisible();
+  await expect(page.getByRole('tooltip')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Mount chart' }).click();
+  await expect(page.locator('[data-cg-chart]')).toBeVisible();
+  expect(browserProblems).toEqual([]);
+});
+
+test('Phase 20 Chart retains semantics in tables, dense data, reduced motion, and forced colors', async ({ page, browserName }) => {
+  await openStory(page, 'phase-20-chart--static-image-accessibility');
+  await expect(page.getByRole('img', { name: /Static accessible chart/u })).toBeVisible();
+  await expect(page.getByRole('table')).toBeVisible();
+  await expect(page.getByRole('rowheader')).toHaveCount(6);
+
+  await page.emulateMedia({ reducedMotion: 'reduce', forcedColors: 'active' });
+  await openStory(page, 'phase-20-chart--dense-reduced-motion');
+  await expect(page.locator('[data-cg-chart-point]')).toHaveCount(180);
+  await expect(page.locator('[data-cg-chart-canvas]')).toHaveCSS('animation-name', 'none');
+  if (browserName === 'chromium') {
+    await expect(page.locator('[data-cg-chart-series] path').first()).toHaveCSS('forced-color-adjust', 'auto');
+  }
+  const axe = await new AxeBuilder({ page }).analyze();
+  const serious = axe.violations.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical');
+  expect(serious, serious.map((violation) => violation.id).join(', ')).toEqual([]);
 });

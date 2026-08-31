@@ -6,6 +6,7 @@ import * as publicApi from '../src/index';
  * act: update this list in the same commit and the reviewer sees the API change.
  */
 const EXPECTED_RUNTIME_EXPORTS = [
+  'CG_CHART_PRIMARY_AXIS_NAME',
   'CG_FILTER_DEFAULT_LIMITS',
   'CG_FILTER_NULL_VALUE',
   'CG_FILTER_OPERATORS',
@@ -19,6 +20,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'CgAccordion',
   'CgButton',
   'CgCalendar',
+  'CgChart',
   'CgCheckBox',
   'CgComboBox',
   'CgConfirmationProvider',

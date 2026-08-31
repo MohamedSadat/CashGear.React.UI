@@ -1,6 +1,7 @@
 export * from './Button';
 export * from './Accordion';
 export * from './Calendar';
+export * from './Chart';
 export * from './CheckBox';
 export * from './ComboBox';
 export * from './ContextMenu';
