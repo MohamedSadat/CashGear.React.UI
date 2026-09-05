@@ -2,10 +2,11 @@ import { createRef } from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { CgField, CgNumericEdit, CgSpinEdit } from '../src';
+import type { CgNumericValueChange } from '../src';
 
 describe('CgNumericEdit', () => {
   it('preserves invalid drafts, marks them invalid, and retains the committed value', () => {
-    const changed = vi.fn();
+    const changed = vi.fn<(value: number | null, details: CgNumericValueChange) => void>();
     const invalid = vi.fn();
     render(<CgField label="Amount"><CgNumericEdit defaultValue={12} onValueChange={changed} onInvalidValue={invalid} /></CgField>);
     const input = screen.getByLabelText('Amount');
@@ -83,6 +84,55 @@ describe('CgNumericEdit', () => {
 });
 
 describe('CgSpinEdit', () => {
+  it('evaluates expressions on commit and applies bounds and precision', () => {
+    const changed = vi.fn();
+    render(<CgSpinEdit aria-label="Formula" defaultValue={0} allowExpressions min={0} max={10} precision={2} onValueChange={changed} />);
+    const input = screen.getByRole('spinbutton', { name: 'Formula' });
+    fireEvent.change(input, { target: { value: '10/3' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(changed).toHaveBeenLastCalledWith(3.33, expect.objectContaining({ reason: 'enter' }));
+    expect(input).toHaveValue('3.33');
+    fireEvent.change(input, { target: { value: '20+1' } });
+    fireEvent.blur(input);
+    expect(input).toHaveValue('10.00');
+  });
+
+  it('publishes complete drafts immediately, keeps incomplete formulas quiet, and suppresses duplicate commit', () => {
+    const changed = vi.fn<(value: number | null, details: CgNumericValueChange) => void>();
+    const invalid = vi.fn();
+    render(<CgSpinEdit aria-label="Live formula" defaultValue={0} allowExpressions updateValueOnInput onValueChange={changed} onInvalidValue={invalid} />);
+    const input = screen.getByRole('spinbutton', { name: 'Live formula' });
+    for (const draft of ['5', '5+', '5+1', '5+10']) fireEvent.change(input, { target: { value: draft } });
+    expect(changed.mock.calls.map(([value, details]) => [value, details.reason])).toEqual([[5, 'input'], [6, 'input'], [15, 'input']]);
+    expect(input).toHaveValue('5+10');
+    expect(input).not.toHaveAttribute('aria-invalid', 'true');
+    fireEvent.blur(input);
+    expect(input).toHaveValue('15');
+    expect(changed).toHaveBeenCalledTimes(3);
+    expect(invalid).not.toHaveBeenCalled();
+  });
+
+  it('marks impossible live expressions invalid but defers incomplete-expression errors until commit', () => {
+    const invalid = vi.fn();
+    render(<CgSpinEdit aria-label="Invalid formula" defaultValue={1} allowExpressions updateValueOnInput onInvalidValue={invalid} />);
+    const input = screen.getByRole('spinbutton', { name: 'Invalid formula' });
+    fireEvent.change(input, { target: { value: '5+' } });
+    expect(input).not.toHaveAttribute('aria-invalid', 'true');
+    fireEvent.change(input, { target: { value: '5+*3' } });
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(invalid).toHaveBeenLastCalledWith('5+*3');
+  });
+
+  it('uses a full keyboard for formulas and can hide buttons without disabling arrow steps', () => {
+    render(<><CgSpinEdit aria-label="Formula keyboard" allowExpressions showSpinButtons={false} defaultValue={2} /><CgSpinEdit aria-label="Explicit keyboard" allowExpressions inputMode="numeric" /></>);
+    const formula = screen.getByRole('spinbutton', { name: 'Formula keyboard' });
+    expect(formula).toHaveAttribute('inputmode', 'text');
+    expect(formula.parentElement?.querySelector('button')).not.toBeInTheDocument();
+    fireEvent.keyDown(formula, { key: 'ArrowUp' });
+    expect(formula).toHaveValue('3');
+    expect(screen.getByRole('spinbutton', { name: 'Explicit keyboard' })).toHaveAttribute('inputmode', 'numeric');
+  });
+
   it('steps from the parseable draft, clamps boundaries, supports page keys, and resets uncontrolled state', async () => {
     const changed = vi.fn();
     render(<><form id="spin-form" /><CgSpinEdit aria-label="Quantity" form="spin-form" name="quantity" defaultValue={2} step={2} pageStep={5} min={0} max={20} onValueChange={changed} /></>);

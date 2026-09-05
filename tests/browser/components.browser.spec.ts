@@ -107,6 +107,24 @@ test('Phase 15 cell editing enters by command and commits with Enter', async ({ 
   await expect(page.getByText('Updated customer')).toBeVisible();
 });
 
+test('Phase 15 Grid supports formula type-to-edit and Enter advancement', async ({ page }) => {
+  await openStory(page, 'phase-15-advanced-grid--spreadsheet-editing');
+  const grid = page.getByRole('grid', { name: 'Spreadsheet editing grid' });
+  const first = grid.locator('[data-row-key="number:1"] [data-column-id="amount"]');
+  await first.focus();
+  await page.keyboard.type('2*3');
+  const firstEditor = first.getByRole('spinbutton', { name: 'Amount formula' });
+  await expect(firstEditor).toHaveValue('2*3');
+  await firstEditor.press('Enter');
+  await expect(first).toContainText('6');
+
+  const second = grid.locator('[data-row-key="number:2"] [data-column-id="amount"]');
+  await expect(second).toBeFocused();
+  await expect(second.getByRole('spinbutton')).toHaveCount(0);
+  await page.keyboard.type('7');
+  await expect(second.getByRole('spinbutton', { name: 'Amount formula' })).toHaveValue('7');
+});
+
 test('Phase 15 forced-colors stories retain visible controls and focus', async ({ page }) => {
   await page.emulateMedia({ forcedColors: 'active' });
   await openStory(page, 'phase-15-filterbuilder--forced-colors');

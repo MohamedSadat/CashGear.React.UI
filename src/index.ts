@@ -1,5 +1,7 @@
 import './styles/index.css';
 
+export * from './components/Scheduler';
+
 export { CgButton } from './components/Button';
 export type { CgButtonAppearance, CgButtonIconPosition, CgButtonProps } from './components/Button';
 export { CgCheckBox } from './components/CheckBox';
@@ -144,3 +146,4 @@ export type { CgStateUpdater } from './hooks';
 export { cx } from './utils';
 export type { CgClassValue } from './utils';
 export * from './filter';
+export * from './components/PivotTable';

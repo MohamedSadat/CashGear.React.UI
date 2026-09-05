@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/require-await -- story persistence callbacks intentionally update local state synchronously. */
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { CgSpinEdit } from '../SpinEdit';
 import { CgGrid } from './CgGrid';
-import type { CgGridBatchMutationRequest, CgGridColumnDescriptor, CgGridEditMode, CgGridSummaryDescriptor } from './CgGrid.types';
+import type { CgGridAutomaticEditorContext, CgGridBatchMutationRequest, CgGridColumnDescriptor, CgGridEditMode, CgGridSummaryDescriptor } from './CgGrid.types';
 
 interface Invoice { readonly id: number; readonly customer: string; readonly region: string; readonly amount: number; readonly paid: boolean; readonly issued: string }
 const seed: ReadonlyArray<Invoice> = Array.from({ length: 18 }, (_, index) => ({ id: index + 1, customer: ['Acme Trading', 'Cairo Retail', 'Nile Logistics'][index % 3]!, region: ['Cairo', 'Alexandria', 'Giza'][index % 3]!, amount: 950 + index * 175, paid: index % 3 !== 0, issued: `2026-08-${String(index % 25 + 1).padStart(2, '0')}` }));
@@ -32,6 +33,22 @@ function EditingExample({ mode }: { readonly mode: CgGridEditMode }) {
   return <CgGrid data={items} columns={columns} keySelector={(item) => item.id} height={410} editing={mode === 'popup' ? { ...common, ...mutation, mode } : { ...common, ...mutation, mode, navigationPolicy: 'confirmDiscard', confirmDiscard: async () => true }} />;
 }
 
+const spreadsheetColumns: ReadonlyArray<CgGridColumnDescriptor<Invoice>> = columns.map((column): CgGridColumnDescriptor<Invoice> => {
+  if (column.fieldId !== 'amount' || column.type !== 'number') return column;
+  return {
+    ...column,
+    editor: {
+      kind: 'number', minimum: 0,
+      setValue: (item: Invoice, value: number | null | undefined) => ({ ...item, amount: Number(value) }),
+      render: ({ value, setValue }: CgGridAutomaticEditorContext<Invoice, number | null | undefined>) => <CgSpinEdit aria-label="Amount formula" value={typeof value === 'number' ? value : null} onValueChange={(nextValue) => setValue(nextValue)} allowExpressions updateValueOnInput showSpinButtons={false} min={0} />,
+    },
+  };
+});
+function SpreadsheetEditingExample() {
+  const [items, setItems] = useState(seed.slice(0, 6));
+  return <CgGrid aria-label="Spreadsheet editing grid" data={items} columns={spreadsheetColumns} keySelector={(item) => item.id} height={390} showSearch={false} showFilterRow={false} editing={{ mode: 'cell', navigationPolicy: 'preserve', update: true, allowTypeToEdit: true, enterMovesToNextRow: true, canEditCell: (_item, column) => column.fieldId !== 'id', editModelFactory: (item) => ({ ...item }), updateItem: async ({ rowKey, editModel }) => { setItems((current) => current.map((item) => `number:${item.id}` === rowKey ? editModel : item)); return { succeeded: true }; } }} />;
+}
+
 const custom: CgGridSummaryDescriptor<Invoice> = { id: 'exposure', type: 'custom', aggregateKey: 'exposure-v1', inputFieldIds: ['amount', 'paid'], label: 'Open exposure', localAggregate: async ({ items, signal }) => { await Promise.resolve(); if (signal.aborted) throw new DOMException('aborted', 'AbortError'); return { available: true, value: items.filter((item) => !item.paid).reduce((sum, item) => sum + item.amount, 0), completeness: 'complete' }; } };
 const meta: Meta = { title: 'Phase 15/Advanced Grid', component: CgGrid };
 export default meta;
@@ -42,6 +59,7 @@ export const PopupEditing: Story = { render: () => <EditingExample mode="popup" 
 export const InlineRowEditing: Story = { render: () => <EditingExample mode="inlineRow" /> };
 export const CellEditing: Story = { render: () => <EditingExample mode="cell" /> };
 export const BatchEditing: Story = { render: () => <EditingExample mode="batch" /> };
+export const SpreadsheetEditing: Story = { render: () => <SpreadsheetEditingExample /> };
 export const CustomAggregates: Story = { render: () => <CgGrid data={seed} columns={columns} keySelector={(item) => item.id} height={410} totalSummaries={[custom]} allowGrouping defaultState={{ groups: [{ fieldId: 'region', direction: 'ascending' }] }} groupSummaries={[custom]} /> };
 export const DarkCompact: Story = { globals: { theme: 'dark', density: 'compact' }, render: () => <EditingExample mode="cell" /> };
 export const ArabicRtlNarrow: Story = { globals: { direction: 'rtl' }, render: () => <div style={{ width: 470 }}><CgGrid data={seed} columns={columns} keySelector={(item) => item.id} direction="rtl" height={390} pagerMode="auto" defaultState={{ pageSize: 5 }} /></div> };

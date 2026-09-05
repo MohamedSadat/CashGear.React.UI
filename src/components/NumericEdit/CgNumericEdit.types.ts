@@ -1,7 +1,7 @@
 import type { ChangeEvent, InputHTMLAttributes, KeyboardEvent, ReactNode } from 'react';
 import type { CgBaseProps, CgEditorButtonDescriptor, CgSizeMode, CgValidationState } from '../../types';
 type NativeNumericProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'className' | 'style' | 'size' | 'value' | 'defaultValue' | 'onChange' | 'type' | 'inputMode' | 'prefix' | 'min' | 'max' | 'step'>;
-export type CgNumericChangeReason = 'blur' | 'enter' | 'step' | 'reset';
+export type CgNumericChangeReason = 'input' | 'blur' | 'enter' | 'step' | 'reset';
 export interface CgNumericValueChange { reason: CgNumericChangeReason; event?: ChangeEvent<HTMLInputElement> | KeyboardEvent<HTMLInputElement>; }
 export interface CgNumericEditProps extends NativeNumericProps, CgBaseProps {
   value?: number | null;

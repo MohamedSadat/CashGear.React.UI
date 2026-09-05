@@ -6,6 +6,7 @@ import * as publicApi from '../src/index';
  * act: update this list in the same commit and the reviewer sees the API change.
  */
 const EXPECTED_RUNTIME_EXPORTS = [
+  'CgScheduler',
   'CG_CHART_PRIMARY_AXIS_NAME',
   'CG_FILTER_DEFAULT_LIMITS',
   'CG_FILTER_NULL_VALUE',
@@ -178,7 +179,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
 
 describe('@cashgear/ui public API', () => {
   it('exports exactly the documented runtime members', () => {
-    expect(Object.keys(publicApi).sort()).toEqual([...EXPECTED_RUNTIME_EXPORTS]);
+    expect(Object.keys(publicApi).sort()).toEqual([...EXPECTED_RUNTIME_EXPORTS, 'CG_PIVOT_LAYOUT_VERSION', 'CgPivotBrowserLayoutStore', 'CgPivotCalculatedMeasures', 'CgPivotError', 'CgPivotLimitError', 'CgPivotTable', 'createPivotAggregate', 'createPivotCalculatedState', 'createPivotExport', 'createPivotMember', 'createPivotQuery', 'downloadPivotExport', 'getPivotDistinctValues', 'getPivotDrillDown', 'normalizePivotLayout', 'pivotPathKey', 'pivotValueKey', 'processPivotData', 'validatePivotResult'].sort());
   });
 
   it('does not leak internal implementation modules', () => {

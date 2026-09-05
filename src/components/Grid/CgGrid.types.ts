@@ -226,6 +226,10 @@ interface CgGridEditingCommon<TItem> {
   readonly confirmDelete?: (request: CgGridDeleteRequest<TItem>) => PromiseLike<boolean>;
   readonly onEditStateChange?: (state: CgGridEditState<TItem>) => void;
   readonly protectExternalNavigation?: boolean;
+  /** Opens a focused Cell/Batch editor with the printable character that started it. Defaults to true. */
+  readonly allowTypeToEdit?: boolean;
+  /** Moves an Enter-committed Cell/Batch edit to the same column on the next visible row. Defaults to false. */
+  readonly enterMovesToNextRow?: boolean;
 }
 export type CgGridEditingOptions<TItem> = CgGridEditingCommon<TItem> & (
   { readonly mode?: 'popup'; readonly navigationPolicy?: CgGridDirtyNavigationPolicy }

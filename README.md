@@ -1,5 +1,7 @@
 # `@cashgear/ui`
 
+`CgScheduler` adds Day, Work Week, Week, Month, and Timeline scheduling with CRUD, drag/resize, timezone-aware dates, and cancellable range loading. See [Scheduler usage and contracts](src/components/Scheduler/README.md).
+
 CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–20 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, Calendar, DateRangePicker, FileUploader, RangeSelector, Chart, Tooltip, StatusBadge, Splitter, Drawer, Toast and Confirmation providers, overlays, MaskedInput, command surfaces, descriptor-based navigation, responsive FormLayout, TreeView, the focused `CgLookUpGrid`, and the advanced Filter/Grid/Pager surface in `CG.CompLib` without Bootstrap, DevExpress, or a charting runtime dependency.
 
 ## Install and import
@@ -16,6 +18,8 @@ import { CgButton, CgField, CgTextBox } from '@cashgear/ui';
 ```
 
 Deep package imports are intentionally blocked. Runtime exports are limited to the documented root API.
+
+Phase 22 adds [`CgPivotTable`](src/components/PivotTable/README.md): exact-decimal summaries and calculated measures, hierarchical analysis, field lists and filters, two-axis virtualization, drill-down, saved layouts, and CSV/XLSX exports. Local data and cancellable host-owned providers share the same typed query contract. Explore `Phase 22/PivotTable` in Storybook.
 
 ## Theme, density, and direction
 
@@ -539,6 +543,8 @@ Local processing is search, validated filter, complete-set summaries, stable sor
 
 `CgGridActions<TItem>` exposes refresh, paging, filter-builder delegation, state, focus, selection, grouping, detail, editing, layout, and XLSX operations. Popup editing remains the default; inline-row, cell, and atomic batch modes add immutable draft snapshots, active-cell state, dirty navigation policies, validation focus, concurrency metadata, conflict retry/reload, and one complete batch callback. Paging, sorting, filtering, grouping, views, refresh, and external router guards share one cancellable dirty-navigation gate. The caller owns persistence and source updates; successful persistence reloads once after its callback completes.
 
+Cell and batch editing use spreadsheet-style type-to-edit by default; set `editing.allowTypeToEdit={false}` to require an explicit edit command. Printable keys replace the selected cell's compatible editor value, while Space remains a selection command and lookup, checkbox, and date-like editors open without an incompatible text seed. Numeric editors select their existing contents when opened explicitly. Set `editing.enterMovesToNextRow` to commit unshifted Enter and focus the same column in the next visible data row. Advancement skips non-data rows, clamps at the final row, and never creates data; validation, conflict, and persistence failures retain the original editor and focus. `Shift+Enter` remains available to multiline editors.
+
 Custom summaries use stable aggregate keys and ordered input field IDs. Built-ins stay synchronous; trusted local custom delegates run through an abortable async path over complete filtered total/group scopes, and remote requests contain only serializable IDs, keys, fields, scope, and query state. Availability, loading, safe error codes, and completeness are explicit.
 
 The React adaptation deliberately does not expose Razor child registration, expressions, SQL/EF/Dapper translation, generic HTTP adapters, server persistence, or Blazor lifecycle concepts. Row/column virtualization, automatic column discovery, and unrelated deferred controls remain out of scope.
@@ -794,7 +800,7 @@ Prompt characters are display-only. `showMask` supports `always`, `onFocus`, and
 
 `CgNumericEdit` uses a `number | null` committed value. Invalid drafts such as `-` remain visible and internally invalid on blur/Enter without replacing the last committed value; `onInvalidValue` receives the draft. A trailing locale decimal such as `1.` remains visible while focused and commits as `1` on blur/Enter. Parsing strictly recognizes locale digits, separators, signs, and the configured currency/percent literals instead of stripping arbitrary characters. It supports grouping, precision, bounds, prefixes/suffixes, paste, and typed editor commands, and reformats when locale/format options change even when the numeric value is unchanged.
 
-`CgSpinEdit` adds accessible buttons and Arrow/Page stepping and steps from the current parseable draft before falling back to the committed/null-start policy. A null increment starts at `min` when supplied, otherwise 0; a null decrement starts at `max`, otherwise 0. Pointer press-and-hold repeats and accelerates by default; set `repeatOnHold={false}` for single pointer steps. Repeat timing is intentionally private.
+`CgSpinEdit` adds accessible buttons and Arrow/Page stepping and steps from the current parseable draft before falling back to the committed/null-start policy. A null increment starts at `min` when supplied, otherwise 0; a null decrement starts at `max`, otherwise 0. Pointer press-and-hold repeats and accelerates by default; set `repeatOnHold={false}` for single pointer steps. Repeat timing is intentionally private. `allowExpressions` accepts locale-aware arithmetic with unary signs, parentheses, precedence, and `+`, `-`, `*`, and `/`; incomplete drafts remain visible and quiet, while invalid, non-finite, overlong, over-nested, and division-by-zero expressions are rejected. `updateValueOnInput` publishes each complete draft immediately without reformatting the expression or duplicating the later blur/Enter change. Expression mode defaults `inputMode` to `text` instead of `decimal`, and `showSpinButtons={false}` hides the buttons without disabling Arrow/Page stepping. The evaluator remains private.
 
 JavaScript numbers use IEEE-754 floating-point arithmetic. Do not use these editors as an arbitrary-precision accounting representation; keep minor units or a decimal value in the application when exact base-10 arithmetic is required.
 

@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/refs, react-hooks/set-state-in-effect, @typescript-eslint/require-await, @typescript-eslint/no-base-to-string, @typescript-eslint/consistent-type-imports, @typescript-eslint/no-unnecessary-type-assertion -- Grid coordinates controlled proposals, async refresh, and keyed imperative focus. */
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ForwardedRef, KeyboardEvent, MouseEvent, PointerEvent, ReactElement, RefAttributes } from 'react';
 import { useCgId, useDirection, useMergedRefs } from '../../hooks';
 import { cx } from '../../utils';
@@ -31,8 +31,39 @@ const DEFAULT_LABELS: CgGridLabels = { searchPlaceholder: 'Search…', loading: 
 
 interface EditSession<TItem> { readonly snapshotId: string; readonly firstChangeSequence: number; readonly attemptNumber: number; readonly mode: 'create' | 'edit'; readonly rowKey?: string; readonly original?: TItem; readonly initial: TItem; readonly model: TItem; readonly fieldErrors: Readonly<Record<string, ReadonlyArray<string>>>; readonly generalErrors: ReadonlyArray<string>; readonly saving: boolean; readonly persistenceState: CgGridPersistenceState; readonly concurrencyToken?: string; readonly conflict?: CgGridConflictMetadata<TItem> }
 interface RemoteGroupCache<TItem> { readonly result: CgGridDataResult<TItem>; readonly nextSkip: number; readonly loading?: boolean; readonly error?: unknown }
+interface PendingEditSeed { readonly rowKey: string; readonly columnId: string; text: string; readonly startedAt: number }
 function pathKey(path: { readonly segments: ReadonlyArray<{ readonly fieldId: string; readonly memberKey: string }> }): string { return path.segments.map((part) => `${part.fieldId}=${part.memberKey}`).join('/'); }
 function sameModel<TItem>(left: TItem, right: TItem): boolean { try { return JSON.stringify(left) === JSON.stringify(right); } catch { return Object.is(left, right); } }
+function isPrintableEditKey(event: KeyboardEvent<HTMLElement>): boolean {
+  if (event.key.length !== 1 || event.key === ' ' || event.nativeEvent.isComposing || event.key === 'Process' || event.metaKey) return false;
+  return event.getModifierState('AltGraph') || (!event.ctrlKey && !event.altKey);
+}
+function editorIn(scope: ParentNode | null): HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null {
+  return scope?.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), select:not([disabled])') ?? null;
+}
+function setNativeEditorValue(editor: HTMLInputElement | HTMLTextAreaElement, value: string): void {
+  const prototype = editor instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+  Object.getOwnPropertyDescriptor(prototype, 'value')?.set?.call(editor, value);
+}
+function applyEditorSeed(editor: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null, value: string): boolean {
+  if (!editor || editor instanceof HTMLSelectElement || editor.readOnly || editor.disabled) return false;
+  const editorKind = editor.closest<HTMLElement>('[data-cg-grid-editor-kind]')?.dataset.cgGridEditorKind;
+  if (editorKind && ['boolean', 'date', 'dateTime', 'enum'].includes(editorKind)) return false;
+  const type = editor instanceof HTMLInputElement ? editor.type : '';
+  if (['checkbox', 'radio', 'date', 'datetime-local', 'time', 'month', 'week', 'color', 'file'].includes(type)) return false;
+  const previous = editor.value;
+  setNativeEditorValue(editor, value);
+  if (editor.value !== value) { setNativeEditorValue(editor, previous); return false; }
+  try { editor.setSelectionRange(value.length, value.length); } catch { /* Number inputs do not expose selection offsets. */ }
+  editor.dispatchEvent(new Event('input', { bubbles: true }));
+  return true;
+}
+function selectNumericEditorContent(editor: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null): void {
+  if (!(editor instanceof HTMLInputElement)) return;
+  const inputMode = editor.getAttribute('inputmode');
+  if (editor.type !== 'number' && editor.getAttribute('role') !== 'spinbutton' && inputMode !== 'decimal' && inputMode !== 'numeric') return;
+  try { editor.select(); } catch { /* Some input types reject select(). */ }
+}
 
 function CgGridInner<TItem>(props: CgGridProps<TItem>, forwardedRef: ForwardedRef<HTMLDivElement>) {
   validateGridColumns(props.columns);
@@ -58,6 +89,11 @@ function CgGridInner<TItem>(props: CgGridProps<TItem>, forwardedRef: ForwardedRe
   const [remoteGroupCache, setRemoteGroupCache] = useState<ReadonlyMap<string, RemoteGroupCache<TItem>>>(new Map());
   const remoteGroupCoordinators = useRef(new Map<string, CgGridRequestCoordinator>());
   const [editSession, setEditSession] = useState<EditSession<TItem> | null>(null); const [batchSessions, setBatchSessions] = useState<ReadonlyArray<EditSession<TItem>>>([]); const [batchDeletes, setBatchDeletes] = useState<ReadonlyArray<CgGridEditSnapshot<TItem>>>([]); const [activeEditCell, setActiveEditCell] = useState<CgGridActiveEditCell | null>(null); const mutationCoordinator = useRef(new CgGridRequestCoordinator()); const navigationCoordinator = useRef(new CgGridRequestCoordinator()); const editSequence = useRef(0); const batchId = useRef<string | undefined>(undefined);
+  const editSessionRef = useRef(editSession); editSessionRef.current = editSession;
+  const batchSessionsRef = useRef(batchSessions); batchSessionsRef.current = batchSessions;
+  const pendingSeedRef = useRef<PendingEditSeed | null>(null);
+  const editorFocusKeyRef = useRef<string | null>(null);
+  const commitGateRef = useRef<Promise<boolean> | null>(null);
   const [chooserOpen, setChooserOpen] = useState(false); const [chooserQuery, setChooserQuery] = useState(''); const [asyncLocal, setAsyncLocal] = useState<CgGridLocalResult<TItem> | null>(null); const aggregateCoordinator = useRef(new CgGridRequestCoordinator());
   const requestCoordinator = useRef(new CgGridRequestCoordinator()); const cells = useRef(new Map<string, HTMLElement>()); const menuRef = useRef<CgContextMenuActions<CgGridContext<TItem>>>(null);
   const columns = useMemo(() => normalizeGridColumns(props.columns, state.columns), [props.columns, state.columns]); const visibleColumns = columns.filter((column) => column.visible); const columnMap = useMemo(() => new Map(props.columns.map((column) => [column.fieldId, column])), [props.columns]);
@@ -111,6 +147,23 @@ function CgGridInner<TItem>(props: CgGridProps<TItem>, forwardedRef: ForwardedRe
   useEffect(() => { props.editing?.onEditStateChange?.(currentEditState); }, [activeEditCell, batchDeletes, batchSessions, editMode, editSession, props.editing?.onEditStateChange]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (typeof window === 'undefined' || props.editing?.protectExternalNavigation === false || editMode === 'popup' || currentEditState.dirtyRowCount === 0) return; const protect = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; }; window.addEventListener('beforeunload', protect); return () => window.removeEventListener('beforeunload', protect); }, [currentEditState.dirtyRowCount, editMode, props.editing?.protectExternalNavigation]);
   useEffect(() => () => { requestCoordinator.current.cancel(); detailCoordinator.current.cancel(); mutationCoordinator.current.cancel(); navigationCoordinator.current.cancel(); aggregateCoordinator.current.cancel(); remoteGroupCoordinators.current.forEach((coordinator) => coordinator.cancel()); }, []);
+  useLayoutEffect(() => {
+    if (!activeEditCell || editMode === 'popup') { editorFocusKeyRef.current = null; return; }
+    const rowSession = batchSessions.find((session) => session.rowKey === activeEditCell.rowKey || session.snapshotId === activeEditCell.rowKey) ?? editSession;
+    if (!rowSession) return;
+    const focusKey = `${rowSession.snapshotId}|${activeEditCell.rowKey}|${activeEditCell.columnId}`;
+    if (editorFocusKeyRef.current === focusKey) return;
+    const field = rootRef.current?.querySelector<HTMLElement>(`[data-cg-grid-editor-row="${CSS.escape(activeEditCell.rowKey)}"][data-cg-grid-editor-field="${CSS.escape(activeEditCell.columnId)}"]`);
+    const editor = editorIn(field ?? null);
+    if (!editor) return;
+    editorFocusKeyRef.current = focusKey;
+    const pending = pendingSeedRef.current;
+    const seed = pending?.rowKey === activeEditCell.rowKey && pending.columnId === activeEditCell.columnId && Date.now() - pending.startedAt <= 2_000 ? pending.text : null;
+    pendingSeedRef.current = null;
+    editor.focus({ preventScroll: true });
+    if (seed === null || !applyEditorSeed(editor, seed)) selectNumericEditorContent(editor);
+    editor.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }, [activeEditCell, batchSessions, editMode, editSession]);
 
   const setSelection = (tokens: ReadonlyArray<string>, source: 'pointer' | 'keyboard' | 'action') => { const unique = [...new Set(tokens)]; patchState({ selectedKeys: unique }, 'selection', source); props.onSelectionChange?.({ selectedKeys: unique, visibleSelectedItems: rows.filter((item) => unique.includes(gridKeyToken(props.keySelector(item)))), source }); };
   const toggleSelection = (item: TItem, range: boolean, source: 'pointer' | 'keyboard') => {
@@ -124,10 +177,30 @@ function CgGridInner<TItem>(props: CgGridProps<TItem>, forwardedRef: ForwardedRe
 
   const focusCell = async (key: CgGridKey, fieldId: string): Promise<boolean> => { const token = gridKeyToken(key); const element = cells.current.get(`${token}|${fieldId}`); if (!element) return false; element.focus(); patchState({ focusedRowKey: token, focusedColumnId: fieldId }, 'focus', 'action'); return true; };
   const focusToken = (token: string, fieldId: string) => { cells.current.get(`${token}|${fieldId}`)?.focus(); patchState({ focusedRowKey: token, focusedColumnId: fieldId }, 'focus', 'keyboard'); };
+  const focusTokenUnlessEditing = (token: string, fieldId: string) => { queueMicrotask(() => { if (rootRef.current?.contains(document.activeElement) && document.activeElement?.closest('[data-cg-grid-editor-field]')) return; focusToken(token, fieldId); }); };
+  const nextVisibleRowKey = (rowKey: string): string => {
+    const elements = [...rootRef.current?.querySelectorAll<HTMLElement>('[data-cg-grid-row][data-row-key]') ?? []];
+    const index = elements.findIndex((element) => element.dataset.rowKey === rowKey);
+    return elements[index + 1]?.dataset.rowKey ?? rowKey;
+  };
+  const focusEditor = (cell: CgGridActiveEditCell): void => { queueMicrotask(() => editorIn(rootRef.current?.querySelector(`[data-cg-grid-editor-row="${CSS.escape(cell.rowKey)}"][data-cg-grid-editor-field="${CSS.escape(cell.columnId)}"]`) ?? null)?.focus({ preventScroll: true })); };
   const onCellKeyDown = (event: KeyboardEvent<HTMLElement>, item: TItem, fieldId: string) => {
     const token = gridKeyToken(props.keySelector(item)); const row = rows.findIndex((candidate) => gridKeyToken(props.keySelector(candidate)) === token); const column = visibleColumns.findIndex((candidate) => candidate.fieldId === fieldId); let nextRow = row; let nextColumn = column;
-    if ((event.key === 'Enter' || event.key === 'F2') && editMode !== 'popup' && props.editing?.update) { event.preventDefault(); void beginEdit(props.keySelector(item)).then((started) => { if (started) setActiveEditCell({ rowKey: token, columnId: fieldId }); }); return; }
+    if ((event.key === 'Enter' || event.key === 'F2') && editMode !== 'popup' && props.editing?.update) { event.preventDefault(); pendingSeedRef.current = null; void beginEditAtCell(props.keySelector(item), fieldId); return; }
+    if ((editMode === 'cell' || editMode === 'batch') && props.editing?.allowTypeToEdit !== false && props.editing?.update && event.target === event.currentTarget && isPrintableEditKey(event)) {
+      event.preventDefault();
+      const pending = pendingSeedRef.current;
+      if (pending?.rowKey === token && pending.columnId === fieldId) { pending.text += event.key; return; }
+      pendingSeedRef.current = { rowKey: token, columnId: fieldId, text: event.key, startedAt: Date.now() };
+      const gate = commitGateRef.current ?? Promise.resolve(true);
+      void gate.then((committed) => committed ? beginEditAtCell(props.keySelector(item), fieldId) : false).then((started) => {
+        const current = pendingSeedRef.current;
+        if (!started && current?.rowKey === token && current.columnId === fieldId) pendingSeedRef.current = null;
+      }).catch(() => { const current = pendingSeedRef.current; if (current?.rowKey === token && current.columnId === fieldId) pendingSeedRef.current = null; });
+      return;
+    }
     if (event.key === 'ArrowDown') nextRow++; else if (event.key === 'ArrowUp') nextRow--; else if (event.key === 'Home') nextColumn = 0; else if (event.key === 'End') nextColumn = visibleColumns.length - 1; else if (event.key === 'ArrowRight') nextColumn += direction === 'rtl' ? -1 : 1; else if (event.key === 'ArrowLeft') nextColumn += direction === 'rtl' ? 1 : -1; else if (event.key === 'PageDown') { void goToPage(Math.min(pageCount - 1, state.pageIndex + 1)); return; } else if (event.key === 'PageUp') { void goToPage(Math.max(0, state.pageIndex - 1)); return; } else if (event.key === ' ' && (props.selectionMode ?? 'none') !== 'none') { toggleSelection(item, event.shiftKey, 'keyboard'); event.preventDefault(); return; } else if (event.key === 'Enter') { props.onRowActivate?.(item, event); return; } else return;
+    pendingSeedRef.current = null;
     event.preventDefault(); const nextItem = rows[Math.max(0, Math.min(rows.length - 1, nextRow))]; const nextCol = visibleColumns[Math.max(0, Math.min(visibleColumns.length - 1, nextColumn))]; if (nextItem && nextCol) focusToken(gridKeyToken(props.keySelector(nextItem)), nextCol.fieldId);
   };
 
@@ -136,29 +209,42 @@ function CgGridInner<TItem>(props: CgGridProps<TItem>, forwardedRef: ForwardedRe
 
   const ensureBatchId = (): string => { batchId.current ??= `cg-grid-batch-${++editSequence.current}`; return batchId.current; };
   const updateEditSession = (update: (session: EditSession<TItem>) => EditSession<TItem>): void => {
-    setEditSession((current) => {
-      if (!current) return null;
-      const next = update(current);
-      if (editMode === 'batch') setBatchSessions((sessions) => sessions.map((session) => session.snapshotId === next.snapshotId ? next : session));
-      return next;
-    });
+    const current = editSessionRef.current;
+    if (!current) return;
+    const next = update(current);
+    editSessionRef.current = next;
+    setEditSession(next);
+    if (editMode === 'batch') {
+      const sessions = batchSessionsRef.current.map((session) => session.snapshotId === next.snapshotId ? next : session);
+      batchSessionsRef.current = sessions;
+      setBatchSessions(sessions);
+    }
   };
   const setSessionModel = (snapshotId: string, model: TItem): void => {
-    setBatchSessions((sessions) => sessions.map((session) => session.snapshotId === snapshotId ? { ...session, model, fieldErrors: {}, generalErrors: [], persistenceState: 'dirty' } : session));
-    setEditSession((current) => current?.snapshotId === snapshotId ? { ...current, model, fieldErrors: {}, generalErrors: [], persistenceState: 'dirty' } : current);
+    const update = (session: EditSession<TItem>): EditSession<TItem> => session.snapshotId === snapshotId ? { ...session, model, fieldErrors: {}, generalErrors: [], persistenceState: 'dirty' } : session;
+    const sessions = batchSessionsRef.current.map(update);
+    batchSessionsRef.current = sessions;
+    setBatchSessions(sessions);
+    const current = editSessionRef.current;
+    if (current) {
+      const next = update(current);
+      editSessionRef.current = next;
+      setEditSession(next);
+    }
   };
-  const discardAllEdits = (): void => { mutationCoordinator.current.cancel(); setEditSession(null); setBatchSessions([]); setBatchDeletes([]); setActiveEditCell(null); batchId.current = undefined; };
+  const discardAllEdits = (): void => { mutationCoordinator.current.cancel(); editSessionRef.current = null; batchSessionsRef.current = []; pendingSeedRef.current = null; setEditSession(null); setBatchSessions([]); setBatchDeletes([]); setActiveEditCell(null); batchId.current = undefined; };
   const focusFirstInvalidEditor = (errors: Readonly<Record<string, ReadonlyArray<string>>>): void => { const fieldId = Object.keys(errors)[0]; if (!fieldId) return; queueMicrotask(() => rootRef.current?.querySelector<HTMLElement>(`[data-cg-grid-editor-field="${CSS.escape(fieldId)}"] input, [data-cg-grid-editor-field="${CSS.escape(fieldId)}"] button, [data-cg-grid-editor-field="${CSS.escape(fieldId)}"] select`)?.focus()); };
   const newSession = (mode: 'create' | 'edit', model: TItem, item?: TItem, rowKey?: string): EditSession<TItem> => { const sequence = ++editSequence.current; return { snapshotId: `cg-grid-edit-${sequence}`, firstChangeSequence: sequence, attemptNumber: 1, mode, ...(rowKey ? { rowKey } : {}), ...(item !== undefined ? { original: item } : {}), initial: model, model, fieldErrors: {}, generalErrors: [], saving: false, persistenceState: mode === 'create' ? 'dirty' : 'idle', ...(item !== undefined && props.editing?.concurrencyToken?.(item) ? { concurrencyToken: props.editing.concurrencyToken(item) } : {}) }; };
-  const beginCreate = async (): Promise<boolean> => { const editing = props.editing; if (!editing?.create || !editing.newItemFactory || (editMode !== 'batch' && !editing.createItem)) return false; if (editMode !== 'batch' && !(await closeDirtySession())) return false; const session = newSession('create', editing.newItemFactory()); if (editMode === 'batch') { ensureBatchId(); setBatchSessions((sessions) => [...sessions, session]); } setEditSession(session); setActiveEditCell({ rowKey: session.snapshotId, columnId: gridEditableColumns(props.columns, session.model, editing.canEditCell)[0]?.fieldId ?? '' }); return true; };
-  const beginEdit = async (key: CgGridKey): Promise<boolean> => { const editing = props.editing; const token = gridKeyToken(key); const item = keyIndex.get(token); if (!editing?.update || !editing.editModelFactory || (editMode !== 'batch' && !editing.updateItem) || !item || editing.canEditRow?.(item) === false) return false; const editable = gridEditableColumns(props.columns, item, editing.canEditCell); if (!editable.length) return false; if (editMode !== 'batch' && !(await closeDirtySession())) return false; if (editMode === 'batch') { ensureBatchId(); const retained = batchSessions.find((session) => session.rowKey === token); if (retained) { setEditSession(retained); setActiveEditCell({ rowKey: token, columnId: editable[0]!.fieldId }); return true; } }
-    const model = editing.editModelFactory(item); if (typeof item === 'object' && item !== null && Object.is(item, model)) throw new Error('CgGrid editModelFactory must return a distinct model.'); const session = newSession('edit', model, item, token); if (editMode === 'batch') setBatchSessions((sessions) => [...sessions, session]); setEditSession(session); setActiveEditCell({ rowKey: token, columnId: editable[0]!.fieldId }); return true; };
-  const closeDirtySession = async (): Promise<boolean> => { if (!editSession) return true; if (!sameModel(editSession.model, editSession.initial) && props.editing?.confirmDirtyClose) { const accepted = await props.editing.confirmDirtyClose(editContext(editSession)); if (!accepted) return false; } if (editMode === 'batch') setBatchSessions((sessions) => sessions.filter((session) => session.snapshotId !== editSession.snapshotId)); setEditSession(null); setActiveEditCell(null); return true; };
+  const beginCreate = async (): Promise<boolean> => { const editing = props.editing; if (!editing?.create || !editing.newItemFactory || (editMode !== 'batch' && !editing.createItem)) return false; if (editMode !== 'batch' && !(await closeDirtySession())) return false; const session = newSession('create', editing.newItemFactory()); if (editMode === 'batch') { ensureBatchId(); const sessions = [...batchSessionsRef.current, session]; batchSessionsRef.current = sessions; setBatchSessions(sessions); } editSessionRef.current = session; setEditSession(session); setActiveEditCell({ rowKey: session.snapshotId, columnId: gridEditableColumns(props.columns, session.model, editing.canEditCell)[0]?.fieldId ?? '' }); return true; };
+  const beginEditAtCell = async (key: CgGridKey, requestedFieldId?: string): Promise<boolean> => { const editing = props.editing; const token = gridKeyToken(key); const item = keyIndex.get(token); if (!editing?.update || !editing.editModelFactory || (editMode !== 'batch' && !editing.updateItem) || !item || editing.canEditRow?.(item) === false) return false; const editable = gridEditableColumns(props.columns, item, editing.canEditCell); const target = requestedFieldId ? editable.find((column) => column.fieldId === requestedFieldId) : editable[0]; if (!target) return false; if (editMode !== 'batch' && !(await closeDirtySession())) return false; if (editMode === 'batch') { ensureBatchId(); const retained = batchSessionsRef.current.find((session) => session.rowKey === token); if (retained) { editSessionRef.current = retained; setEditSession(retained); setActiveEditCell({ rowKey: token, columnId: target.fieldId }); return true; } }
+    const model = editing.editModelFactory(item); if (typeof item === 'object' && item !== null && Object.is(item, model)) throw new Error('CgGrid editModelFactory must return a distinct model.'); const session = newSession('edit', model, item, token); if (editMode === 'batch') { const sessions = [...batchSessionsRef.current, session]; batchSessionsRef.current = sessions; setBatchSessions(sessions); } editSessionRef.current = session; setEditSession(session); setActiveEditCell({ rowKey: token, columnId: target.fieldId }); return true; };
+  const beginEdit = async (key: CgGridKey): Promise<boolean> => beginEditAtCell(key);
+  const closeDirtySession = async (): Promise<boolean> => { const current = editSessionRef.current; if (!current) return true; if (!sameModel(current.model, current.initial) && props.editing?.confirmDirtyClose) { const accepted = await props.editing.confirmDirtyClose(editContext(current)); if (!accepted) return false; } if (editMode === 'batch') { const sessions = batchSessionsRef.current.filter((session) => session.snapshotId !== current.snapshotId); batchSessionsRef.current = sessions; setBatchSessions(sessions); } editSessionRef.current = null; setEditSession(null); setActiveEditCell(null); return true; };
   const applyMutationFailure = (result: CgGridMutationResult<TItem>) => updateEditSession((current) => ({ ...current, saving: false, persistenceState: gridMutationOutcome(result), generalErrors: result.generalErrors ?? (result.conflict?.message ? [result.conflict.message] : []), fieldErrors: result.fieldErrors ?? {}, ...(result.conflict ? { conflict: result.conflict } : {}) }));
-  const commitCurrentEdit = async (candidate?: EditSession<TItem>): Promise<boolean> => { const session = candidate ?? editSession; const editing = props.editing; if (!session || session.saving || !editing) return false; const validation = validateAutomaticGridEditors(props.columns, session.model); if (Object.keys(validation).length) { updateEditSession((current) => ({ ...current, fieldErrors: validation, generalErrors: [], persistenceState: 'failed' })); focusFirstInvalidEditor(validation); return false; } if (session.mode === 'edit' && session.original && gridKeyToken(props.keySelector(session.model)) !== session.rowKey) { updateEditSession((current) => ({ ...current, generalErrors: ['The row key cannot be changed.'], persistenceState: 'failed' })); return false; }
+  const commitCurrentEdit = async (candidate?: EditSession<TItem>, options: { readonly restoreFocus?: boolean } = {}): Promise<boolean> => { const session = candidate ?? editSessionRef.current; const editing = props.editing; if (!session || session.saving || !editing) return false; const validation = validateAutomaticGridEditors(props.columns, session.model); if (Object.keys(validation).length) { updateEditSession((current) => ({ ...current, fieldErrors: validation, generalErrors: [], persistenceState: 'failed' })); focusFirstInvalidEditor(validation); return false; } if (session.mode === 'edit' && session.original && gridKeyToken(props.keySelector(session.model)) !== session.rowKey) { updateEditSession((current) => ({ ...current, generalErrors: ['The row key cannot be changed.'], persistenceState: 'failed' })); return false; }
     if (editMode === 'batch') { updateEditSession((current) => ({ ...current, fieldErrors: {}, generalErrors: [], persistenceState: 'dirty' })); return true; }
-    const changedFieldIds = session.mode === 'create' ? props.columns.filter((column) => column.accessor).map((column) => column.fieldId) : gridChangedFieldIds(props.columns, session.initial, session.model); if (session.mode === 'edit' && !changedFieldIds.length) { setEditSession(null); setActiveEditCell(null); return true; }
-    const operation = mutationCoordinator.current.begin(); updateEditSession((current) => ({ ...current, saving: true, persistenceState: 'saving', fieldErrors: {}, generalErrors: [] })); try { const requestDetails = { changedFieldIds, ...(session.concurrencyToken ? { concurrencyToken: session.concurrencyToken } : {}), attemptNumber: session.attemptNumber }; const result = session.mode === 'create' ? await editing.createItem!({ createModel: session.model, ...requestDetails }, { signal: operation.signal }) : await editing.updateItem!({ rowKey: session.rowKey!, originalItem: session.original!, editModel: session.model, ...requestDetails }, { signal: operation.signal }); if (!mutationCoordinator.current.current(operation.generation)) return false; if (!result.succeeded) { applyMutationFailure(result); return false; } const focus = session.rowKey; setEditSession(null); setActiveEditCell(null); await load(); if (focus && state.focusedColumnId) queueMicrotask(() => focusToken(focus, state.focusedColumnId!)); return true; } catch { if (!operation.signal.aborted) applyMutationFailure({ succeeded: false, outcome: 'failed', generalErrors: ['Unable to save changes.'] }); return false; } };
+    const changedFieldIds = session.mode === 'create' ? props.columns.filter((column) => column.accessor).map((column) => column.fieldId) : gridChangedFieldIds(props.columns, session.initial, session.model); if (session.mode === 'edit' && !changedFieldIds.length) { editSessionRef.current = null; setEditSession(null); setActiveEditCell(null); if (options.restoreFocus !== false && session.rowKey && state.focusedColumnId) focusTokenUnlessEditing(session.rowKey, state.focusedColumnId); return true; }
+    const operation = mutationCoordinator.current.begin(); updateEditSession((current) => ({ ...current, saving: true, persistenceState: 'saving', fieldErrors: {}, generalErrors: [] })); try { const requestDetails = { changedFieldIds, ...(session.concurrencyToken ? { concurrencyToken: session.concurrencyToken } : {}), attemptNumber: session.attemptNumber }; const result = session.mode === 'create' ? await editing.createItem!({ createModel: session.model, ...requestDetails }, { signal: operation.signal }) : await editing.updateItem!({ rowKey: session.rowKey!, originalItem: session.original!, editModel: session.model, ...requestDetails }, { signal: operation.signal }); if (!mutationCoordinator.current.current(operation.generation)) return false; if (!result.succeeded) { applyMutationFailure(result); return false; } const focus = session.rowKey; editSessionRef.current = null; setEditSession(null); setActiveEditCell(null); await load(); if (options.restoreFocus !== false && focus && state.focusedColumnId) focusTokenUnlessEditing(focus, state.focusedColumnId); return true; } catch { if (!operation.signal.aborted) applyMutationFailure({ succeeded: false, outcome: 'failed', generalErrors: ['Unable to save changes.'] }); return false; } };
   const saveEdit = async () => { await commitCurrentEdit(); };
   const commitBatchEdits = async (candidateSnapshots: ReadonlyArray<CgGridEditSnapshot<TItem>> = editSnapshots, candidateSessions: ReadonlyArray<EditSession<TItem>> = batchSessions): Promise<boolean> => { const editing = props.editing; if (editMode !== 'batch' || !editing?.commitBatch || currentEditState.pending) return false; const dirty = candidateSnapshots.filter((snapshot) => snapshot.operation !== 'update' || snapshot.changedFieldIds.length > 0); if (!dirty.length) return true; const checked = candidateSessions.map((session) => ({ session, validation: validateAutomaticGridEditors(props.columns, session.model), keyChanged: Boolean(session.mode === 'edit' && session.original && gridKeyToken(props.keySelector(session.model)) !== session.rowKey) })); const invalid = checked.some((entry) => Object.keys(entry.validation).length > 0 || entry.keyChanged); setBatchSessions(checked.map(({ session, validation, keyChanged }) => invalid && (Object.keys(validation).length > 0 || keyChanged) ? { ...session, persistenceState: 'failed', fieldErrors: validation, generalErrors: keyChanged ? ['The row key cannot be changed.'] : [] } : { ...session, persistenceState: invalid ? session.persistenceState : 'saving', saving: !invalid, fieldErrors: {}, generalErrors: [] })); if (invalid) { const first = checked.find((entry) => Object.keys(entry.validation).length)?.validation; if (first) focusFirstInvalidEditor(first); return false; }
     const operation = mutationCoordinator.current.begin(); const request = gridBatchRequest(ensureBatchId(), dirty); try { const result = await editing.commitBatch(request, { signal: operation.signal }); if (!mutationCoordinator.current.current(operation.generation)) return false; if (!result.succeeded) { setBatchSessions((sessions) => sessions.map((session) => { const itemResult = result.operationResults?.[session.snapshotId] ?? result; return { ...session, saving: false, persistenceState: gridMutationOutcome(itemResult), generalErrors: itemResult.generalErrors ?? (itemResult.conflict?.message ? [itemResult.conflict.message] : []), fieldErrors: itemResult.fieldErrors ?? {}, ...(itemResult.conflict ? { conflict: itemResult.conflict } : {}) }; })); setBatchDeletes((deletes) => deletes.map((snapshot) => { const itemResult = result.operationResults?.[snapshot.snapshotId] ?? result; return { ...snapshot, persistenceState: gridMutationOutcome(itemResult), generalErrors: itemResult.generalErrors ?? [], fieldErrors: itemResult.fieldErrors ?? {}, ...(itemResult.conflict ? { conflict: itemResult.conflict } : {}) }; })); return false; } discardAllEdits(); await load(); return true; } catch { if (!operation.signal.aborted) setBatchSessions((sessions) => sessions.map((session) => ({ ...session, saving: false, persistenceState: 'failed', generalErrors: ['Unable to save changes.'] }))); return false; } };
@@ -263,12 +349,12 @@ function CgGridInner<TItem>(props: CgGridProps<TItem>, forwardedRef: ForwardedRe
     const displayItem = rowSession?.model ?? item;
     const isSelected = selected.has(token); const expanded = expandedDetail === token;
     const editable = rowSession ? gridEditableColumns(props.columns, rowSession.original ?? rowSession.model, props.editing?.canEditCell) : [];
-    const row = <tr key={token} role="row" aria-rowindex={state.pageIndex * state.pageSize + rowIndex + 2} aria-selected={(props.selectionMode ?? 'none') !== 'none' ? isSelected : undefined} className={cx(styles.row, isSelected && styles.selected, rowSession && styles.editingRow)} onClick={(event) => { patchState({ focusedRowKey: token }, 'focus', 'pointer'); if ((props.selectionMode ?? 'none') !== 'none' && props.selectionMode !== 'checkbox' && !rowSession) toggleSelection(item, event.shiftKey, 'pointer'); }} onDoubleClick={(event) => { if (editMode !== 'popup' && props.editing?.update && !rowSession) void beginEdit(props.keySelector(item)); else props.onRowActivate?.(item, event); }} onContextMenu={(event) => openMenu(event, { area: 'row', item, rowKey: token, actions: actions.current })}>
+    const row = <tr key={token} role="row" data-cg-grid-row data-row-key={token} aria-rowindex={state.pageIndex * state.pageSize + rowIndex + 2} aria-selected={(props.selectionMode ?? 'none') !== 'none' ? isSelected : undefined} className={cx(styles.row, isSelected && styles.selected, rowSession && styles.editingRow)} onClick={(event) => { pendingSeedRef.current = null; patchState({ focusedRowKey: token }, 'focus', 'pointer'); if ((props.selectionMode ?? 'none') !== 'none' && props.selectionMode !== 'checkbox' && !rowSession) toggleSelection(item, event.shiftKey, 'pointer'); }} onDoubleClick={(event) => { if (editMode !== 'popup' && props.editing?.update && !rowSession) void beginEdit(props.keySelector(item)); else props.onRowActivate?.(item, event); }} onContextMenu={(event) => openMenu(event, { area: 'row', item, rowKey: token, actions: actions.current })}>
       {visibleColumns.map((entry, columnIndex) => {
         const column = entry.descriptor; const value = column.accessor?.(displayItem); const focused = state.focusedRowKey === token && state.focusedColumnId === entry.fieldId;
         const cellEditing = Boolean(rowSession && editable.some((candidate) => candidate.fieldId === entry.fieldId) && (editMode !== 'cell' || activeEditCell?.rowKey === token && activeEditCell.columnId === entry.fieldId));
         let content: React.ReactNode;
-        if (cellEditing && rowSession) content = <div className={styles.inlineEditor} onFocus={() => { setEditSession(rowSession); setActiveEditCell({ rowKey: token, columnId: entry.fieldId }); }} onKeyDown={(event) => onEditorKeyDown(event, rowSession, entry.fieldId, editable)}>{renderAutomaticGridEditor(column, rowSession.model, (model) => setSessionModel(rowSession.snapshotId, model), rowSession.fieldErrors, { idPrefix: rowSession.snapshotId, showLabel: editMode === 'inlineRow' })}</div>;
+        if (cellEditing && rowSession) content = <div className={styles.inlineEditor} data-cg-grid-editor-row={token} data-cg-grid-editor-field={entry.fieldId} data-cg-grid-editor-kind={column.editor?.kind} onFocus={() => { editSessionRef.current = rowSession; setEditSession(rowSession); setActiveEditCell({ rowKey: token, columnId: entry.fieldId }); }} onKeyDown={(event) => onEditorKeyDown(event, rowSession, entry.fieldId, editable)}>{renderAutomaticGridEditor(column, rowSession.model, (model) => setSessionModel(rowSession.snapshotId, model), rowSession.fieldErrors, { idPrefix: rowSession.snapshotId, showLabel: editMode === 'inlineRow' })}</div>;
         else if (column.type === 'selection') content = <CgCheckBox checked={isSelected} aria-label={`Select row ${rowIndex + 1}`} onCheckedChange={() => toggleSelection(item, false, 'pointer')} />;
         else if (column.type === 'command') content = column.renderCommands?.({ item: displayItem, value: undefined, rowKey: token, rowIndex, column, selected: isSelected, focused }) ?? <span>{rowSession ? <><button type="button" onClick={() => void commitCurrentEdit(rowSession)}>{labels.save}</button> <button type="button" onClick={() => void rollbackRow(rowSession.rowKey ?? rowSession.snapshotId)}>{labels.cancel}</button></> : <>{props.editing?.update ? <button type="button" onClick={() => void beginEdit(props.keySelector(item))}>{labels.edit}</button> : null} {props.editing?.delete ? <button type="button" onClick={() => void requestDelete(props.keySelector(item))}>{labels.delete}</button> : null}</>}</span>;
         else content = column.renderCell?.({ item: displayItem, value: value as never, rowKey: token, rowIndex, column: column as never, selected: isSelected, focused }) ?? (column.type === 'boolean' ? <CgCheckBox checked={Boolean(value)} readOnly aria-label={formatGridValue(column, displayItem)} /> : formatGridValue(column, displayItem));
@@ -280,7 +366,28 @@ function CgGridInner<TItem>(props: CgGridProps<TItem>, forwardedRef: ForwardedRe
   }
   function onEditorKeyDown(event: KeyboardEvent<HTMLElement>, session: EditSession<TItem>, fieldId: string, editable: ReadonlyArray<CgGridColumnDescriptor<TItem>>): void {
     if (event.key === 'Escape') { event.preventDefault(); void rollbackRow(session.rowKey ?? session.snapshotId); return; }
-    if (event.key === 'Enter') { event.preventDefault(); setEditSession(session); void commitCurrentEdit(session); return; }
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      const origin = { rowKey: session.rowKey ?? session.snapshotId, columnId: fieldId };
+      const advance = (editMode === 'cell' || editMode === 'batch') && props.editing?.enterMovesToNextRow === true;
+      const target = { rowKey: advance ? nextVisibleRowKey(origin.rowKey) : origin.rowKey, columnId: fieldId };
+      const editorScope = event.currentTarget;
+      const editor = editorIn(editorScope);
+      if (editor && !(editor instanceof HTMLSelectElement)) editor.dispatchEvent(new Event('change', { bubbles: true }));
+      if (advance) focusToken(target.rowKey, target.columnId);
+      const commit = Promise.resolve().then(async () => {
+        if (editor?.getAttribute('aria-invalid') === 'true' || editorScope.querySelector('[aria-invalid="true"]')) return false;
+        const latest = editSessionRef.current;
+        if (!latest || latest.snapshotId !== session.snapshotId) return false;
+        const saved = await commitCurrentEdit(latest, { restoreFocus: !advance });
+        if (!saved) { focusToken(origin.rowKey, origin.columnId); focusEditor(origin); return false; }
+        if (advance) { setActiveEditCell(null); editorFocusKeyRef.current = null; focusTokenUnlessEditing(target.rowKey, target.columnId); }
+        return true;
+      });
+      commitGateRef.current = commit;
+      void commit.finally(() => { if (commitGateRef.current === commit) commitGateRef.current = null; });
+      return;
+    }
     if (event.key !== 'Tab' || editMode !== 'cell') return;
     event.preventDefault(); const current = editable.findIndex((column) => column.fieldId === fieldId); const next = editable[(current + (event.shiftKey ? -1 : 1) + editable.length) % editable.length]; if (!next) return; setEditSession(session); setActiveEditCell({ rowKey: session.rowKey ?? session.snapshotId, columnId: next.fieldId }); queueMicrotask(() => rootRef.current?.querySelector<HTMLElement>(`[data-cg-grid-editor-field="${CSS.escape(next.fieldId)}"] input, [data-cg-grid-editor-field="${CSS.escape(next.fieldId)}"] button`)?.focus());
   }

@@ -3,12 +3,13 @@ import { useControllableState, useFormReset, useMergedRefs } from '../../hooks';
 import type { CgEditorButtonDescriptor } from '../../types';
 import type { InternalEditorButtonDescriptor } from '../../internal/EditorButton';
 import { createNumberFormatter, normalizeNumericValue, parseLocalizedNumber } from '../../internal/numeric';
+import { evaluateNumericExpression } from '../../internal/numericExpression';
 import { assertPositive } from '../../internal/validation';
-import { CgNumericEdit } from '../NumericEdit';
+import { CgNumericEditCore } from '../NumericEdit/CgNumericEdit';
 import type { CgSpinEditProps } from './CgSpinEdit.types';
 
 export const CgSpinEdit = forwardRef<HTMLInputElement, CgSpinEditProps>(function CgSpinEdit(
-  { value, defaultValue = null, onValueChange, onChange, step = 1, pageStep, min, max, precision, locale, formatStyle = 'decimal', currency, useGrouping = true, disabled, readOnly, incrementAriaLabel = 'Increase value', decrementAriaLabel = 'Decrease value', repeatOnHold = true, onKeyDown, ...props },
+  { value, defaultValue = null, onValueChange, onChange, step = 1, pageStep, min, max, precision, locale, formatStyle = 'decimal', currency, useGrouping = true, disabled, readOnly, allowExpressions = false, updateValueOnInput = false, showSpinButtons = true, inputMode, incrementAriaLabel = 'Increase value', decrementAriaLabel = 'Decrease value', repeatOnHold = true, onKeyDown, ...props },
   ref,
 ) {
   assertPositive('step', step);
@@ -23,6 +24,12 @@ export const CgSpinEdit = forwardRef<HTMLInputElement, CgSpinEditProps>(function
     () => createNumberFormatter({ locale, style: formatStyle, currency, precision, useGrouping }),
     [currency, formatStyle, locale, precision, useGrouping],
   );
+  const classifyDraft = useCallback((text: string, activeFormatter: Intl.NumberFormat) => {
+    const parsed = parseLocalizedNumber(text, activeFormatter, formatStyle);
+    if (parsed !== undefined) return { kind: 'value' as const, value: parsed };
+    if (!allowExpressions) return { kind: 'invalid' as const };
+    return evaluateNumericExpression(text, activeFormatter);
+  }, [allowExpressions, formatStyle]);
   useEffect(() => {
     draftRef.current = '';
   }, [currency, formatStyle, locale, precision, useGrouping, value]);
@@ -39,9 +46,9 @@ export const CgSpinEdit = forwardRef<HTMLInputElement, CgSpinEditProps>(function
   const stepBy = (direction: 1 | -1, amount = step) => {
     if (disabled || readOnly) return;
     const parsedDraft = draftRef.current
-      ? parseLocalizedNumber(draftRef.current, formatter, formatStyle)
+      ? classifyDraft(draftRef.current, formatter)
       : undefined;
-    const basis = typeof parsedDraft === 'number' ? parsedDraft : currentRef.current;
+    const basis = parsedDraft?.kind === 'value' ? parsedDraft.value : currentRef.current;
     const raw = basis === null ? (direction > 0 ? (min ?? 0) : (max ?? 0)) : basis + direction * amount;
     change(normalizeNumericValue(raw, min, max, precision), 'step');
   };
@@ -94,9 +101,9 @@ export const CgSpinEdit = forwardRef<HTMLInputElement, CgSpinEditProps>(function
       return true;
     },
   });
-  const buttons: Array<CgEditorButtonDescriptor<number | null>> = [
+  const buttons: Array<CgEditorButtonDescriptor<number | null>> = showSpinButtons ? [
     { key: 'increment', icon: 'chevron-up', ariaLabel: incrementAriaLabel, disabled: disabled || readOnly || (max !== undefined && current !== null && current >= max), onPress: () => stepBy(1), interaction: interaction(1) } as InternalEditorButtonDescriptor<number | null>,
     { key: 'decrement', icon: 'chevron-down', ariaLabel: decrementAriaLabel, disabled: disabled || readOnly || (min !== undefined && current !== null && current <= min), onPress: () => stepBy(-1), interaction: interaction(-1) } as InternalEditorButtonDescriptor<number | null>,
-  ];
-  return <CgNumericEdit {...props} ref={mergedRef} value={current} defaultValue={defaultValue} locale={locale} formatStyle={formatStyle} currency={currency} useGrouping={useGrouping} min={min} max={max} precision={precision} step={step} disabled={disabled} readOnly={readOnly} buttons={buttons} role="spinbutton" aria-valuemin={min} aria-valuemax={max} aria-valuenow={current ?? undefined} onChange={(event) => { draftRef.current = event.target.value; onChange?.(event); }} onValueChange={(next, details) => { draftRef.current = ''; currentRef.current = next; setCurrent(next); onValueChange?.(next, details); }} onKeyDown={(event) => { if (event.key === 'ArrowUp') { event.preventDefault(); stepBy(1); } else if (event.key === 'ArrowDown') { event.preventDefault(); stepBy(-1); } else if (pageStep && event.key === 'PageUp') { event.preventDefault(); stepBy(1, pageStep); } else if (pageStep && event.key === 'PageDown') { event.preventDefault(); stepBy(-1, pageStep); } onKeyDown?.(event); }} />;
+  ] : [];
+  return <CgNumericEditCore {...props} ref={mergedRef} value={current} defaultValue={defaultValue} locale={locale} formatStyle={formatStyle} currency={currency} useGrouping={useGrouping} min={min} max={max} precision={precision} step={step} disabled={disabled} readOnly={readOnly} buttons={buttons} classifyDraft={classifyDraft} inputMode={inputMode ?? (allowExpressions ? 'text' : 'decimal')} updateValueOnInput={updateValueOnInput} suppressDuplicateCommit={updateValueOnInput} role="spinbutton" aria-valuemin={min} aria-valuemax={max} aria-valuenow={current ?? undefined} onChange={(event) => { draftRef.current = event.target.value; onChange?.(event); }} onValueChange={(next, details) => { if (details.reason !== 'input') draftRef.current = ''; currentRef.current = next; setCurrent(next); onValueChange?.(next, details); }} onKeyDown={(event) => { if (event.key === 'ArrowUp') { event.preventDefault(); stepBy(1); } else if (event.key === 'ArrowDown') { event.preventDefault(); stepBy(-1); } else if (pageStep && event.key === 'PageUp') { event.preventDefault(); stepBy(1, pageStep); } else if (pageStep && event.key === 'PageDown') { event.preventDefault(); stepBy(-1, pageStep); } onKeyDown?.(event); }} />;
 });

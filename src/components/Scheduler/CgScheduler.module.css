@@ -1,0 +1,52 @@
+.root { display: flex; flex-direction: column; min-inline-size: 0; border: 1px solid var(--cg-border); border-radius: var(--cg-radius-md); background: var(--cg-scheduler-bg, var(--cg-surface)); color: var(--cg-scheduler-text, var(--cg-text)); font: var(--cg-font-size-sm)/1.4 var(--cg-font-family); overflow: hidden; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; border-block-end: 1px solid var(--cg-border); }
+.heading { flex: 1; min-inline-size: 180px; text-align: center; }
+.toolbar select, .fields input, .fields textarea { font: inherit; padding: 8px; border: 1px solid var(--cg-border-strong); border-radius: var(--cg-radius-sm); color: var(--cg-text); background: var(--cg-surface); }
+.scroll { flex: 1; min-block-size: 0; overflow: auto; position: relative; overscroll-behavior: contain; }
+.headers { display: grid; position: sticky; top: 0; z-index: 4; background: var(--cg-surface-subtle); min-inline-size: max-content; }
+.headers > div { padding: 10px 6px; text-align: center; border-inline-end: 1px solid var(--cg-border); border-block-end: 1px solid var(--cg-border); font-weight: 600; }
+.today { color: var(--cg-info-text); font-weight: 700; }
+.dateBand { display: grid; position: relative; min-inline-size: max-content; }
+.cell { appearance: none; display: block; position: relative; margin: 0; padding: 0; inline-size: 100%; min-inline-size: 0; border: 0; border-inline-end: 1px solid var(--cg-border); border-block-end: 1px solid var(--cg-border); border-radius: 0; background: var(--cg-surface-subtle); color: var(--cg-text-secondary); font: inherit; text-align: start; cursor: pointer; touch-action: none; }
+.cell.working { background: var(--cg-surface); }
+.cell:hover { background: var(--cg-hover); }
+.cell[aria-selected='true'] { background: var(--cg-selected); box-shadow: inset 0 0 0 1px var(--cg-accent); }
+.cell:focus-visible, .appointment:focus-visible, .more button:focus-visible { outline: 2px solid var(--cg-accent); outline-offset: -2px; z-index: 5; }
+.allDayCell { font-size: 11px; vertical-align: top; }
+.monthDate { position: absolute; inset-block-start: 6px; inset-inline: 8px; color: var(--cg-text); }
+.timeColumns { display: grid; min-inline-size: max-content; }
+.banded { padding-inline-start: 64px; min-inline-size: max-content; background: var(--cg-surface-subtle); }
+.gutter { background: var(--cg-surface-subtle); color: var(--cg-text-secondary); font-size: 10px; text-align: center; }
+.gutter > div { box-sizing: border-box; padding-block-start: 3px; border-inline-end: 1px solid var(--cg-border); border-block-end: 1px solid var(--cg-border); }
+.timeColumn { position: relative; }
+.timeLabel { font-size: 10px; display: block; max-inline-size: 62px; padding-inline: 3px; line-height: 1.1; pointer-events: none; }
+.appointmentBox { position: absolute; z-index: 2; min-inline-size: 0; box-sizing: border-box; }
+.appointment { display: flex; flex-direction: column; overflow: hidden; gap: 3px; inline-size: 100%; block-size: 100%; margin: 0; padding: 4px 6px; border: 1px solid var(--cg-scheduler-appointment-color, var(--cg-accent)); border-inline-start-width: 3px; border-radius: 4px; color: var(--cg-text); background: var(--cg-accent-soft); text-align: start; font: inherit; cursor: pointer; touch-action: none; }
+.appointment[aria-pressed='true'] { box-shadow: inset 0 0 0 2px var(--cg-accent); }
+.appointmentTitle { font-weight: 600; flex-shrink: 0; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; max-inline-size: 100%; }
+.appointment small { font-size: 10px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; flex-shrink: 0; }
+.horizontal .appointment { padding-block: 2px; justify-content: center; }
+.resize { position: absolute; z-index: 3; inset-inline: 0; block-size: 6px; cursor: ns-resize; touch-action: none; }
+.resizeStart { top: 0; }
+.resizeEnd { bottom: 0; }
+.horizontal .resize { inset-block: 0; inline-size: 7px; block-size: auto; cursor: ew-resize; }
+.horizontal .resizeStart { inset-inline-start: 0; inset-inline-end: auto; }
+.horizontal .resizeEnd { inset-inline-end: 0; inset-inline-start: auto; }
+.more { position: absolute; bottom: 4px; padding-inline: 6px; box-sizing: border-box; z-index: 3; }
+.more button { font: inherit; border: 0; background: var(--cg-surface); color: var(--cg-accent); cursor: pointer; }
+.now { position: absolute; inset-inline: 0; height: 2px; background: var(--cg-danger-text); z-index: 3; pointer-events: none; }
+.timelineNow { position: absolute; inset-block: 0; width: 2px; background: var(--cg-danger-text); z-index: 3; pointer-events: none; }
+.timelineBody { position: relative; display: grid; }
+.timeline .headers { min-inline-size: 0; }
+.timeline .headers > div { min-inline-size: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.status:empty { visibility: hidden; }
+.status { min-block-size: 18px; padding: 4px 12px; }
+.error { padding: 6px 12px; }
+.error { color: var(--cg-danger-text); }
+.fields { display: grid; gap: 12px; }
+.fields label { display: grid; gap: 4px; }
+.fields .checkbox { display: flex; align-items: center; }
+.fields textarea { min-block-size: 80px; resize: vertical; }
+.actions { display: flex; gap: 8px; justify-content: flex-end; }
+.moreList { display: grid; gap: 8px; }
+@media (forced-colors: active) { .appointment { border-color: ButtonText; background: Canvas; color: CanvasText; } .cell[aria-selected='true'], .appointment[aria-pressed='true'] { outline: 2px solid Highlight; } .now, .timelineNow { background: Highlight; } }

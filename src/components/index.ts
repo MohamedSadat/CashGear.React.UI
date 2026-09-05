@@ -49,3 +49,5 @@ export * from './Toast';
 export * from './TreeView';
 export * from './TreeList';
 export * from './Window';
+export * from './PivotTable';
+export * from './Scheduler';
