@@ -1,0 +1,6 @@
+.popup { max-inline-size:calc(100vw - 1rem); }
+.actions .actionButton { --button-color:var(--cg-surface); }
+.content { display:flex; align-items:flex-start; gap:var(--cg-space-4); overflow-wrap:anywhere; }
+.icon { display:inline-flex; flex:none; align-items:center; justify-content:center; color:var(--cg-info-text); font-size:1.5rem; }
+.message { min-inline-size:0; white-space:pre-wrap; }
+.actions { display:flex; justify-content:flex-end; gap:var(--cg-space-3); inline-size:100%; }

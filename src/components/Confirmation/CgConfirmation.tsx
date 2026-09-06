@@ -8,9 +8,11 @@ import styles from './CgConfirmation.module.css';
 import type {
   CgConfirmationApi, CgConfirmationConfirm, CgConfirmationOptions, CgConfirmationProviderProps,
 } from './CgConfirmation.types';
+import type { CgMessageBoxAlert, CgMessageBoxOptions } from '../MessageBox';
 
 interface ConfirmationRequest {
   id: number;
+  kind: 'confirmation' | 'alert';
   options: Required<Pick<CgConfirmationOptions,
     'confirmLabel' | 'cancelLabel' | 'confirmIntent' | 'cancelIntent' | 'confirmAppearance' | 'cancelAppearance'
     | 'width' | 'closeOnEscape' | 'closeOnOutsideClick' | 'showCloseButton' | 'initialFocus'>> & CgConfirmationOptions;
@@ -28,7 +30,7 @@ function abortError(): Error {
   const error = new Error('The confirmation was aborted.'); error.name = 'AbortError'; return error;
 }
 
-function isOptions(value: React.ReactNode | CgConfirmationOptions): value is CgConfirmationOptions {
+function isOptions(value: React.ReactNode | CgConfirmationOptions | CgMessageBoxOptions): value is CgConfirmationOptions | CgMessageBoxOptions {
   return typeof value === 'object' && value !== null && !Array.isArray(value) && !isValidElement(value) && 'content' in value;
 }
 
@@ -39,7 +41,7 @@ function focusableInteractionTarget(target: EventTarget | null | undefined): HTM
   return typeof HTMLElement !== 'undefined' && target instanceof HTMLElement ? target : null;
 }
 
-export function CgConfirmationProvider({ children, defaults, subscribeToNavigation }: CgConfirmationProviderProps) {
+export function CgConfirmationProvider({ children, defaults, alertDefaults, subscribeToNavigation }: CgConfirmationProviderProps) {
   const queueRef = useRef<ConfirmationRequest[]>([]);
   const sequenceRef = useRef(0);
   const popupActionsRef = useRef<CgPopupActions>(null);
@@ -95,6 +97,7 @@ export function CgConfirmationProvider({ children, defaults, subscribeToNavigati
       closeOnEscape: supplied.closeOnEscape ?? defaults?.closeOnEscape ?? true,
       closeOnOutsideClick: supplied.closeOnOutsideClick ?? defaults?.closeOnOutsideClick ?? false,
       showCloseButton: supplied.showCloseButton ?? defaults?.showCloseButton ?? true,
+      closeButtonAriaLabel: supplied.closeButtonAriaLabel ?? defaults?.closeButtonAriaLabel,
       initialFocus: supplied.initialFocus ?? defaults?.initialFocus ?? 'cancel',
     };
     return new Promise<boolean>((resolve, reject) => {
@@ -106,7 +109,7 @@ export function CgConfirmationProvider({ children, defaults, subscribeToNavigati
       const returnFocus = focusedElement
         ?? (interactionTargetRef.current?.isConnected ? interactionTargetRef.current : null)
         ?? dispatchedTarget;
-      const request: ConfirmationRequest = { id: ++sequenceRef.current, options: resolved, resolve, reject, settled: false, returnFocus };
+      const request: ConfirmationRequest = { id: ++sequenceRef.current, kind: 'confirmation', options: resolved, resolve, reject, settled: false, returnFocus };
       if (supplied.signal) {
         const onAbort = () => settle(request, false, abortError());
         supplied.signal.addEventListener('abort', onAbort, { once: true });
@@ -117,7 +120,61 @@ export function CgConfirmationProvider({ children, defaults, subscribeToNavigati
     });
   }) as CgConfirmationConfirm, [defaults, settle]);
 
-  const api = useMemo<CgConfirmationApi>(() => ({ confirm }), [confirm]);
+  const alert = useMemo<CgMessageBoxAlert>(() => ((messageOrOptions: React.ReactNode | CgMessageBoxOptions, title?: React.ReactNode): Promise<void> => {
+    if (!mountedRef.current) return Promise.reject(new Error('CgConfirmationProvider is no longer mounted.'));
+    const supplied = isOptions(messageOrOptions) ? messageOrOptions : { content: messageOrOptions, title };
+    if (supplied.content === null || supplied.content === undefined) return Promise.reject(new Error('CgConfirmation alert requires content.'));
+    if (supplied.signal?.aborted) return Promise.reject(abortError());
+    const resolved: ConfirmationRequest['options'] = {
+      content: supplied.content,
+      title: supplied.title ?? alertDefaults?.title ?? 'Message',
+      confirmLabel: supplied.actionLabel ?? alertDefaults?.actionLabel ?? 'OK',
+      cancelLabel: '',
+      confirmIntent: supplied.actionIntent ?? alertDefaults?.actionIntent ?? 'primary',
+      cancelIntent: 'secondary',
+      confirmAppearance: supplied.actionAppearance ?? alertDefaults?.actionAppearance ?? 'solid',
+      cancelAppearance: 'solid',
+      width: supplied.width ?? alertDefaults?.width ?? '420px',
+      closeOnEscape: supplied.closeOnEscape ?? alertDefaults?.closeOnEscape ?? true,
+      closeOnOutsideClick: supplied.closeOnOutsideClick ?? alertDefaults?.closeOnOutsideClick ?? false,
+      showCloseButton: supplied.showCloseButton ?? alertDefaults?.showCloseButton ?? true,
+      closeButtonAriaLabel: supplied.closeButtonAriaLabel ?? alertDefaults?.closeButtonAriaLabel,
+      initialFocus: (supplied.initialFocus ?? alertDefaults?.initialFocus ?? 'action') === 'action' ? 'confirm' : 'none',
+      icon: supplied.icon ?? alertDefaults?.icon,
+      renderIcon: supplied.renderIcon ?? alertDefaults?.renderIcon,
+      className: supplied.className ?? alertDefaults?.className,
+      signal: supplied.signal,
+    };
+    return new Promise<void>((resolve, reject) => {
+      const focusedElement = typeof document !== 'undefined' && typeof HTMLElement !== 'undefined'
+        && document.activeElement instanceof HTMLElement && document.activeElement !== document.body
+        ? document.activeElement
+        : null;
+      const dispatchedTarget = typeof window !== 'undefined' ? focusableInteractionTarget(window.event?.target) : null;
+      const returnFocus = focusedElement
+        ?? (interactionTargetRef.current?.isConnected ? interactionTargetRef.current : null)
+        ?? dispatchedTarget;
+      const request: ConfirmationRequest = {
+        id: ++sequenceRef.current,
+        kind: 'alert',
+        options: resolved,
+        resolve: () => resolve(),
+        reject,
+        settled: false,
+        returnFocus,
+      };
+      if (supplied.signal) {
+        const onAbort = () => settle(request, false, abortError());
+        supplied.signal.addEventListener('abort', onAbort, { once: true });
+        request.removeAbort = () => supplied.signal?.removeEventListener('abort', onAbort);
+      }
+      pendingFocusRef.current = null;
+      queueRef.current.push(request);
+      if (mountedRef.current) setCurrent((active) => active ?? request);
+    });
+  }) as CgMessageBoxAlert, [alertDefaults, settle]);
+
+  const api = useMemo<CgConfirmationApi>(() => ({ confirm, alert }), [alert, confirm]);
   useLayoutEffect(() => {
     if (typeof document === 'undefined') return undefined;
     const rememberInteraction = (event: Event) => {
@@ -163,7 +220,7 @@ export function CgConfirmationProvider({ children, defaults, subscribeToNavigati
   const messageId = current ? `cg-confirmation-message-${current.id}` : undefined;
   return <ConfirmationContext.Provider value={api}>{children}<CgPopup
     open={Boolean(current)} actionsRef={popupActionsRef} role="alertdialog" header={options?.title ?? defaults?.title ?? 'Confirm'}
-    showHeader showFooter showCloseButton={options?.showCloseButton ?? true} closeOnEscape={options?.closeOnEscape ?? true}
+    showHeader showFooter showCloseButton={options?.showCloseButton ?? true} closeButtonAriaLabel={options?.closeButtonAriaLabel} closeOnEscape={options?.closeOnEscape ?? true}
     closeOnOutsideClick={options?.closeOnOutsideClick ?? false} width={options?.width ?? '420px'} className={cx(styles.popup, options?.className)}
     aria-describedby={messageId} contentLoadMode="fromMount"
     onAfterClose={() => {
@@ -175,7 +232,7 @@ export function CgConfirmationProvider({ children, defaults, subscribeToNavigati
     }}
     onOpenChange={(nextOpen) => { if (!nextOpen && current) settle(current, false); }}
     body={current ? <div className={styles.content}>{options?.renderIcon || options?.icon ? <span className={styles.icon} aria-hidden="true">{options.renderIcon ? options.renderIcon() : options.icon ? renderIcon(options.icon) : null}</span> : null}<div id={messageId} className={styles.message}>{options?.content}</div></div> : null}
-    footer={current ? <div className={styles.actions}><CgButton intent={options?.cancelIntent} appearance={options?.cancelAppearance} data-cg-autofocus={options?.initialFocus === 'cancel' ? '' : undefined} onClick={() => { settle(current, false); }}>{options?.cancelLabel}</CgButton><CgButton intent={options?.confirmIntent} appearance={options?.confirmAppearance} data-cg-autofocus={options?.initialFocus === 'confirm' ? '' : undefined} onClick={() => { settle(current, true); }}>{options?.confirmLabel}</CgButton></div> : null}
+    footer={current ? <div className={styles.actions}>{current.kind === 'confirmation' ? <CgButton intent={options?.cancelIntent} appearance={options?.cancelAppearance} data-cg-autofocus={options?.initialFocus === 'cancel' ? '' : undefined} onClick={() => { settle(current, false); }}>{options?.cancelLabel}</CgButton> : null}<CgButton intent={options?.confirmIntent} appearance={options?.confirmAppearance} data-cg-autofocus={options?.initialFocus === 'confirm' ? '' : undefined} onClick={() => { settle(current, true); }}>{options?.confirmLabel}</CgButton></div> : null}
   /></ConfirmationContext.Provider>;
 }
 

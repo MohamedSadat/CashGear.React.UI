@@ -1,0 +1,4 @@
+.root { display:inline-flex; align-items:center; vertical-align:middle; color:var(--cg-wait-color,var(--cg-accent)); --cg-wait-size:1.5rem; }
+.small { --cg-wait-size:1.125rem; }
+.large { --cg-wait-size:2rem; }
+@media (forced-colors:active) { .root { color:Highlight; } }

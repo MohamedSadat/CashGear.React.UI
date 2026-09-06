@@ -1,8 +1,8 @@
 import { forwardRef, useEffect, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
 import { useControllableState, useMergedRefs, useStableCallback } from '../../hooks';
 import { CgPortal, useOverlayStack, useResolvedTarget, useTargetCoverStyle } from '../../internal';
 import { acquireInert } from '../../internal/inert';
+import { WaitVisual } from '../../internal/WaitVisual';
 import { assertNonNegative } from '../../internal/validation';
 import { cx } from '../../utils';
 import styles from './CgLoadingPanel.module.css';
@@ -88,11 +88,7 @@ export const CgLoadingPanel = forwardRef<HTMLDivElement, CgLoadingPanelProps>(fu
     };
   }, [displayed, mode, trapFocus]);
 
-  const visual: ReactNode = indicator === 'custom' ? customIndicator : (
-    <span className={styles[indicator]} aria-hidden="true">
-      {indicator === 'dots' ? <><i /><i /><i /></> : null}
-    </span>
-  );
+  const visual = indicator === 'custom' ? customIndicator : <WaitVisual animation={indicator} variant="panel" />;
   const panel = displayed ? (
     <div
       {...nativeProps}

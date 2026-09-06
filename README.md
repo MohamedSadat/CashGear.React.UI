@@ -2,7 +2,7 @@
 
 `CgScheduler` adds Day, Work Week, Week, Month, and Timeline scheduling with CRUD, drag/resize, timezone-aware dates, and cancellable range loading. See [Scheduler usage and contracts](src/components/Scheduler/README.md).
 
-CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–20 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, Calendar, DateRangePicker, FileUploader, RangeSelector, Chart, Tooltip, StatusBadge, Splitter, Drawer, Toast and Confirmation providers, overlays, MaskedInput, command surfaces, descriptor-based navigation, responsive FormLayout, TreeView, the focused `CgLookUpGrid`, and the advanced Filter/Grid/Pager surface in `CG.CompLib` without Bootstrap, DevExpress, or a charting runtime dependency.
+CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–24 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, TimeEdit, Calendar, DateRangePicker, FileUploader, RangeSelector, Chart, Tooltip, StatusBadge, Splitter, Drawer, Toast and Confirmation providers, MessageBox alerts, overlays, MaskedInput, command surfaces, GridLayout, responsive FormLayout, TreeView, the focused `CgLookUpGrid`, and the advanced Filter/Grid/Pager surface without Bootstrap or DevExpress.
 
 ## Install and import
 
@@ -22,6 +22,8 @@ Deep package imports are intentionally blocked. Runtime exports are limited to t
 Phase 22 adds [`CgPivotTable`](src/components/PivotTable/README.md): exact-decimal summaries and calculated measures, hierarchical analysis, field lists and filters, two-axis virtualization, drill-down, saved layouts, and CSV/XLSX exports. Local data and cancellable host-owned providers share the same typed query contract. Explore `Phase 22/PivotTable` in Storybook.
 
 Phase 23 adds [`CgButtonGroup`](src/components/ButtonGroup/README.md), [`CgMap`](src/components/Map/README.md), and [`CgRichTextEditor`](src/components/RichTextEditor/README.md). Leaflet, Tiptap, and DOMPurify are pinned, checked-in lazy chunks with integrity manifests and notices; the published package still has no production dependencies beyond its React peers. Explore the three `Phase 23` Storybook groups.
+
+Phase 24 adds `CgTimeEdit`, `CgGridLayout`/`CgGridLayoutItem`, `CgWaitIndicator`, and alert-style `CgMessageBox`. Alerts also join the existing confirmation provider through `useCgConfirmation().alert(...)`, preserving the shared FIFO and cancellation lifecycle. Explore the four `Phase 24` Storybook groups.
 
 ## Theme, density, and direction
 
@@ -334,6 +336,27 @@ The shared `CgCalendar` six-week engine includes adjacent-month days plus month 
 
 `onBeforeValueChange` can synchronously or asynchronously veto a proposal. It receives an `AbortSignal`; a newer attempt or unmount aborts older work, and stale completions cannot commit. A hidden native select submits only the canonical committed value and provides external-form association, reset, required/custom validity, disabled exclusion, and invalid-focus transfer. Invalid external values remain visible verbatim; valid restricted values remain formatted and invalid.
 
+## TimeEdit
+
+`CgTimeEdit` stores only a timezone-free canonical clock string (`HH:mm:ss.SSS`) or `null`; it never creates or exposes a JavaScript `Date`. The normalizer accepts `HH:mm`, optional seconds, and one-to-three fractional digits, then emits fixed-width millisecond precision.
+
+```tsx
+<CgTimeEdit
+  name="postingTime"
+  value={postingTime}
+  onValueChange={setPostingTime}
+  editFormat="h:mm:ss tt"
+  locale="en-US"
+  minTime="08:00:00.000"
+  maxTime="18:00:00.000"
+  minuteStep={15}
+  showSeconds
+  required
+/>
+```
+
+Formats use `H`/`HH`, `h`/`hh`, `m`/`mm`, optional `s`/`ss`, and `t`/`tt`; twelve-hour formats require a period token and alphabetic literals must be quoted. `Intl` supplies the default pattern, digits, and day periods. Enter or complete-control blur commits a valid draft, while Escape restores the authoritative value and invalid text remains visible without publishing. Picker minute steps restrict only its choices; typed off-step minutes remain valid, hidden seconds/milliseconds survive minute-only edits, and second edits preserve milliseconds. Bounds, cancellable async proposals, controlled value/popup state, external forms, reset, required validity, custom buttons, localization, RTL, and `actionsRef` follow the DateEdit infrastructure.
+
 ## Calendar and DateRangePicker
 
 `CgCalendar` supports controlled or uncontrolled single dates and ranges, one or two month panels, range preview, day templates, deterministic `today`, date restrictions, Today/Clear controls, localized announcements, roving grid focus, day/month/year panels, and complete keyboard navigation. Only a completed second endpoint emits a range, and pointer-selected endpoints are normalized chronologically.
@@ -371,7 +394,7 @@ const toast = useCgToast();
 toast.success('Invoice posted', { title: 'Complete' });
 ```
 
-`CgConfirmationProvider` resolves FIFO confirmation requests to booleans. Escape, close, and navigation resolve `false`; an `AbortSignal` rejects its queued or active request with `AbortError`, and provider unmount rejects every pending request with a lifecycle error. The default 420px alert dialog focuses Cancel and composes `CgPopup` with `CgButton`.
+`CgConfirmationProvider` resolves FIFO confirmation requests to booleans. Escape, close, and navigation resolve `false`; an `AbortSignal` rejects its queued or active request with `AbortError`, and provider unmount rejects every pending request with a lifecycle error. Confirmations default to a 420px alert dialog focused on Cancel and compose `CgPopup` with `CgButton`.
 
 ```tsx
 const { confirm } = useCgConfirmation();
@@ -381,7 +404,14 @@ const accepted = await confirm({
   confirmLabel: 'Delete',
   confirmIntent: 'danger',
 });
+
+const { alert } = useCgConfirmation();
+await alert('The import completed successfully.', 'Import complete');
 ```
+
+Provider alerts return `Promise<void>` and share the same identity-safe FIFO, focus restoration, navigation cleanup, AbortSignal behavior, Strict Mode handling, and unmount rejection. They default to title “Message,” one primary “OK” action focused on open, 420px width, Escape/close-button dismissal, and no outside-click dismissal. Normal dismissal resolves; only explicit abort rejects. `alertDefaults` is independent from confirmation `defaults`.
+
+The standalone controlled/uncontrolled `CgMessageBox` is the declarative alert form. It accepts a message or children, title, action styling, icon rendering, width, dismissal settings, `actionsRef`, and an `onClosed` result that distinguishes accepted OK from dismissal. It intentionally does not add prompts, inputs, arbitrary action sets, or a duplicate confirmation mode.
 
 ## Flyout and overlay lifecycle
 
@@ -478,6 +508,25 @@ Phase 11 adds keyed, immutable descriptor surfaces for Tabs, Stepper, Accordion,
 ```
 
 FormLayout is real React composition through private context rather than declaration inspection or registration. Its root, group bodies, and tab panels establish inline-size containers; spans switch at 576, 768, 992, 1200, and 1400 pixels, while side captions become a two-track layout at 560 pixels. A caption is a native label only with `captionFor`; otherwise compatible CashGear fields consume private caption context after explicit ARIA and `CgField` names. Collapsed group bodies remain mounted and hidden, and `CgFormLayoutTabs` uses key-oriented descriptor tabs with retained on-demand content by default. No `CgFormLayoutTabPage` compatibility marker is exported.
+
+## GridLayout
+
+`CgGridLayout` is a validated CSS Grid composition primitive. Immutable row descriptors supply `height` and optional space-separated `areas`; column descriptors supply `width`. Columns default to one `minmax(0, 1fr)` track and are inferred from named areas when omitted. `CgGridLayoutItem` uses either one named `area` or zero-based `row`/`column` with positive spans.
+
+```tsx
+<CgGridLayout
+  rows={[{ areas: 'header header' }, { areas: 'nav body' }]}
+  columns={[{ width: '12rem' }, {}]}
+  rowGap="12px"
+  columnGap="12px"
+>
+  <CgGridLayoutItem area="header">Ledger workspace</CgGridLayoutItem>
+  <CgGridLayoutItem area="nav">Filters</CgGridLayoutItem>
+  <CgGridLayoutItem area="body">Transactions</CgGridLayoutItem>
+</CgGridLayout>
+```
+
+The layout rejects unsafe track text, inconsistent area widths, column-count disagreement, invalid or disconnected regions, unknown areas, unsafe indexes/spans, and mixed named/indexed placement. Structured templates and placement win over conflicting caller styles. Responsiveness stays caller-owned through descriptor changes, CSS, or `CgLayoutBreakpoint`; no second breakpoint schema is embedded here.
 
 ## TreeView
 
@@ -828,24 +877,26 @@ Eligibility uses the trimmed query length, but `onSearch` receives the original 
 
 `CgLoadingPanel` supports inline, wrapper overlay, and portal-target modes, delayed display, minimum visible time, inert blocking, shading, dismissal, topmost Escape ordering, and target geometry tracking. Focus containment remains off by default; `trapFocus` enables Tab cycling and focus return for blocking overlay/portal modes only.
 
+`CgWaitIndicator` is the standalone visual/status primitive shared with LoadingPanel. It defaults to a visible medium spinner with one polite “Loading” status announcement, supports spinner/dots/pulse animations and small/medium/large sizes, and accepts custom children. Set `decorative` only when adjacent text already communicates the state; it removes live semantics and sets `aria-hidden`. Reduced motion stops indicator animation, and forced-colors mode retains visible system-color geometry.
+
 ## Public API
 
 Components:
 
 - `CgIcon`, `CgButton`, `CgButtonGroup`, `CgField`
-- `CgTextBox`, `CgMemo`, `CgRichTextEditor`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgKeyComboBox`, `CgLookUpGrid`, `CgListBox`, `CgTagBox`, `CgDropDownBox`, `CgDateEdit`, `CgCalendar`, `CgDateRangePicker`, `CgFileUploader`
-- `CgFlyout`, `CgPopup`, `CgWindow`, `CgMaskedInput`
+- `CgTextBox`, `CgMemo`, `CgRichTextEditor`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgKeyComboBox`, `CgLookUpGrid`, `CgListBox`, `CgTagBox`, `CgDropDownBox`, `CgDateEdit`, `CgTimeEdit`, `CgCalendar`, `CgDateRangePicker`, `CgFileUploader`
+- `CgFlyout`, `CgPopup`, `CgWindow`, `CgMessageBox`, `CgMaskedInput`
 - `CgSplitter`, `CgDrawer`
 - `CgChart`, `CgMap`, `CgRangeSelector`, `CgTooltip`, `CgStatusBadge`
 - `CgMenu`, `CgContextMenu`, `CgDropDownButton`, `CgSplitButton`, `CgToolbar`
-- `CgLayoutBreakpoint`, `CgTabs`, `CgStepper`, `CgAccordion`, `CgTreeView`, `CgTreeList`, `CgFilterBuilder`, `CgPager`, `CgGrid`
+- `CgLayoutBreakpoint`, `CgGridLayout`, `CgGridLayoutItem`, `CgTabs`, `CgStepper`, `CgAccordion`, `CgTreeView`, `CgTreeList`, `CgFilterBuilder`, `CgPager`, `CgGrid`
 - `CgFormLayout`, `CgFormLayoutItem`, `CgFormLayoutGroup`, `CgFormLayoutTabs`
 - `CgRadio`, `CgRadioGroup`
 - `CgNumericEdit`, `CgSpinEdit`, `CgSearchBox`
-- `CgLoadingPanel`, `CgProgressBar`
+- `CgLoadingPanel`, `CgWaitIndicator`, `CgProgressBar`
 - `CgToastProvider`, `CgConfirmationProvider`
 
-Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, canonical `CgDateValue`/`CgDateRangeValue`, the Filter Core AST/registry/persistence contracts, the DateEdit/Calendar/DateRangePicker contracts, the FileUploader item/transport/event/render/action contracts, the Chart descriptor/axis/selection/action/localization contracts, the TreeList binding/column/node/provider/mutation/output/state/render/action contracts, the Splitter versioned-state/descriptor/detail contracts, the Drawer lifecycle/render/action contracts, Toast and Confirmation APIs, the shared overlay contracts, and each descriptor component's props, actions, lifecycle details, and render/state contexts. Private chart model/layout/browser modules, endpoint-session tokens, menu, adaptive-layout, TreeView normalization/check/filter engines, and TreeList hierarchy/projection internals are not exported. There is intentionally no universal component-state interface.
+Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, canonical `CgDateValue`/`CgDateRangeValue`/`CgTimeValue`, the Filter Core AST/registry/persistence contracts, the DateEdit/TimeEdit/Calendar/DateRangePicker contracts, the FileUploader item/transport/event/render/action contracts, the Chart descriptor/axis/selection/action/localization contracts, the GridLayout descriptors, the TreeList binding/column/node/provider/mutation/output/state/render/action contracts, the Splitter versioned-state/descriptor/detail contracts, the Drawer lifecycle/render/action contracts, WaitIndicator, MessageBox, Toast and Confirmation APIs, the shared overlay contracts, and each descriptor component's props, actions, lifecycle details, and render/state contexts. Private chart model/layout/browser modules, endpoint-session tokens, menu, adaptive-layout, TreeView normalization/check/filter engines, and TreeList hierarchy/projection internals are not exported. There is intentionally no universal component-state interface.
 
 The public hooks are `useControllableState`, `useCgId`, `useCgContextMenuTarget`, `useCgToast`, and `useCgConfirmation`; `cx` is the public class-name utility. All other primitives and hooks are private implementation details.
 

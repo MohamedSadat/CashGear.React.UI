@@ -1,4 +1,4 @@
-# CG.CompLib → `@cashgear/ui` Phase 1–18 parity
+# CashGear Blazor UI → `@cashgear/ui` Phase 1–24 parity
 
 ## Core Scheduler port
 
@@ -843,8 +843,7 @@ These rows are evidence only. No public React API or implementation is included 
 | Planned component | Razor evidence | Status |
 | --- | --- | --- |
 | Calendar multiple selection | `Components/Editors/Calendar/*` | Intentionally deferred; the public Calendar supports single and range modes only |
-| Alert, prompt, and arbitrary dialog APIs | `Components/Feedback/Confirmation/*` defines the accepted confirmation boundary | Intentionally deferred; Phase 16 exports Toast and Confirmation only |
-| Scheduler | `CG.CompLib/Comp/Scheduler/CgScheduler.*` | Deferred |
+| Prompt and arbitrary dialog APIs | `CashGear.Blazor.UI/Components/CgMessageBox.razor` and `Components/Feedback/Confirmation/*` define the alert/confirmation boundary | Intentionally deferred; Phase 24 adds alert-only MessageBox surfaces, not prompts, input collection, or arbitrary action sets |
 
 ## Remaining gaps
 
@@ -887,3 +886,28 @@ Reference audit: ButtonGroup and Map mirror `CashGear.Blazor.UI` snapshot `10006
 Leaflet 1.9.4, Tiptap 3.31.3, DOMPurify 3.4.14, and esbuild 0.28.2 are exact pins. Normal builds consume checked-in ESM bundles and install no nested toolchain. The lockfiles in `vendor-src/leaflet` and `vendor-src/rich-text-editor` are the reproducible inputs; `npm ci && npm run build` in either directory regenerates its published runtime files and integrity data. The editor build also regenerates its third-party notices. Package verification hashes every manifested source, requires the emitted lazy chunks and raster assets/notices, and rejects bare imports from those runtime packages.
 
 Map configuration, provider terms, attribution, credentials, CSP, and tile availability remain host responsibilities. Routing, geocoding, draggable markers, and arbitrary popup HTML are excluded. Rich-text uploads, office/PDF interchange, collaboration, tracked changes, pagination, headers, and footers remain excluded. DOMPurify and the structural/style/URL allowlists are client safety boundaries, not substitutes for server validation and output encoding.
+
+## Phase 24 - TimeEdit, GridLayout, WaitIndicator, and MessageBox
+
+Reference audit: `CgTimeEdit` and `CgMessageBox` mirror the clean `CashGear.Blazor.UI` snapshot `f8e7235b`; `CgGridLayout` and `CgWaitIndicator` mirror the clean snapshot `10006424`. This additive phase does not migrate application screens, add dependencies, or alter an existing public component contract.
+
+| Component | React implementation | Intentional adaptation |
+| --- | --- | --- |
+| `CgTimeEdit` | `src/components/TimeEdit/*`, `tests/time-edit.test.tsx`, Phase 24 stories/browser tests | Canonical `HH:mm:ss.SSS` strings replace .NET time values. Strict formatting and localized digits/day periods use `Intl`, while parsing, comparison, picker state, and native form serialization remain timezone-free and never use JavaScript `Date`. The DateEdit shell, overlay, cancellation, controlled-authority, reset, validation, and invalid-focus infrastructure is reused. |
+| `CgGridLayout` / `CgGridLayoutItem` | `src/components/GridLayout/*`, `tests/grid-layout.test.tsx`, Phase 24 stories/browser tests | Immutable descriptors replace Razor declaration registration. Validated CSS Grid tracks/areas and zero-based indexed placement remain a composition primitive; responsive descriptor selection stays with CSS, the caller, or `CgLayoutBreakpoint`. |
+| `CgWaitIndicator` | `src/components/WaitIndicator/*`, `src/internal/WaitVisual.*`, `tests/wait-indicator.test.tsx` | A status/decorative span exposes spinner, dots, pulse, size, visibility, and custom visual contracts. LoadingPanel now shares the private visual markup while retaining its public API and legacy panel sizing/color/animation treatment. |
+| `CgMessageBox` and `alert()` | `src/components/MessageBox/*`, `src/components/Confirmation/*`, `tests/message-box.test.tsx` | The declarative surface is alert-only and composes `CgPopup`. Provider alerts return `Promise<void>` and share confirmation's identity-safe FIFO, focus, navigation, abort, Strict Mode, stale-close, and unmount lifecycle while preserving independent defaults and unchanged `confirm()` behavior. |
+
+TimeEdit picker step values do not constrain typed minutes; current off-step values are retained in the picker. Minute-only edits preserve seconds/milliseconds and second-level edits preserve milliseconds. `24:00`, dates, offsets, timezones, durations, overnight ranges, and finer .NET tick precision are excluded.
+
+GridLayout validates safe tracks, equal area widths, column agreement, names, rectangular connected regions, unknown areas, index/span bounds, and mutually exclusive placement. It does not add masonry, subgrid, drag/resize, or a breakpoint engine. WaitIndicator remains a status visual rather than a delay, block, or overlay controller. MessageBox intentionally excludes prompts, arbitrary buttons, input collection, and confirmation duplication.
+
+### Phase 24 verification
+
+Strict TypeScript, ESLint, all 651 Vitest tests in 67 files, and import-cycle analysis passed; cycle analysis covered 316 source modules. The production library build transformed 317 modules and emitted declarations, source maps, and `dist/cashgear-ui.css`. Storybook 10.5.10 transformed 392 modules. Package verification passed with 197 runtime exports and 1,549 packed files, including declaration, stylesheet, ESM-import, and dry-run tarball checks.
+
+The complete serial Chromium/WebKit semantic sweep passed all 288 pre-Phase-24 cases. Its first Storybook bundle exposed one dark TimeEdit action contrast failure in each engine; after the source correction and rebuild, the affected Axe case passed in both engines and the complete final Phase 24 matrix passed all 28 interaction/Axe cases. Firefox was attempted once and remained environment-blocked before page creation by the known 30-second launch timeout: `RenderCompositorSWGL failed mapping default framebuffer`. No Firefox component assertion ran.
+
+All 13 inspected `phase-24-*` Windows Chromium baselines passed comparison. The private wait-visual extraction initially exposed a legacy LoadingPanel box-model change; restoring the original content-box spinner geometry returned all three existing LoadingPanel baselines (primary, Arabic RTL, and dark compact) to exact matches. No pre-existing baseline file was changed, and Phase 24 adds 13 files.
+
+The full 275-case Chromium visual sweep passed 270 cases on its first complete run. The two corrected LoadingPanel cases, plus transient pre-existing ComboBox and Map captures, passed on focused rerun. The unrelated pre-existing `pivot-drill.png` comparison remains stale: the stored image contains the older numeric pager while the unchanged current PivotTable/Pager source consistently renders its responsive page-input pager. Phase 24 does not modify PivotTable, Pager, or that baseline.

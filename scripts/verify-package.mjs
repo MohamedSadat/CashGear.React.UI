@@ -79,6 +79,7 @@ const expected = ['CG_FILTER_DEFAULT_LIMITS','CG_FILTER_NULL_VALUE','CG_FILTER_O
 expected.push('CG_CHART_PRIMARY_AXIS_NAME', 'CgChart');
 expected.push('CgScheduler');
 expected.push('CgButtonGroup', 'CgMap', 'CgRichTextEditor');
+expected.push('CgGridLayout', 'CgGridLayoutItem', 'CgMessageBox', 'CgTimeEdit', 'CgWaitIndicator', 'normalizeCgTimeValue');
 expected.push('CG_TREE_LIST_DEFAULT_MAXIMUM_DEPTH', 'CG_TREE_LIST_MAXIMUM_DEPTH_LIMIT', 'CG_TREE_LIST_STATE_VERSION', 'CgTreeList', 'createTreeListState', 'createTreeListXlsx', 'downloadTreeListExport', 'normalizeTreeListState', 'sanitizeTreeListExportFileName', 'treeListKeyToken');
 expected.push('CG_PIVOT_LAYOUT_VERSION', 'CgPivotBrowserLayoutStore', 'CgPivotCalculatedMeasures', 'CgPivotError', 'CgPivotLimitError', 'CgPivotTable', 'createPivotAggregate', 'createPivotCalculatedState', 'createPivotExport', 'createPivotMember', 'createPivotQuery', 'downloadPivotExport', 'getPivotDistinctValues', 'getPivotDrillDown', 'normalizePivotLayout', 'pivotPathKey', 'pivotValueKey', 'processPivotData', 'validatePivotResult');
 assert.deepEqual(Object.keys(runtime).sort(), expected.sort());

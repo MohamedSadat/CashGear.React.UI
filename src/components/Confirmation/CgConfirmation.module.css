@@ -4,5 +4,6 @@
 .icon svg { inline-size:100%; block-size:100%; }
 .message { min-inline-size:0; overflow-wrap:anywhere; }
 .actions { display:flex; flex-wrap:wrap; gap:.625rem; justify-content:flex-end; }
+.actions > button[data-intent='primary'] { --button-color:var(--cg-surface); }
 @media(max-width:30rem){.actions>*{flex:1 1 auto;min-block-size:2.75rem}}
 @media(forced-colors:active){.popup{forced-color-adjust:auto}}

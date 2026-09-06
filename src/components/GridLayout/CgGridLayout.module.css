@@ -1,0 +1,2 @@
+.root { box-sizing:border-box; min-inline-size:0; }
+.item { box-sizing:border-box; min-inline-size:0; min-block-size:0; }

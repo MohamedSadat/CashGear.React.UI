@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import type { CgButtonAppearance } from '../Button';
 import type { CgIconSource, CgIntent } from '../../types';
+import type { CgMessageBoxAlert, CgMessageBoxOptions } from '../MessageBox';
 
 export type CgConfirmationInitialFocus = 'cancel' | 'confirm' | 'none';
 
@@ -20,6 +21,7 @@ export interface CgConfirmationOptions {
   closeOnEscape?: boolean;
   closeOnOutsideClick?: boolean;
   showCloseButton?: boolean;
+  closeButtonAriaLabel?: string;
   initialFocus?: CgConfirmationInitialFocus;
   signal?: AbortSignal;
 }
@@ -29,10 +31,11 @@ export interface CgConfirmationConfirm {
   (options: CgConfirmationOptions): Promise<boolean>;
 }
 
-export interface CgConfirmationApi { confirm: CgConfirmationConfirm }
+export interface CgConfirmationApi { confirm: CgConfirmationConfirm; alert: CgMessageBoxAlert }
 
 export interface CgConfirmationProviderProps {
   children: ReactNode;
   defaults?: Partial<Omit<CgConfirmationOptions, 'content' | 'signal'>>;
+  alertDefaults?: Partial<Omit<CgMessageBoxOptions, 'content' | 'signal'>>;
   subscribeToNavigation?: (onNavigate: () => void) => void | (() => void);
 }

@@ -1,0 +1,22 @@
+.visual { display:inline-block; box-sizing:border-box; flex:none; inline-size:var(--cg-wait-size,1.25rem); block-size:var(--cg-wait-size,1.25rem); color:var(--cg-wait-color,var(--cg-accent)); }
+.spinner { border:var(--cg-wait-border,max(2px,.15em)) solid currentcolor; border-inline-end-color:transparent; border-radius:50%; animation:cg-wait-spin var(--cg-wait-duration,.75s) linear infinite; }
+.dots { display:inline-flex; align-items:center; justify-content:space-between; }
+.dots i { inline-size:.32em; block-size:.32em; background:currentcolor; border-radius:50%; animation:cg-wait-dot 1s ease-in-out infinite; }
+.dots i:nth-child(2) { animation-delay:.12s; }
+.dots i:nth-child(3) { animation-delay:.24s; }
+.pulse { background:currentcolor; border-radius:50%; animation:cg-wait-pulse 1s ease-in-out infinite; }
+.panel.spinner { box-sizing:content-box; border:.16rem solid var(--cg-accent-soft); border-inline-end-color:var(--cg-accent); animation-duration:700ms; }
+.panel.dots { inline-size:auto; block-size:auto; gap:var(--cg-space-1); }
+.panel.dots i { inline-size:.4rem; block-size:.4rem; animation-name:cg-wait-panel-pulse; animation-duration:700ms; animation-direction:alternate; }
+.panel.pulse { inline-size:1.1rem; block-size:1.1rem; animation-name:cg-wait-panel-pulse; animation-duration:900ms; animation-direction:alternate; }
+@keyframes cg-wait-spin { to { transform:rotate(360deg); } }
+@keyframes cg-wait-dot { 0%,60%,100% { transform:translateY(0); opacity:.45; } 30% { transform:translateY(-.25em); opacity:1; } }
+@keyframes cg-wait-pulse { 0%,100% { transform:scale(.72); opacity:.45; } 50% { transform:scale(1); opacity:1; } }
+@keyframes cg-wait-panel-pulse { to { opacity:.3; transform:scale(.8); } }
+@media (prefers-reduced-motion:reduce) {
+  .visual,.visual i { animation:none; }
+  .spinner { border-inline-end-color:currentcolor; }
+  .panel.spinner { animation:cg-wait-spin 1600ms linear infinite; border-inline-end-color:var(--cg-accent); }
+  .panel.pulse,.panel.dots i { animation:cg-wait-panel-pulse 1600ms ease-in-out infinite alternate; }
+}
+@media (forced-colors:active) { .visual { color:Highlight; } }
