@@ -1,6 +1,36 @@
+import { copyFileSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import dts from 'vite-plugin-dts';
+
+const vendorMetadata = [
+  'leaflet/integrity-manifest.json',
+  'leaflet/LICENSE',
+  'leaflet/package.json',
+  'leaflet/README.md',
+  'leaflet/images/layers.png',
+  'leaflet/images/layers-2x.png',
+  'leaflet/images/marker-icon.png',
+  'leaflet/images/marker-icon-2x.png',
+  'leaflet/images/marker-shadow.png',
+  'rich-text-editor/integrity-manifest.json',
+  'rich-text-editor/THIRD-PARTY-NOTICES.txt',
+] as const;
+
+function copyVendorMetadata() {
+  return {
+    name: 'cashgear-vendor-metadata',
+    closeBundle() {
+      for (const relativePath of vendorMetadata) {
+        const source = fileURLToPath(new URL(`./src/vendor/${relativePath}`, import.meta.url));
+        const destination = fileURLToPath(new URL(`./dist/vendor/${relativePath}`, import.meta.url));
+        mkdirSync(dirname(destination), { recursive: true });
+        copyFileSync(source, destination);
+      }
+    },
+  };
+}
 
 /**
  * Vite is configured in **library mode**: the output of this project is an
@@ -32,11 +62,13 @@ export default defineConfig({
       insertTypesEntry: true,
       copyDtsFiles: false,
     }),
+    copyVendorMetadata(),
   ],
   build: {
     target: 'es2022',
     sourcemap: true,
     minify: false, // Consuming apps minify; readable output aids debugging.
+    assetsInlineLimit: 0,
     cssMinify: true, // The stylesheet ships as-is, so it is worth compressing.
     cssCodeSplit: false,
     lib: {
@@ -50,7 +82,10 @@ export default defineConfig({
         preserveModules: true,
         preserveModulesRoot: 'src',
         entryFileNames: '[name].js',
-        assetFileNames: '[name][extname]',
+        assetFileNames: (assetInfo) => {
+          const name = assetInfo.names[0] ?? '';
+          return /^(?:layers|marker-).+\.png$/u.test(name) ? 'vendor/leaflet/images/[name][extname]' : '[name][extname]';
+        },
       },
     },
   },

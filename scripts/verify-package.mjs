@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 
 const root = resolve('.');
@@ -9,6 +10,36 @@ const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 for (const file of ['dist/index.js', 'dist/index.d.ts', 'dist/cashgear-ui.css']) assert.ok(existsSync(join(root, file)), `Missing ${file}`);
 assert.equal(manifest.exports['./styles.css'], './dist/cashgear-ui.css');
 assert.deepEqual(Object.keys(manifest.exports).sort(), ['.', './package.json', './styles.css']);
+assert.equal(manifest.dependencies, undefined, 'Runtime dependencies must remain empty');
+
+function sha256(path) { return createHash('sha256').update(readFileSync(path)).digest('hex'); }
+function verifyIntegrity(directory) {
+  const integrityPath = join(directory, 'integrity-manifest.json');
+  const integrity = JSON.parse(readFileSync(integrityPath, 'utf8'));
+  for (const entry of integrity.files) {
+    const path = join(directory, entry.file);
+    assert.ok(existsSync(path), `Integrity file missing: ${path}`);
+    assert.equal(sha256(path), entry.sha256, `Integrity mismatch: ${path}`);
+  }
+  return integrity;
+}
+const leafletIntegrity = verifyIntegrity(join(root, 'src/vendor/leaflet'));
+assert.equal(leafletIntegrity.version, '1.9.4');
+const leafletInputs = JSON.parse(readFileSync(join(root, 'vendor-src/leaflet/package.json'), 'utf8'));
+assert.equal(leafletInputs.dependencies.leaflet, '1.9.4');
+const leafletLock = JSON.parse(readFileSync(join(root, 'vendor-src/leaflet/package-lock.json'), 'utf8'));
+assert.equal(leafletLock.packages['node_modules/leaflet'].version, '1.9.4');
+const editorIntegrity = verifyIntegrity(join(root, 'src/vendor/rich-text-editor'));
+assert.deepEqual(editorIntegrity.packages, { tiptap: '3.31.3', dompurify: '3.4.14', esbuild: '0.28.2' });
+const vendorInputs = JSON.parse(readFileSync(join(root, 'vendor-src/rich-text-editor/package.json'), 'utf8'));
+assert.equal(vendorInputs.dependencies['@tiptap/core'], '3.31.3');
+assert.equal(vendorInputs.dependencies.dompurify, '3.4.14');
+assert.equal(vendorInputs.devDependencies.esbuild, '0.28.2');
+const editorLock = JSON.parse(readFileSync(join(root, 'vendor-src/rich-text-editor/package-lock.json'), 'utf8'));
+for (const [name, version] of Object.entries(vendorInputs.dependencies)) {
+  assert.equal(editorLock.packages[`node_modules/${name}`].version, version, `Editor lockfile pin mismatch: ${name}`);
+}
+assert.equal(editorLock.packages['node_modules/esbuild'].version, '0.28.2');
 
 const allFiles = [];
 function collect(directory) { for (const name of readdirSync(directory)) { const path = join(directory, name); if (statSync(path).isDirectory()) collect(path); else allFiles.push(path); } }
@@ -17,11 +48,37 @@ assert.ok(allFiles.some((file) => file.endsWith('.d.ts.map')), 'Declaration maps
 const js = allFiles.filter((file) => file.endsWith('.js')).map((file) => readFileSync(file, 'utf8')).join('\n');
 assert.match(js, /from\s+["']react(?:\/jsx-runtime)?["']/, 'React imports should remain external');
 assert.doesNotMatch(js, /react\.production|minified React error/i, 'React implementation appears bundled');
+assert.doesNotMatch(js, /from\s+["'](?:leaflet|@tiptap(?:\/[^"']+)?|dompurify)["']/u, 'Vendor runtime import was left bare');
+const copiedVendorFiles = [
+  'leaflet/integrity-manifest.json',
+  'leaflet/LICENSE',
+  'leaflet/package.json',
+  'leaflet/README.md',
+  'leaflet/images/layers.png',
+  'leaflet/images/layers-2x.png',
+  'leaflet/images/marker-icon.png',
+  'leaflet/images/marker-icon-2x.png',
+  'leaflet/images/marker-shadow.png',
+  'rich-text-editor/integrity-manifest.json',
+  'rich-text-editor/THIRD-PARTY-NOTICES.txt',
+];
+for (const relativePath of copiedVendorFiles) {
+  const source = join(root, 'src/vendor', relativePath);
+  const emitted = join(root, 'dist/vendor', relativePath);
+  assert.ok(existsSync(emitted), `Missing dist/vendor/${relativePath}`);
+  assert.equal(sha256(emitted), sha256(source), `Emitted vendor file differs: ${relativePath}`);
+}
+for (const file of [
+  'dist/vendor/leaflet/leaflet-src.esm.js',
+  'dist/vendor/rich-text-editor/editor.js',
+]) assert.ok(existsSync(join(root, file)), `Missing ${file}`);
+assert.match(readFileSync(join(root, 'dist/cashgear-ui.css'), 'utf8'), /\.leaflet-container/u, 'Leaflet CSS was not emitted');
 
 const runtime = await import(`${pathToFileURL(join(root, 'dist/index.js')).href}?verify=${Date.now()}`);
 const expected = ['CG_FILTER_DEFAULT_LIMITS','CG_FILTER_NULL_VALUE','CG_FILTER_OPERATORS','CG_FILTER_OPERATOR_ORDINALS','CG_FILTER_OPERATOR_REGISTRY','CG_FILTER_PERIODS','CG_FILTER_VALUE_KIND_ORDINALS','CG_GRID_STATE_VERSION','CG_PAGER_DEFAULT_AUTO_INPUT_THRESHOLD','CG_PAGER_DEFAULT_NUMERIC_BUTTONS','CgAccordion','CgButton','CgCalendar','CgCheckBox','CgComboBox','CgConfirmationProvider','CgContextMenu','CgDateEdit','CgDateRangePicker','CgDropDownBox','CgDropDownButton','CgDrawer','CgField','CgFileUploader','CgFilterBuilder','CgFilterCodecError','CgFilterEvaluationError','CgFilterFieldRegistry','CgFilterOperatorRegistry','CgFilterPersistenceError','CgFlyout','CgFormLayout','CgFormLayoutGroup','CgFormLayoutItem','CgFormLayoutTabs','CgGrid','CgGridBrowserViewStore','CgGridFilterConfigurationError','CgGridViewConcurrencyError','CgIcon','CgKeyComboBox','CgLayoutBreakpoint','CgListBox','CgLoadingPanel','CgLookUpGrid','CgMaskedInput','CgMemo','CgMenu','CgNumericEdit','CgPager','CgPopup','CgProgressBar','CgRadio','CgRadioGroup','CgRangeSelector','CgSearchBox','CgSpinEdit','CgSplitButton','CgSplitter','CgStatusBadge','CgStepper','CgSwitch','CgTabs','CgTagBox','CgTextBox','CgToastProvider','CgToolbar','CgTooltip','CgTreeView','CgWindow','areFiltersEquivalent','buildFilterSchemaSignature','calculateCustomGridSummaries','calculateGridSummaries','calculateNumericWindow','calculatePageCount','calculatePageSkip','calculatePageSkipChecked','calculateVisibleItemRange','captureFilterSavedView','clampPageIndex','combineFilters','compareDecimalText','compileFilterPredicate','createFilterEvaluationContext','createFilterValue','createGridDataRequest','createGridFilterRowCondition','createGridState','createGridXlsx','currentCivilDate','cx','decodeFilterNode','decodeGridDataRequest','defaultFilterOperator','deserializeFilterNode','deserializeFilterSavedView','downloadGridExport','encodeFilterNode','encodeGridDataRequest','enumerateFilterNodes','evaluateFilter','evaluateGridFilter','filterDepth','filterNodeCount','filterOperatorsForField','filterValueFromUnknown','formatFilter','gridFilterFields','gridFilterRegistry','gridFilterRowValue','hasFilterValue','isCivilDate','isValidFilterValue','loadFilterSavedView','mapFilterFieldIds','migrateGridFilterFields','normalizeCgDecimalValue','normalizeCgInstantValue','normalizeCgLocalDateTimeValue','normalizeFilterNode','normalizeGridFilter','normalizeGridState','normalizeNumericButtonCount','normalizePageCount','normalizePageSize','normalizePageSizeOptions','parseFilterValue','parsePagerDisplayNumber','preserveFirstItemPageIndex','processLocalGridData','processLocalGridDataAsync','providerGridSummaries','pruneFilterFields','pruneGridFilter','removeFilterField','removeFilterSource','replaceFilterRowConditions','resolveFilterPeriod','sanitizeGridExportFileName','savedViewState','serializeFilterNode','serializeFilterSavedView','shouldUsePagerInput','stableSortGridItems','toDisplayPageNumber','toPageIndex','useCgConfirmation','useCgContextMenuTarget','useCgId','useCgLayoutBreakpoint','useCgToast','useControllableState','validateFilter','validateGridFilter','valueCivilDate'];
 expected.push('CG_CHART_PRIMARY_AXIS_NAME', 'CgChart');
 expected.push('CgScheduler');
+expected.push('CgButtonGroup', 'CgMap', 'CgRichTextEditor');
 expected.push('CG_TREE_LIST_DEFAULT_MAXIMUM_DEPTH', 'CG_TREE_LIST_MAXIMUM_DEPTH_LIMIT', 'CG_TREE_LIST_STATE_VERSION', 'CgTreeList', 'createTreeListState', 'createTreeListXlsx', 'downloadTreeListExport', 'normalizeTreeListState', 'sanitizeTreeListExportFileName', 'treeListKeyToken');
 expected.push('CG_PIVOT_LAYOUT_VERSION', 'CgPivotBrowserLayoutStore', 'CgPivotCalculatedMeasures', 'CgPivotError', 'CgPivotLimitError', 'CgPivotTable', 'createPivotAggregate', 'createPivotCalculatedState', 'createPivotExport', 'createPivotMember', 'createPivotQuery', 'downloadPivotExport', 'getPivotDistinctValues', 'getPivotDrillDown', 'normalizePivotLayout', 'pivotPathKey', 'pivotValueKey', 'processPivotData', 'validatePivotResult');
 assert.deepEqual(Object.keys(runtime).sort(), expected.sort());
@@ -45,5 +102,13 @@ for (let cursor = packed.stdout.lastIndexOf('['); cursor >= 0; cursor = packed.s
 }
 assert.ok(packResult, `npm pack did not emit a recognizable JSON result:\n${packed.stdout.slice(-2000)}`);
 const packedPaths = new Set(packResult[0].files.map((entry) => entry.path));
-for (const file of ['package.json', 'README.md', 'dist/index.js', 'dist/index.d.ts', 'dist/cashgear-ui.css']) assert.ok(packedPaths.has(file), `Tarball missing ${file}`);
+for (const file of [
+  'package.json', 'README.md', 'dist/index.js', 'dist/index.d.ts', 'dist/cashgear-ui.css',
+  'dist/vendor/leaflet/leaflet-src.esm.js', 'dist/vendor/rich-text-editor/editor.js',
+  'dist/vendor/leaflet/integrity-manifest.json', 'dist/vendor/rich-text-editor/integrity-manifest.json',
+  'dist/vendor/rich-text-editor/THIRD-PARTY-NOTICES.txt', 'dist/vendor/leaflet/LICENSE',
+  'dist/vendor/leaflet/images/layers.png', 'dist/vendor/leaflet/images/layers-2x.png',
+  'dist/vendor/leaflet/images/marker-icon.png', 'dist/vendor/leaflet/images/marker-icon-2x.png',
+  'dist/vendor/leaflet/images/marker-shadow.png', 'src/vendor/leaflet/LICENSE',
+]) assert.ok(packedPaths.has(file), `Tarball missing ${file}`);
 console.log(`Package verified: ${runtime.CgButton ? expected.length : 0} runtime exports, ${packedPaths.size} packed files.`);

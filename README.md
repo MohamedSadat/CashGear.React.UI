@@ -21,6 +21,8 @@ Deep package imports are intentionally blocked. Runtime exports are limited to t
 
 Phase 22 adds [`CgPivotTable`](src/components/PivotTable/README.md): exact-decimal summaries and calculated measures, hierarchical analysis, field lists and filters, two-axis virtualization, drill-down, saved layouts, and CSV/XLSX exports. Local data and cancellable host-owned providers share the same typed query contract. Explore `Phase 22/PivotTable` in Storybook.
 
+Phase 23 adds [`CgButtonGroup`](src/components/ButtonGroup/README.md), [`CgMap`](src/components/Map/README.md), and [`CgRichTextEditor`](src/components/RichTextEditor/README.md). Leaflet, Tiptap, and DOMPurify are pinned, checked-in lazy chunks with integrity manifests and notices; the published package still has no production dependencies beyond its React peers. Explore the three `Phase 23` Storybook groups.
+
 ## Theme, density, and direction
 
 Theme and density are inherited through data attributes; direction uses native `dir` and logical CSS properties.
@@ -830,11 +832,11 @@ Eligibility uses the trimmed query length, but `onSearch` receives the original 
 
 Components:
 
-- `CgIcon`, `CgButton`, `CgField`
-- `CgTextBox`, `CgMemo`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgKeyComboBox`, `CgLookUpGrid`, `CgListBox`, `CgTagBox`, `CgDropDownBox`, `CgDateEdit`, `CgCalendar`, `CgDateRangePicker`, `CgFileUploader`
+- `CgIcon`, `CgButton`, `CgButtonGroup`, `CgField`
+- `CgTextBox`, `CgMemo`, `CgRichTextEditor`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgKeyComboBox`, `CgLookUpGrid`, `CgListBox`, `CgTagBox`, `CgDropDownBox`, `CgDateEdit`, `CgCalendar`, `CgDateRangePicker`, `CgFileUploader`
 - `CgFlyout`, `CgPopup`, `CgWindow`, `CgMaskedInput`
 - `CgSplitter`, `CgDrawer`
-- `CgChart`, `CgRangeSelector`, `CgTooltip`, `CgStatusBadge`
+- `CgChart`, `CgMap`, `CgRangeSelector`, `CgTooltip`, `CgStatusBadge`
 - `CgMenu`, `CgContextMenu`, `CgDropDownButton`, `CgSplitButton`, `CgToolbar`
 - `CgLayoutBreakpoint`, `CgTabs`, `CgStepper`, `CgAccordion`, `CgTreeView`, `CgTreeList`, `CgFilterBuilder`, `CgPager`, `CgGrid`
 - `CgFormLayout`, `CgFormLayoutItem`, `CgFormLayoutGroup`, `CgFormLayoutTabs`
@@ -889,6 +891,6 @@ Phase 21 verification on 2026-08-31 passed strict typecheck and lint, 53 Vitest 
 
 ## Packaging
 
-The library is ESM-only. Vite preserves modules for tree-shaking, keeps React external, emits declarations and declaration maps, and produces `dist/cashgear-ui.css`, exported only as `@cashgear/ui/styles.css`. `npm run verify:package` also runs `npm pack --dry-run` so the publish allow-list is checked before release.
+The library is ESM-only. Vite preserves modules for tree-shaking, keeps React external, emits declarations and declaration maps, and produces `dist/cashgear-ui.css`, exported only as `@cashgear/ui/styles.css`. Leaflet and the rich-text engine are emitted as lazy chunks; their licenses, notices, images, pins, and integrity manifests ship with the package. `npm run verify:package` verifies their exact hashes, rejects bare runtime vendor imports, and runs `npm pack --dry-run` so the publish allow-list is checked before release.
 
 See [the parity ledger](docs/cgcomplib-react-parity.md) for the original and current Razor snapshots, source/test/story paths, intentional differences, exact verification results, and deferred advanced components.

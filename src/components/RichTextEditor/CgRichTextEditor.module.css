@@ -1,0 +1,123 @@
+.root {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--cg-border, #cbd5e1);
+  border-radius: var(--cg-radius-lg, 0.5rem);
+  background: var(--cg-surface, #fff);
+  color: var(--cg-text, #0f172a);
+  font-family: var(--cg-font-family, system-ui);
+}
+
+.root:focus-within { border-color: var(--cg-accent, #2563eb); }
+.root[data-invalid] { border-color: var(--cg-danger, #b91c1c); }
+.ribbon {
+  --cg-color-surface: var(--cg-surface);
+  --cg-color-text: var(--cg-text);
+  --cg-color-border: var(--cg-border);
+  padding: 0.4rem;
+  border-bottom: 1px solid var(--cg-border, #cbd5e1);
+  background: var(--cg-surface-subtle, #f8fafc);
+}
+
+.ribbon :global([role='tabpanel']) {
+  margin: 0;
+  padding: 0.5rem;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--cg-surface, #fff);
+}
+
+.settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem;
+}
+
+.settings label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--cg-text-secondary, #475569);
+  font-size: 0.8rem;
+}
+
+.settings select,
+.settings input {
+  min-height: 2rem;
+  max-width: 10rem;
+  border: 1px solid var(--cg-border, #cbd5e1);
+  border-radius: 0.25rem;
+  background: var(--cg-surface, #fff);
+  color: var(--cg-text, #0f172a);
+}
+
+.settings input[type='color'] { width: 2.2rem; padding: 0.15rem; }
+.surface { min-height: 8rem; overflow: auto; }
+.surface[data-disabled] { overflow: hidden; }
+
+.surface :global(.tiptap) {
+  min-height: 100%;
+  box-sizing: border-box;
+  padding: 1.5rem 2rem;
+  outline: none;
+  overflow-wrap: break-word;
+  caret-color: var(--cg-text, #0f172a);
+  font-size: 1rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.surface :global(.tiptap > :first-child) { margin-top: 0; }
+.surface :global(.tiptap p) { margin: 0.5em 0; }
+.surface :global(.tiptap ul), .surface :global(.tiptap ol) { padding-inline-start: 1.8rem; }
+.surface :global(.tiptap img) { max-width: 100%; height: auto; }
+.surface :global(.tiptap a) { color: var(--cg-accent, #2563eb); text-decoration: underline; cursor: text; }
+.surface :global(.tiptap table) { width: 100%; border-collapse: collapse; table-layout: fixed; overflow: hidden; }
+.surface :global(.tiptap td), .surface :global(.tiptap th) { position: relative; min-width: 2rem; padding: 0.4rem 0.6rem; border: 1px solid var(--cg-border-strong, #94a3b8); vertical-align: top; }
+.surface :global(.tiptap th) { background: var(--cg-surface-subtle, #f8fafc); font-weight: 600; }
+.surface :global(.selectedCell::after) { position: absolute; inset: 0; content: ''; pointer-events: none; background: var(--cg-accent-soft, #dbeafe); opacity: 0.5; }
+.surface :global(.ProseMirror-selectednode) { outline: 2px solid var(--cg-accent, #2563eb); }
+.surface :global(.ProseMirror-hideselection *::selection) { background: transparent; }
+.surface :global(.tiptap p.is-editor-empty:first-child::before) { float: inline-start; height: 0; color: var(--cg-text-secondary, #475569); content: attr(data-placeholder); pointer-events: none; }
+.surface :global(.ProseMirror-gapcursor) { position: absolute; display: none; pointer-events: none; }
+.surface :global(.ProseMirror-gapcursor::after) { position: absolute; top: -2px; display: block; width: 20px; border-top: 1px solid; content: ''; }
+.surface :global(.ProseMirror-focused .ProseMirror-gapcursor) { display: block; }
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 1rem;
+  border-top: 1px solid var(--cg-border, #cbd5e1);
+  background: var(--cg-surface-subtle, #f8fafc);
+  color: var(--cg-text-secondary, #475569);
+  font-size: 0.75rem;
+}
+
+.error { padding: 1rem; color: var(--cg-danger, #b91c1c); }
+.dialog { display: grid; gap: 1rem; }
+.dialog label { display: grid; gap: 0.35rem; }
+.dialog input { min-width: 0; padding: 0.5rem; border: 1px solid var(--cg-border, #cbd5e1); border-radius: 0.3rem; background: var(--cg-surface, #fff); color: var(--cg-text, #0f172a); }
+.dialogActions { display: flex; justify-content: flex-end; gap: 0.5rem; }
+.dialogError { color: var(--cg-danger, #b91c1c); }
+
+.formProxy {
+  position: fixed;
+  inset: 0 auto auto 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.settings select:focus-visible,
+.settings input:focus-visible { outline: 2px solid var(--cg-accent, #2563eb); outline-offset: 2px; }
+
+@media (max-width: 600px) { .surface :global(.tiptap) { padding: 1rem; } }

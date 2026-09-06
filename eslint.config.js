@@ -5,7 +5,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'storybook-static/**', 'test-results/**', 'playwright-report/**'],
+    ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'storybook-static/**', 'test-results/**', 'playwright-report/**', 'src/vendor/**'],
   },
 
   js.configs.recommended,
@@ -65,5 +65,10 @@ export default tseslint.config(
       sourceType: 'module',
       globals: globals.node,
     },
+  },
+  {
+    files: ['vendor-src/**/*.js'],
+    languageOptions: { globals: globals.browser },
+    rules: { 'no-control-regex': 'off' },
   },
 );

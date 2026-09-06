@@ -1,0 +1,17 @@
+{
+  "packages": {
+    "tiptap": "3.31.3",
+    "dompurify": "3.4.14",
+    "esbuild": "0.28.2"
+  },
+  "files": [
+    {
+      "file": "editor.js",
+      "sha256": "3d6218068bb632c541f297dc2b79e6e13d57a83e63208a3e1b6fbfaf3b5281c9"
+    },
+    {
+      "file": "THIRD-PARTY-NOTICES.txt",
+      "sha256": "b8856ed6e09e4fdf0cfbf0c48d4b1a28ff1c44f99d5ceefe0a2de6db789b3e43"
+    }
+  ]
+}

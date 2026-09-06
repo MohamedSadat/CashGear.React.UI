@@ -873,3 +873,17 @@ Firefox remains environment-blocked before page creation: its 30-second launch t
 The complete Chromium/WebKit semantic and Chromium visual regression run exercised 492 cases. With two workers it passed 488 and hit four transient failures (two WebKit navigation timeouts, a CSS preload failure, and a ComboBox loading-state screenshot mismatch). All four passed when rerun serially with no baseline changes. All 243 pre-existing visual baseline files were preserved; Phase 22 adds 11 files.
 
 After the final provider-validation, immutable-query and RTL drill-down refinements, the rebuilt PivotTable passed all 19 focused browser checks without snapshot updates and all 38 focused unit/public-API tests. Type checking, scoped lint, and both production builds passed again.
+
+## Phase 23 - ButtonGroup, Map, and RichTextEditor
+
+Reference audit: ButtonGroup and Map mirror `CashGear.Blazor.UI` snapshot `10006424`; RichTextEditor mirrors `f8e7235b`. The React port is additive and does not change existing exports or theme contracts.
+
+| Component | React implementation | Intentional adaptation |
+| --- | --- | --- |
+| `CgButtonGroup<TData>` | `src/components/ButtonGroup/*`, `tests/button-group.test.tsx`, Phase 23 stories/browser tests | Immutable item descriptors replace Razor declaration children. A discriminated selection union prevents irrelevant bindings. Item/group/error ordering, async busy state, radio/pressed semantics, and RTL-aware roving focus remain explicit. |
+| `CgMap` | `src/components/Map/*`, `src/vendor/leaflet/*`, `tests/map.test.tsx`, Phase 23 stories/browser tests | A private lazy Leaflet adapter replaces the Blazor JS object handle. Controlled/default viewport state and `actionsRef.fitBounds()` replace .NET binding and async component methods. No tile provider is configured. |
+| `CgRichTextEditor` | `src/components/RichTextEditor/*`, `src/vendor/rich-text-editor/*`, `tests/rich-text-editor*.test.*`, Phase 23 stories/browser tests | React composes public Tabs, Toolbar, and Popup controls around the same Tiptap schema. A native textarea proxy replaces EditContext integration; actions use a ref. Controlled echoes are generation-aware. |
+
+Leaflet 1.9.4, Tiptap 3.31.3, DOMPurify 3.4.14, and esbuild 0.28.2 are exact pins. Normal builds consume checked-in ESM bundles and install no nested toolchain. The lockfiles in `vendor-src/leaflet` and `vendor-src/rich-text-editor` are the reproducible inputs; `npm ci && npm run build` in either directory regenerates its published runtime files and integrity data. The editor build also regenerates its third-party notices. Package verification hashes every manifested source, requires the emitted lazy chunks and raster assets/notices, and rejects bare imports from those runtime packages.
+
+Map configuration, provider terms, attribution, credentials, CSP, and tile availability remain host responsibilities. Routing, geocoding, draggable markers, and arbitrary popup HTML are excluded. Rich-text uploads, office/PDF interchange, collaboration, tracked changes, pagination, headers, and footers remain excluded. DOMPurify and the structural/style/URL allowlists are client safety boundaries, not substitutes for server validation and output encoding.
