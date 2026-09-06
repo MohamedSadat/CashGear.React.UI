@@ -148,6 +148,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'normalizeFilterNode',
   'normalizeGridFilter',
   'normalizeGridState',
+  'normalizeGridTableAppearance',
   'normalizeNumericButtonCount',
   'normalizePageCount',
   'normalizePageSize',

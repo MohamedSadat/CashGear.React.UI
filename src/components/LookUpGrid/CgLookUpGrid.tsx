@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { ChangeEvent, FormEvent, KeyboardEvent, MouseEvent, SyntheticEvent } from 'react';
+import type { ChangeEvent, CompositionEvent, FormEvent, KeyboardEvent, MouseEvent, SyntheticEvent } from 'react';
 import { useCgId, useControllableState, useDirection, useFormReset, useMergedRefs, useStableCallback } from '../../hooks';
 import { EditorButton, InputShell, useFieldControl } from '../../internal';
 import { assertNonNegative, assertPositiveInteger } from '../../internal/validation';
@@ -37,6 +37,14 @@ import type {
   CgLookUpGridValueChangeDetails,
 } from './CgLookUpGrid.types';
 
+interface ResolverAttempt<TItem, TValue, TContext> {
+  readonly value: TValue;
+  readonly queryContext: TContext;
+  readonly dataVersion: unknown;
+  readonly item: TItem | null;
+  readonly error?: unknown;
+}
+
 const DEFAULT_LABELS: CgLookUpGridLabels = {
   loading: 'Loading…',
   empty: 'No results found',
@@ -54,6 +62,7 @@ const DEFAULT_LABELS: CgLookUpGridLabels = {
   sortDescending: (_title, fieldId) => `${fieldId} sorted descending`,
   sortCleared: 'Sorting cleared',
   filterRemoved: (fieldId) => `Filter for ${fieldId} was removed because the column is no longer visible.`,
+  resolutionError: 'Unable to resolve the selected item.',
 };
 
 function isAbortError(error: unknown): boolean {
@@ -150,6 +159,7 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
     itemResolver,
     queryContext,
     isQueryContextEqual = Object.is,
+    dataVersion,
     pageSize = 50,
     allowPaging = true,
     showHeader = true,
@@ -165,6 +175,8 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
     defaultOpen = false,
     onOpenChange,
     onSearchTextChange,
+    onSearchError,
+    onResolutionError,
     onSortChange,
     onColumnFiltersChange,
     onViewAllRequest,
@@ -206,6 +218,8 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
     onFocus,
     onBlur,
     onKeyDown,
+    onCompositionStart,
+    onCompositionEnd,
     onClick,
     autoComplete = 'off',
     ...nativeProps
@@ -255,6 +269,7 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<unknown>();
+  const [resolutionError, setResolutionError] = useState<unknown>();
   const [activeIndex, setActiveIndex] = useState(-1);
   const [sort, setSort] = useState<CgLookUpGridSort | null>(initialSortRef.current);
   const [rawFilters, setRawFilters] = useState<Readonly<Record<string, string>>>({});
@@ -281,11 +296,14 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
   const loadMorePendingRef = useRef(false);
   const resolverControllerRef = useRef<AbortController | undefined>(undefined);
   const resolverGenerationRef = useRef(0);
-  const resolverAttemptsRef = useRef<TValue[]>([]);
+  const resolverAttemptsRef = useRef<Array<ResolverAttempt<TItem, TValue, TContext>>>([]);
+  const composingRef = useRef(false);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const previousContextRef = useRef(queryContext as TContext);
   const previousDataRef = useRef(data);
+  const previousDataVersionRef = useRef(dataVersion);
   const previousColumnCapabilitiesRef = useRef([String(allowSorting), ...visibleColumns.map((column) => `${column.fieldId}:${column.searchable !== false}:${column.filterable !== false}:${column.sortable !== false}`)]);
+  const previousSearchComparisonRef = useRef(`${locale ?? ''}:${ignoreDiacritics}`);
   const queryStartedForOpenRef = useRef(false);
   const debounceOnNextOpenRef = useRef(false);
   const previousRenderedOpenRef = useRef(false);
@@ -295,6 +313,10 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
   const valueSelectorStable = useStableCallback(valueSelector);
   const textSelectorStable = useStableCallback(textSelector);
   const disabledSelectorStable = useStableCallback(rowDisabledSelector);
+  const valueEqualStable = useStableCallback(isValueEqual);
+  const queryContextEqualStable = useStableCallback(isQueryContextEqual);
+  const onSearchErrorRef = useRef(onSearchError);
+  const onResolutionErrorRef = useRef(onResolutionError);
 
   const effectiveSearch = searchDirty ? normalizeLookUpText(draft) : '';
   const belowMinimum = searchDirty && effectiveSearch.length > 0 && effectiveSearch.length < minimumSearchLength;
@@ -322,11 +344,13 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
     errorRef.current = error;
     totalRef.current = totalCount;
     lastPageFullRef.current = lastPageFull;
+    onSearchErrorRef.current = onSearchError;
+    onResolutionErrorRef.current = onResolutionError;
   });
 
-  const valueMatches = useCallback((item: TItem, candidate: TValue | null): boolean => (
-    !isEmptyValue(candidate) && isValueEqual(valueSelector(item), candidate as TValue)
-  ), [isValueEqual, valueSelector]);
+  const valueMatches = useStableCallback((item: TItem, candidate: TValue | null): boolean => (
+    !isEmptyValue(candidate) && valueEqualStable(valueSelectorStable(item), candidate as TValue)
+  ));
 
   const cancelDebounce = useCallback(() => {
     if (debounceTimerRef.current !== undefined) clearTimeout(debounceTimerRef.current);
@@ -432,6 +456,7 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
         disabledRef.current = [];
       }
       setError(nextError);
+      try { onSearchErrorRef.current?.({ error: nextError, searchText: currentSearch, queryContext }); } catch { /* diagnostics must not alter control behavior */ }
     } finally {
       if (generation === queryGenerationRef.current && mountedRef.current) {
         setLoading(false);
@@ -667,9 +692,19 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
   }, [allowPaging, loading, loadingMore]);
 
   const reload = useStableCallback(async () => {
+    resolverControllerRef.current?.abort();
     resolverAttemptsRef.current = [];
+    cacheRef.current = null;
+    setResolutionError(undefined);
     setResolverRevision((revision) => revision + 1);
     if (openRef.current) await runQuery(false);
+  });
+
+  const refreshSelectedItem = useStableCallback(async () => {
+    resolverControllerRef.current?.abort();
+    resolverAttemptsRef.current = [];
+    setResolutionError(undefined);
+    setResolverRevision((revision) => revision + 1);
   });
 
   const actions = useMemo<CgLookUpGridActions<TItem, TValue>>(() => ({
@@ -679,6 +714,7 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
     focus: () => inputRef.current?.focus({ preventScroll: true }),
     clear: () => clear(),
     reload,
+    refreshSelectedItem,
     loadMore: async () => { if (hasMore()) await runQuery(true); },
     sortBy: (fieldId, direction) => sortBy(fieldId, direction),
     setColumnFilter: (fieldId, nextValue) => setColumnFilter(fieldId, nextValue),
@@ -689,11 +725,12 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
     getLoadedRowCount: () => rowsRef.current.length,
     getTotalCount: () => totalRef.current,
     hasMoreRows: hasMore,
-  }), [clear, clearColumnFilters, hasMore, reload, requestClose, requestOpen, runQuery, setColumnFilter, sortBy]);
+  }), [clear, clearColumnFilters, hasMore, refreshSelectedItem, reload, requestClose, requestOpen, runQuery, setColumnFilter, sortBy]);
   useImperativeHandle(actionsRef, () => actions, [actions]);
 
   useEffect(() => {
     resolverControllerRef.current?.abort();
+    setResolutionError(undefined);
     const nextValue = committedValue;
     if (isEmptyValue(nextValue)) {
       setResolvedItem(null);
@@ -715,27 +752,45 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
     }
     setResolvedItem(null);
     if (controlledSelectedItem === undefined) setInternalSelectedItem(null);
-    if (!resolverAvailable || resolverAttemptsRef.current.some((attempt) => isValueEqual(attempt, key))) return;
-    resolverAttemptsRef.current.push(key);
+    if (!resolverAvailable) return;
+    const cachedAttempt = resolverAttemptsRef.current.find((attempt) => valueEqualStable(attempt.value, key) && Object.is(attempt.dataVersion, dataVersion) && queryContextEqualStable(attempt.queryContext, queryContext as TContext));
+    if (cachedAttempt) {
+      setResolvedItem(cachedAttempt.item);
+      setResolutionError(cachedAttempt.error);
+      if (cachedAttempt.item !== null) {
+        cacheRef.current = cachedAttempt.item;
+        if (controlledSelectedItem === undefined) setInternalSelectedItem(cachedAttempt.item);
+      }
+      return;
+    }
     const controller = new AbortController();
     resolverControllerRef.current = controller;
     const generation = ++resolverGenerationRef.current;
-    void Promise.resolve(resolverStable(key, { signal: controller.signal })).then(
+    void Promise.resolve(resolverStable(key, { signal: controller.signal, queryContext: queryContext as TContext })).then(
       (item) => {
-        if (!mountedRef.current || controller.signal.aborted || generation !== resolverGenerationRef.current || !isValueEqual(valueRef.current as TValue, key)) return;
-        if (item !== null && item !== undefined && isValueEqual(valueSelectorStable(item), key)) {
+        if (!mountedRef.current || controller.signal.aborted || generation !== resolverGenerationRef.current || !valueEqualStable(valueRef.current as TValue, key)) return;
+        if (item !== null && item !== undefined && valueEqualStable(valueSelectorStable(item), key)) {
+          resolverAttemptsRef.current.push({ value: key, queryContext: queryContext as TContext, dataVersion, item });
           cacheRef.current = item;
           setResolvedItem(item);
           if (controlledSelectedItem === undefined) setInternalSelectedItem(item);
+        } else if (item !== null && item !== undefined) {
+          const mismatch = new Error('CgLookUpGrid itemResolver returned an item with a different key.');
+          resolverAttemptsRef.current.push({ value: key, queryContext: queryContext as TContext, dataVersion, item: null, error: mismatch });
+          setResolutionError(mismatch);
+          try { onResolutionErrorRef.current?.({ error: mismatch, value: key, queryContext }); } catch { /* diagnostics must not alter control behavior */ }
+        } else {
+          resolverAttemptsRef.current.push({ value: key, queryContext: queryContext as TContext, dataVersion, item: null });
         }
       },
       (resolveError: unknown) => {
-        if (!controller.signal.aborted && !isAbortError(resolveError)) {
-          // Resolver failures intentionally retain the key and its string fallback.
-        }
+        if (controller.signal.aborted || isAbortError(resolveError)) return;
+        resolverAttemptsRef.current.push({ value: key, queryContext: queryContext as TContext, dataVersion, item: null, error: resolveError });
+        setResolutionError(resolveError);
+        try { onResolutionErrorRef.current?.({ error: resolveError, value: key, queryContext }); } catch { /* diagnostics must not alter control behavior */ }
       },
     );
-  }, [committedValue, controlledSelectedItem, data, isValueEqual, resolverAvailable, resolverRevision, valueMatches, resolverStable, valueSelectorStable]);
+  }, [committedValue, controlledSelectedItem, data, dataVersion, queryContext, queryContextEqualStable, resolverAvailable, resolverRevision, valueEqualStable, valueMatches, resolverStable, valueSelectorStable]);
 
   useEffect(() => {
     const wasOpen = previousRenderedOpenRef.current;
@@ -776,12 +831,35 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
   }, [data, runQuery]);
 
   useEffect(() => {
+    if (Object.is(previousDataVersionRef.current, dataVersion)) return;
+    previousDataVersionRef.current = dataVersion;
+    resolverControllerRef.current?.abort();
+    resolverAttemptsRef.current = [];
+    cacheRef.current = null;
+    setResolutionError(undefined);
+    setResolverRevision((revision) => revision + 1);
+    if (openRef.current) void runQuery(false);
+  }, [dataVersion, runQuery]);
+
+  useEffect(() => {
+    const signature = `${locale ?? ''}:${ignoreDiacritics}`;
+    if (previousSearchComparisonRef.current === signature) return;
+    previousSearchComparisonRef.current = signature;
+    if (openRef.current) void runQuery(false);
+  }, [ignoreDiacritics, locale, runQuery]);
+
+  useEffect(() => {
     const previous = previousContextRef.current;
     const next = queryContext as TContext;
-    if (isQueryContextEqual(previous, next)) return;
+    if (queryContextEqualStable(previous, next)) return;
     previousContextRef.current = next;
+    resolverControllerRef.current?.abort();
+    resolverAttemptsRef.current = [];
+    cacheRef.current = null;
+    setResolutionError(undefined);
+    setResolverRevision((revision) => revision + 1);
     if (openRef.current) void runQuery(false);
-  }, [isQueryContextEqual, queryContext, runQuery]);
+  }, [queryContext, queryContextEqualStable, runQuery]);
 
   useEffect(() => {
     const currentCapabilities = [String(allowSorting), ...visibleColumns.map((column) => `${column.fieldId}:${column.searchable !== false}:${column.filterable !== false}:${column.sortable !== false}`)];
@@ -868,9 +946,8 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
     focusable[index + 1]?.focus({ preventScroll: true });
   };
 
-  const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const updateSearch = (next: string, event?: SyntheticEvent<HTMLInputElement>) => {
     if (field.disabled || field.readOnly) return;
-    const next = event.target.value;
     setDraft(next);
     draftRef.current = next;
     setSearchDirty(true);
@@ -890,7 +967,26 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
     scheduleQuery();
   };
 
+  const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    if (composingRef.current) {
+      setDraft(event.target.value);
+      draftRef.current = event.target.value;
+      return;
+    }
+    updateSearch(event.target.value, event);
+  };
+
   const handleInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.nativeEvent.isComposing || composingRef.current) {
+      onKeyDown?.(event);
+      return;
+    }
+    if (!field.disabled && !field.readOnly && clearable && event.ctrlKey && !event.altKey && !event.metaKey && (event.key === 'Backspace' || event.key === 'Delete')) {
+      event.preventDefault();
+      void clear(event);
+      onKeyDown?.(event);
+      return;
+    }
     if (event.key === 'Enter') {
       event.preventDefault();
       if (!field.disabled && !field.readOnly && openRef.current && activeIndex >= 0) void selectRow(activeIndex, event);
@@ -1021,6 +1117,7 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
           aria-labelledby={field.labelledBy}
           aria-describedby={field.describedBy}
           aria-errormessage={field.errorMessageId}
+          aria-keyshortcuts={clearable && !field.disabled && !field.readOnly ? 'Control+Backspace Control+Delete' : undefined}
           autoComplete={autoComplete}
           form={form}
           value={inputText}
@@ -1035,6 +1132,8 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
           onFocus={onFocus}
           onBlur={onBlur}
           onKeyDown={handleInputKeyDown}
+          onCompositionStart={(event: CompositionEvent<HTMLInputElement>) => { composingRef.current = true; onCompositionStart?.(event); }}
+          onCompositionEnd={(event: CompositionEvent<HTMLInputElement>) => { composingRef.current = false; updateSearch(event.currentTarget.value, event); onCompositionEnd?.(event); }}
         />
         {renderSelected && !isOpen && actualSelectedItem !== null && !isEmptyValue(committedValue) ? (
           <span className={styles.selectedTemplate} aria-hidden="true">
@@ -1042,6 +1141,7 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
           </span>
         ) : null}
       </InputShell>
+      {resolutionError !== undefined ? <div role="alert" className={styles.resolutionError}>{labels.resolutionError}</div> : null}
       <select
         ref={formProxyRef}
         name={name}

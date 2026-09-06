@@ -1,4 +1,5 @@
 export { CgLookUpGrid } from './CgLookUpGrid';
+export type { CgLookupErrorDetails } from '../../types';
 export { filterLookUpItems, foldLookUpText, formatLookUpCell, normalizeLookUpText } from './filtering';
 export { createLookUpQuery, normalizeColumnFilters } from './query';
 export { parseLookUpSort, sortLookUpItems } from './sorting';

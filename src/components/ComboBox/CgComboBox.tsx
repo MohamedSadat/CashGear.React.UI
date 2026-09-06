@@ -27,7 +27,7 @@ function joinIds(...values: Array<string | undefined | false>): string | undefin
   return ids.length > 0 ? [...new Set(ids)].join(' ') : undefined;
 }
 
-function CgComboBoxInner<TItem>(
+function CgComboBoxInner<TItem, TContext>(
   {
     options,
     loadOptions,
@@ -49,6 +49,11 @@ function CgComboBoxInner<TItem>(
     errorMessage = 'Unable to load results.',
     emptyMessage = 'No results found',
     minimumLengthMessage = (minimum) => `Type at least ${minimum} characters to search.`,
+    refineSearchMessage = 'Refine your search to see more results.',
+    queryContext,
+    isQueryContextEqual = Object.is,
+    dataVersion,
+    onSearchError,
     clearable = true,
     clearAriaLabel = 'Clear selection',
     toggleAriaLabel = 'Toggle options',
@@ -74,8 +79,11 @@ function CgComboBoxInner<TItem>(
     onCompositionStart,
     onCompositionEnd,
     autoComplete = 'off',
+    _unresolvedValueText,
+    _serializedValue,
+    _suppressFormReset,
     ...nativeProps
-  }: CgComboBoxProps<TItem>,
+  }: CgComboBoxProps<TItem, TContext> & { readonly _unresolvedValueText?: string; readonly _serializedValue?: string; readonly _suppressFormReset?: boolean },
   forwardedRef: React.ForwardedRef<HTMLInputElement>,
 ) {
   assertNonNegative('searchDelay', searchDelay);
@@ -94,11 +102,12 @@ function CgComboBoxInner<TItem>(
   const statusId = `${listboxId}-status`;
   const resolvedDirection = useDirection(inputRef, direction);
   const [selected, setSelected] = useControllableState<TItem | null>(value, defaultValue, 'CgComboBox');
-  const [draft, setDraft] = useState(() => selected === null ? '' : getOptionLabel(selected));
+  const [draft, setDraft] = useState(() => selected === null ? _unresolvedValueText ?? '' : getOptionLabel(selected));
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [remoteItems, setRemoteItems] = useState<ReadonlyArray<TItem>>([]);
+  const [remoteIncomplete, setRemoteIncomplete] = useState(false);
   const [loadError, setLoadError] = useState<unknown>();
   const composingRef = useRef(false);
   const selectedRef = useRef(selected);
@@ -106,11 +115,22 @@ function CgComboBoxInner<TItem>(
   const pendingCommittedTextRef = useRef<string | undefined>(undefined);
   const mountedRef = useRef(true);
   const asyncOperation = useAsyncOperation();
+  const queryContextRef = useRef(queryContext);
+  const dataVersionRef = useRef(dataVersion);
+  const queryContextEqualRef = useRef(isQueryContextEqual);
+  const onSearchErrorRef = useRef(onSearchError);
 
   useLayoutEffect(() => {
     selectedRef.current = selected;
     controlledValueRef.current = value;
   }, [selected, value]);
+
+  useLayoutEffect(() => { queryContextEqualRef.current = isQueryContextEqual; }, [isQueryContextEqual]);
+  useLayoutEffect(() => { onSearchErrorRef.current = onSearchError; }, [onSearchError]);
+
+  const reportSearchError = useCallback((error: unknown, searchText: string) => {
+    try { onSearchErrorRef.current?.({ error, searchText, queryContext: queryContextRef.current }); } catch { /* diagnostics must not alter control behavior */ }
+  }, []);
 
   const validateItems = useCallback((items: ReadonlyArray<TItem>) => {
     const seen = new Set<string>();
@@ -120,23 +140,26 @@ function CgComboBoxInner<TItem>(
       const token = keyToken(getOptionKey(item));
       if (seen.has(token)) throw new Error(`CgComboBox received duplicate option key ${String(getOptionKey(item))}.`);
       seen.add(token);
-      if (result.length < maxVisibleItems) result.push(item);
+      result.push(item);
     }
     return result;
-  }, [getOptionKey, maxVisibleItems]);
+  }, [getOptionKey]);
 
   const localItems = useMemo(
-    () => validateItems(options ?? []),
-    [options, validateItems],
+    () => {
+      void dataVersion;
+      return validateItems(options ?? []);
+    },
+    [dataVersion, options, validateItems],
   );
   const sourceItems = loadOptions ? remoteItems : localItems;
   const selectedToken = selected === null ? undefined : keyToken(getOptionKey(selected));
   const resolvedSelected = selectedToken === undefined
     ? null
     : sourceItems.find((item) => keyToken(getOptionKey(item)) === selectedToken) ?? selected;
-  const committedText = resolvedSelected === null ? '' : getOptionLabel(resolvedSelected);
+  const committedText = resolvedSelected === null ? _unresolvedValueText ?? '' : getOptionLabel(resolvedSelected);
 
-  const filteredItems = useMemo(() => {
+  const localMatches = useMemo(() => {
     if (loadOptions) return sourceItems;
     const query = draft.trim();
     if (query.length < minimumSearchLength) return [];
@@ -145,12 +168,15 @@ function CgComboBoxInner<TItem>(
     return sourceItems.filter((item) => {
       const candidate = foldSearch(getOptionSearchText(item) ?? '', locale, ignoreDiacritics);
       return searchMode === 'startsWith' ? candidate.startsWith(foldedQuery) : candidate.includes(foldedQuery);
-    }).slice(0, maxVisibleItems);
-  }, [draft, getOptionSearchText, ignoreDiacritics, loadOptions, locale, maxVisibleItems, minimumSearchLength, searchMode, sourceItems]);
+    });
+  }, [draft, getOptionSearchText, ignoreDiacritics, loadOptions, locale, minimumSearchLength, searchMode, sourceItems]);
+  const filteredItems = loadOptions ? sourceItems : localMatches.slice(0, maxVisibleItems);
+  const incomplete = loadOptions ? remoteIncomplete : localMatches.length > maxVisibleItems;
 
   const cancelRemote = useStableCallback(() => {
     asyncOperation.cancel();
     setLoadError(undefined);
+    setRemoteIncomplete(false);
   });
   const runRemote = useStableCallback((query: string) => {
     if (!loadOptions) return;
@@ -166,17 +192,20 @@ function CgComboBoxInner<TItem>(
     void asyncOperation.run(async ({ signal, generation }) => {
       requestId = generation;
       requestSignal = signal;
-      const result = await loadOptions(trimmed, { signal, requestId: generation });
+      const result = await loadOptions(trimmed, { signal, requestId: generation, queryContext: queryContextRef.current as TContext });
       return { generation, signal, items: result };
     }).then(
       ({ generation, signal, items }) => {
         if (signal.aborted || generation !== asyncOperation.generationRef.current) return;
         try {
-          setRemoteItems(validateItems(items));
+          const validated = validateItems(items);
+          setRemoteIncomplete(validated.length >= maxVisibleItems);
+          setRemoteItems(validated.slice(0, maxVisibleItems));
           setActiveIndex(-1);
         } catch (error) {
           setRemoteItems([]);
           setLoadError(error);
+          reportSearchError(error, trimmed);
         }
       },
       (error: unknown) => {
@@ -184,6 +213,7 @@ function CgComboBoxInner<TItem>(
         if (error instanceof DOMException && error.name === 'AbortError') return;
         setRemoteItems([]);
         setLoadError(error);
+        reportSearchError(error, trimmed);
       },
     );
   });
@@ -195,9 +225,25 @@ function CgComboBoxInner<TItem>(
     setOpen(false);
     setEditing(false);
     setActiveIndex(-1);
-    setDraft(selectedRef.current === null ? '' : getOptionLabel(selectedRef.current));
+    setDraft(selectedRef.current === null ? _unresolvedValueText ?? '' : getOptionLabel(selectedRef.current));
     if (loadOptions) setRemoteItems([]);
   });
+
+  useLayoutEffect(() => {
+    const contextChanged = !queryContextEqualRef.current(queryContextRef.current as TContext, queryContext as TContext);
+    const versionChanged = !Object.is(dataVersionRef.current, dataVersion);
+    queryContextRef.current = queryContext;
+    dataVersionRef.current = dataVersion;
+    if (!contextChanged && !versionChanged) return;
+    debouncedRemote.cancel();
+    cancelRemote();
+    setRemoteItems([]);
+    setRemoteIncomplete(false);
+    setOpen(false);
+    setEditing(false);
+    setActiveIndex(-1);
+    setDraft(selectedRef.current === null ? _unresolvedValueText ?? '' : getOptionLabel(selectedRef.current));
+  }, [_unresolvedValueText, cancelRemote, dataVersion, debouncedRemote, getOptionLabel, queryContext]);
   const overlay = useOverlayStack(open, closeAndRestore, popupRef, closeAndRestore, controlRef);
 
   const beginOpen = useStableCallback(() => {
@@ -239,7 +285,7 @@ function CgComboBoxInner<TItem>(
           ? undefined
           : keyToken(getOptionKey(authoritative));
         if (authoritativeToken !== proposedToken) {
-          setDraft(authoritative === null || authoritative === undefined ? '' : getOptionLabel(authoritative));
+          setDraft(authoritative === null || authoritative === undefined ? _unresolvedValueText ?? '' : getOptionLabel(authoritative));
         }
       });
     }
@@ -259,6 +305,7 @@ function CgComboBoxInner<TItem>(
   });
 
   useFormReset(inputRef, () => {
+    if (_suppressFormReset) return;
     debouncedRemote.cancel();
     cancelRemote();
     setOpen(false);
@@ -266,7 +313,7 @@ function CgComboBoxInner<TItem>(
     setActiveIndex(-1);
     setRemoteItems([]);
     const next = value !== undefined ? value : defaultValue;
-    setDraft(next === null ? '' : getOptionLabel(next));
+    setDraft(next === null ? _unresolvedValueText ?? '' : getOptionLabel(next));
     if (value === undefined) emitSelection(next, 'reset');
   });
 
@@ -336,6 +383,7 @@ function CgComboBoxInner<TItem>(
   const resolveKeyboardSelection = () => {
     const active = filteredItems[activeIndex];
     if (active) return active;
+    if (loadOptions || incomplete) return undefined;
     const query = foldSearch(draft.trim(), locale, ignoreDiacritics);
     if (!query) return undefined;
     const exact = filteredItems.filter((item) => foldSearch(getOptionLabel(item), locale, ignoreDiacritics) === query);
@@ -344,6 +392,18 @@ function CgComboBoxInner<TItem>(
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (field.disabled || field.readOnly) {
+      onKeyDown?.(event);
+      return;
+    }
+    if (event.nativeEvent.isComposing || composingRef.current) {
+      onKeyDown?.(event);
+      return;
+    }
+    if (event.ctrlKey && !event.altKey && !event.metaKey && (event.key === 'Backspace' || event.key === 'Delete')) {
+      if (clearable) {
+        event.preventDefault();
+        clearSelection(event);
+      }
       onKeyDown?.(event);
       return;
     }
@@ -384,12 +444,12 @@ function CgComboBoxInner<TItem>(
       ? loadingMessage
       : loadError !== undefined
         ? typeof errorMessage === 'function' ? errorMessage(loadError) : errorMessage
-        : filteredItems.length === 0
+          : filteredItems.length === 0
           ? emptyMessage
-          : undefined;
+          : incomplete ? refineSearchMessage : undefined;
   const activeOptionId = open && activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined;
   const describedBy = joinIds(field.describedBy, open && status !== undefined ? statusId : undefined);
-  const serializedValue = selected === null ? '' : String(getOptionKey(selected));
+  const serializedValue = _serializedValue ?? (selected === null ? '' : String(getOptionKey(selected)));
   const start = null;
   const end = (
     <>
@@ -423,6 +483,7 @@ function CgComboBoxInner<TItem>(
           aria-readonly={field.readOnly || undefined}
           aria-describedby={describedBy}
           aria-errormessage={field.errorMessageId}
+          aria-keyshortcuts={clearable && !field.disabled && !field.readOnly ? 'Control+Backspace Control+Delete' : undefined}
           autoComplete={autoComplete}
           form={form}
           value={draft}
@@ -495,6 +556,6 @@ function CgComboBoxInner<TItem>(
   );
 }
 
-export const CgComboBox = forwardRef(CgComboBoxInner) as <TItem>(
-  props: CgComboBoxProps<TItem> & React.RefAttributes<HTMLInputElement>,
+export const CgComboBox = forwardRef(CgComboBoxInner) as <TItem, TContext = unknown>(
+  props: CgComboBoxProps<TItem, TContext> & React.RefAttributes<HTMLInputElement>,
 ) => React.ReactElement;

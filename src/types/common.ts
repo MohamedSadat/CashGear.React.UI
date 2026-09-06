@@ -20,6 +20,13 @@ export type CgEditorPlacement = 'start' | 'end';
 export type CgClearButtonDisplayMode = 'never' | 'auto' | 'always';
 export type CgTextCommitMode = 'input' | 'blur' | 'debounced';
 
+export interface CgLookupErrorDetails<TValue = unknown, TContext = unknown> {
+  readonly error: unknown;
+  readonly searchText?: string;
+  readonly value?: TValue;
+  readonly queryContext?: TContext;
+}
+
 export type CgIconName =
   | 'search'
   | 'clear'

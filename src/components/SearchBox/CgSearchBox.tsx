@@ -151,6 +151,7 @@ export const CgSearchBox = forwardRef<HTMLInputElement, CgSearchBoxProps>(functi
         }}
         onBlur={(event) => { if (searchMode === 'blur') search(event.currentTarget.value, 'blur'); onBlur?.(event); }}
         onKeyDown={(event) => {
+          if (event.nativeEvent.isComposing || composingRef.current) { onKeyDown?.(event); return; }
           if (event.key === 'Enter') { event.preventDefault(); debounced.cancel(); search(event.currentTarget.value, 'submit'); }
           else if (event.key === 'Escape' && escapeClears && event.currentTarget.value) { event.preventDefault(); clearSearch(); }
           onKeyDown?.(event);

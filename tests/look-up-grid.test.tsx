@@ -166,12 +166,54 @@ describe('CgLookUpGrid', () => {
   it('preserves resolver failures and retries a distinct key only after reload', async () => {
     const actions = createRef<CgLookUpGridActions<Item, number>>();
     const resolver = vi.fn(() => Promise.reject(new Error('not found')));
-    render(<CgLookUpGrid {...base} data={[]} value={404} itemResolver={resolver} actionsRef={actions} />);
+    const diagnostic = vi.fn();
+    const { rerender } = render(<CgLookUpGrid {...base} data={[]} value={404} queryContext="warehouse-a" itemResolver={resolver} actionsRef={actions} onResolutionError={diagnostic} labels={{ resolutionError: 'Resolution unavailable' }} />);
     await waitFor(() => expect(resolver).toHaveBeenCalledOnce());
     expect(screen.getByRole('combobox')).toHaveValue('404');
-    await act(async () => actions.current!.reload());
+    expect(await screen.findByRole('alert')).toHaveTextContent('Resolution unavailable');
+    expect(diagnostic).toHaveBeenCalledWith(expect.objectContaining({ value: 404, queryContext: 'warehouse-a', error: expect.any(Error) }));
+    rerender(<CgLookUpGrid {...base} data={[]} value={405} queryContext="warehouse-a" itemResolver={resolver} actionsRef={actions} onResolutionError={diagnostic} labels={{ resolutionError: 'Resolution unavailable' }} />);
     await waitFor(() => expect(resolver).toHaveBeenCalledTimes(2));
+    rerender(<CgLookUpGrid {...base} data={[]} value={404} queryContext="warehouse-a" itemResolver={resolver} actionsRef={actions} onResolutionError={diagnostic} labels={{ resolutionError: 'Resolution unavailable' }} />);
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Resolution unavailable'));
+    expect(resolver).toHaveBeenCalledTimes(2);
+    await act(async () => actions.current!.refreshSelectedItem());
+    await waitFor(() => expect(resolver).toHaveBeenCalledTimes(3));
     expect(screen.getByRole('combobox')).toHaveValue('404');
+  });
+
+  it('keeps pending resolution alive across incidental callback identity changes', async () => {
+    let resolve!: (item: Item | null) => void;
+    const signals: AbortSignal[] = [];
+    const empty: Item[] = [];
+    const resolver = vi.fn((_value: number, context: { signal: AbortSignal }) => new Promise<Item | null>((next) => { signals.push(context.signal); resolve = next; }));
+    const { rerender } = render(<CgLookUpGrid {...base} data={empty} value={3} itemResolver={(key, context) => resolver(key, context)} />);
+    await waitFor(() => expect(resolver).toHaveBeenCalledOnce());
+    rerender(<CgLookUpGrid data={empty} columns={columns} value={3} valueSelector={(item) => item.id} textSelector={(item) => `${item.code} — ${item.name}`} itemResolver={(key, context) => resolver(key, context)} />);
+    expect(signals[0]?.aborted).toBe(false);
+    expect(resolver).toHaveBeenCalledOnce();
+    await act(async () => resolve(items[2]!));
+    await waitFor(() => expect(screen.getByRole('combobox')).toHaveValue(base.textSelector(items[2]!)));
+  });
+
+  it('re-indexes same-reference local data by version and ignores IME navigation keys', async () => {
+    const mutable = [...items];
+    const changed = vi.fn();
+    const { rerender } = render(<CgLookUpGrid {...base} data={mutable} dataVersion={0} onValueChange={changed} searchDebounceMilliseconds={0} />);
+    const input = screen.getByRole('combobox');
+    mutable.push({ id: 5, code: 'E-500', name: 'Epsilon Ring', quantity: 1 });
+    rerender(<CgLookUpGrid {...base} data={mutable} dataVersion={1} onValueChange={changed} searchDebounceMilliseconds={0} />);
+    fireEvent.compositionStart(input);
+    fireEvent.change(input, { target: { value: 'Epsilon' } });
+    fireEvent.keyDown(input, { key: 'Enter', isComposing: true });
+    expect(changed).not.toHaveBeenCalled();
+    fireEvent.compositionEnd(input, { data: 'Epsilon', target: { value: 'Epsilon' } });
+    await waitFor(() => expect(dataRows()[0]).toHaveTextContent('E-500'));
+    fireEvent.click(dataRows()[0]!);
+    await waitFor(() => expect(changed).toHaveBeenLastCalledWith(5, expect.objectContaining({ reason: 'select' })));
+    expect(input).toHaveAttribute('aria-keyshortcuts', 'Control+Backspace Control+Delete');
+    fireEvent.keyDown(input, { key: 'Delete', ctrlKey: true });
+    await waitFor(() => expect(changed).toHaveBeenLastCalledWith(null, expect.objectContaining({ reason: 'clear' })));
   });
 
   it('searches visible searchable formatted text with Arabic folding and whitespace normalization', async () => {

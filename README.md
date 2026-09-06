@@ -2,7 +2,7 @@
 
 `CgScheduler` adds Day, Work Week, Week, Month, and Timeline scheduling with CRUD, drag/resize, timezone-aware dates, and cancellable range loading. See [Scheduler usage and contracts](src/components/Scheduler/README.md).
 
-CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–24 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, TimeEdit, Calendar, DateRangePicker, FileUploader, RangeSelector, Chart, Tooltip, StatusBadge, Splitter, Drawer, Toast and Confirmation providers, MessageBox alerts, overlays, MaskedInput, command surfaces, GridLayout, responsive FormLayout, TreeView, the focused `CgLookUpGrid`, and the advanced Filter/Grid/Pager surface without Bootstrap or DevExpress.
+CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–24.1 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, TimeEdit, Calendar, DateRangePicker, FileUploader, RangeSelector, Chart, Tooltip, StatusBadge, Splitter, Drawer, Toast and Confirmation providers, MessageBox alerts, overlays, MaskedInput, command surfaces, GridLayout, responsive FormLayout, TreeView, the focused `CgLookUpGrid`, and the advanced Filter/Grid/Pager surface without Bootstrap or DevExpress.
 
 ## Install and import
 
@@ -24,6 +24,8 @@ Phase 22 adds [`CgPivotTable`](src/components/PivotTable/README.md): exact-decim
 Phase 23 adds [`CgButtonGroup`](src/components/ButtonGroup/README.md), [`CgMap`](src/components/Map/README.md), and [`CgRichTextEditor`](src/components/RichTextEditor/README.md). Leaflet, Tiptap, and DOMPurify are pinned, checked-in lazy chunks with integrity manifests and notices; the published package still has no production dependencies beyond its React peers. Explore the three `Phase 23` Storybook groups.
 
 Phase 24 adds `CgTimeEdit`, `CgGridLayout`/`CgGridLayoutItem`, `CgWaitIndicator`, and alert-style `CgMessageBox`. Alerts also join the existing confirmation provider through `useCgConfirmation().alert(...)`, preserving the shared FIFO and cancellation lifecycle. Explore the four `Phase 24` Storybook groups.
+
+Phase 24.1 refreshes Grid and lookup reliability against `CashGear.Blazor.UI` commit `c5c03fb9e5bc2f49b7a3af87729cfbb83ab86c1c`: Grid state v11 adds opt-in table appearance, all edit modes share parsing and synchronous validation, pending persistence locks the editor session, and ComboBox/KeyComboBox/LookUpGrid gain query-context/data-version invalidation, diagnostics, resolver refresh, and safer IME/keyboard behavior. Explore `Phase 24.1/Reliability Refresh` in Storybook.
 
 ## Theme, density, and direction
 
@@ -104,7 +106,7 @@ interface Customer { id: number; name: string; city: string }
 />
 ```
 
-Remote loading receives a trimmed eligible query, monotonic request ID, and `AbortSignal`. Debounced work is aborted when superseded or unmounted, and stale results cannot replace a newer generation.
+Remote loading receives a trimmed eligible query, monotonic request ID, opaque `queryContext`, and `AbortSignal`. Debounced work is aborted when superseded, unmounted, or invalidated by a changed context/data version, and stale results cannot replace a newer generation. `onSearchError` receives the raw error for diagnostics while rendered errors remain generic. For local data mutated without changing its array identity, bump `dataVersion` to rebuild the search index.
 
 ```tsx
 <CgComboBox<Customer>
@@ -113,12 +115,14 @@ Remote loading receives a trimmed eligible query, monotonic request ID, and `Abo
   }
   minimumSearchLength={2}
   searchDelay={250}
+  queryContext={{ branchId }}
+  dataVersion={customerRevision}
   getOptionKey={(item) => item.id}
   getOptionLabel={(item) => item.name}
 />
 ```
 
-The visible input retains focus while the body-portal listbox opens, flips, shifts, and follows nested scrolling or viewport changes. Arabic digits/text and diacritic-insensitive locale matching are supported. Duplicate keys, conflicting local/remote sources, negative timing/length values, and invalid result limits throw clear errors.
+The visible input retains focus while the body-portal listbox opens, flips, shifts, and follows nested scrolling or viewport changes. Arabic digits/text and diacritic-insensitive locale matching are supported. Results are marked incomplete when a local match set exceeds `maxVisibleItems` or a remote page reaches that limit; Enter then requires an explicitly highlighted option. IME composition suppresses navigation/commit keys, while clearable editors support Ctrl+Backspace and Ctrl+Delete and expose both shortcuts through ARIA. Duplicate keys, conflicting local/remote sources, negative timing/length values, and invalid result limits throw clear errors.
 
 ## KeyComboBox
 
@@ -140,7 +144,7 @@ interface Customer { id: number; name: string }
 />
 ```
 
-Keys resolve from local `options` first, then `selectedItem`, then the last item selected through the editor. Supply `selectedItem` when a controlled initial key is not in the local source, including remote or paged data. Without it the editor and native form value are empty, and a required editor is invalid. `isValueEqual` customizes key matching; for example, account codes can compare case-insensitively. There is intentionally no async key resolver.
+Keys resolve synchronously from `selectedItem` first, then local `options` and the last item selected through the editor. An abortable `itemResolver` can hydrate an off-page key and receives the current `queryContext`. Successful, missing, and failed attempts are cached by key, context, and data version; `actionsRef.current.refreshSelectedItem()` invalidates the current attempt. Resolver key mismatches are failures. Until resolution succeeds, the bound key remains serialized and its safe string form remains visible. `onResolutionError` exposes raw diagnostic details while `resolutionErrorMessage` stays generic. `isValueEqual` customizes key matching; for example, account codes can compare case-insensitively.
 
 ```tsx
 <CgKeyComboBox<Customer, number>
@@ -572,7 +576,7 @@ Persistence and transport use the exact Razor `$type` wire discriminators and pi
 
 ## Grid
 
-`CgGrid<TItem>` is a descriptor-driven data grid for local arrays or abortable async providers. Columns require stable `fieldId` identities and explicit typed accessors; `keySelector` supplies stable scalar row identity. Version-10 serializable state carries paging, search, sorting, canonical filters and suspension, key selection, focus, column layout, grouping, remote expansion paths, and summary identity/visibility. State migration accepts versions 1–9 and reconciles renamed fields and changed aggregate keys before a provider request is constructed.
+`CgGrid<TItem>` is a descriptor-driven data grid for local arrays or abortable async providers. Columns require stable `fieldId` identities and explicit typed accessors; `keySelector` supplies stable scalar row identity. Version-11 serializable state carries paging, search, sorting, canonical filters and suspension, key selection, focus, column layout, grouping, remote expansion paths, summary identity/visibility, and nullable `tableAppearance`. State migration accepts versions 1–10, assigns `tableAppearance: null` to legacy states, and reconciles renamed fields and changed aggregate keys before a provider request is constructed.
 
 ```tsx
 const columns: ReadonlyArray<CgGridColumnDescriptor<Invoice>> = [
@@ -587,12 +591,15 @@ const columns: ReadonlyArray<CgGridColumnDescriptor<Invoice>> = [
   selectionMode="multiple"
   allowGrouping
   allowColumnChooser
+  allowTableStyling
 />
 ```
 
+Table appearance is strictly opt-in. `null` preserves the legacy Grid skin and `stripedRows` behavior byte-for-byte. The internal `CgPopup` gallery offers 18 Blazor-aligned color/intensity presets plus logical banding, borders, 32/40/48px row density, colored headers, first/last data-column emphasis, and total-row emphasis. Decoration excludes selection, command, group, detail, and summary structure, and interaction/editing states take precedence. Appearance changes flow through ordinary controlled state and saved views without changing paging, criteria, columns, selection, focus, edit drafts, or requesting provider data. Use `setTableAppearance()` and `resetTableAppearance()` through `CgGridActions`; the picker itself is not exported.
+
 Local processing is search, validated filter, complete-set summaries, stable sorting, grouping, then paging. Filter-row and builder-owned criteria remain structurally separate; invalid saved criteria retain diagnostics but never execute or reach a provider. The default footer is controlled `CgPager`, while Grid remains the sole paging/data authority. Provider requests use stable field IDs and `rows`, `groupNodes`, and `groupItems` modes with typed group paths, cancellation, sequencing, retained refresh errors, and authoritative summaries. Razor-compatible request helpers encode/decode the wire AST without changing semantic provider callbacks.
 
-`CgGridActions<TItem>` exposes refresh, paging, filter-builder delegation, state, focus, selection, grouping, detail, editing, layout, and XLSX operations. Popup editing remains the default; inline-row, cell, and atomic batch modes add immutable draft snapshots, active-cell state, dirty navigation policies, validation focus, concurrency metadata, conflict retry/reload, and one complete batch callback. Paging, sorting, filtering, grouping, views, refresh, and external router guards share one cancellable dirty-navigation gate. The caller owns persistence and source updates; successful persistence reloads once after its callback completes.
+`CgGridActions<TItem>` exposes refresh, paging, filter-builder delegation, state, focus, selection, grouping, detail, editing, appearance, layout, and XLSX operations. Popup editing remains the default; inline-row, cell, and atomic batch modes add immutable draft snapshots, active-cell state, dirty navigation policies, validation focus, concurrency metadata, conflict retry/reload, and one complete batch callback. Invalid raw number/date/select drafts remain visible and dirty independently from the last valid model value. Metadata validation and synchronous cross-field `editing.validateEdit` errors merge and survive editor changes. Before a mutation settles, native and custom editor surfaces are disabled/inert, stale callbacks and duplicate commits are ignored, and cancel/reload/navigation/new-edit actions are rejected. Failure or cancellation preserves and unlocks the submitted draft; only the existing generic failure text is rendered. Batch mode validates every non-delete draft before constructing its atomic request. The caller owns persistence and source updates; successful persistence reloads once after its callback completes.
 
 Cell and batch editing use spreadsheet-style type-to-edit by default; set `editing.allowTypeToEdit={false}` to require an explicit edit command. Printable keys replace the selected cell's compatible editor value, while Space remains a selection command and lookup, checkbox, and date-like editors open without an incompatible text seed. Numeric editors select their existing contents when opened explicitly. Set `editing.enterMovesToNextRow` to commit unshifted Enter and focus the same column in the next visible data row. Advancement skips non-data rows, clamps at the final row, and never creates data; validation, conflict, and persistence failures retain the original editor and focus. `Shift+Enter` remains available to multiline editors.
 
@@ -623,11 +630,11 @@ const lookupColumns: ReadonlyArray<CgLookUpGridColumnDescriptor<Product>> = [
 />
 ```
 
-Async loaders receive normalized search text, visible searchable field IDs, one sort, immutable column filters, `skip`/`take`, opaque `queryContext`, and an `AbortSignal`. `itemResolver` hydrates an existing key without opening or searching. Fresh callback identities are adopted without resetting state; stale work is aborted and rejected by generation.
+Async loaders receive normalized search text, visible searchable field IDs, one sort, immutable column filters, `skip`/`take`, opaque `queryContext`, and an `AbortSignal`. `itemResolver` hydrates an existing key without opening or searching and receives that context. Search and resolution errors have separate safe rendered messages and raw diagnostic callbacks. Successful, missing, and failed resolver attempts are cached by key, context, and data version; mismatched resolver keys fail without replacing the bound key. Fresh callback identities are adopted without resetting state; actual data-version, context, locale/diacritic, comparison, and visible-search-column changes invalidate only the relevant local work.
 
 `null` is the explicit React no-selection value. Blank string keys are also empty for ERP compatibility, while numeric zero remains valid. Strings and numbers serialize to native forms automatically; other named values require `serializeValue`. Object query contexts should be memoized or paired with `isQueryContextEqual`. Context is query input, not an authorization boundary—the server must still enforce tenant, branch, warehouse, and permission scope.
 
-The input retains focus and owns `aria-activedescendant`; paging appends rows, disabled rows stay visible but cannot be selected, and the filter-row Tab path is lookup-specific. `CgLookUpGridActions` exposes popup, reload, paging, sorting, filtering, state inspection, focus, and clear operations. Multiple selection, grouping, master-detail, column chooser/reordering/resizing/freezing, CRUD, summaries, export, and row virtualization remain intentionally exclusive to `CgGrid`; no ignored or fake virtualization prop is exposed.
+The input retains focus and owns `aria-activedescendant`; paging appends rows, disabled rows stay visible but cannot be selected, IME composition suppresses navigation/commit, and the filter-row Tab path is lookup-specific. Ctrl+Backspace/Delete clear eligible editors. `CgLookUpGridActions` exposes popup, reload, selected-item refresh, paging, sorting, filtering, state inspection, focus, and clear operations. `reload()` invalidates local indexes even while closed and restarts at the first page when open. Multiple selection, grouping, master-detail, column chooser/reordering/resizing/freezing, CRUD, summaries, export, and row virtualization remain intentionally exclusive to `CgGrid`; no ignored or fake virtualization prop is exposed.
 
 ## Splitter
 
@@ -939,6 +946,8 @@ Phase 19 verification on 2026-08-29 passed strict typecheck and lint, 50 Vitest 
 Phase 20 verification on 2026-08-31 passed strict typecheck and lint, 52 Vitest files/481 tests, cycle analysis across 263 source modules, the 257-module library build, the 327-module Storybook build, package verification of 158 runtime exports across 1,245 packed files, and all 115 Chromium and 115 WebKit semantic/Axe cases. Chromium produced passing evidence for all 220 visual tests against 228 Windows baselines: the complete run passed 219 cases, one existing remote ComboBox loading capture advanced to results during screenshot stabilization, and that unchanged case passed immediately in isolation. Exactly 14 reviewed `phase-20-chart-*` baselines were added; all 214 prior baseline files remain unchanged. The aggregate verifier passed every gate through Chromium, then reproduced the host-only Firefox pre-page SWGL framebuffer failure; it was terminated when Playwright began replacement-worker launches, so the already-passing package gate was retained from its independent run and Firefox was not invoked again.
 
 Phase 21 verification on 2026-08-31 passed strict typecheck and lint, 53 Vitest files/509 tests, cycle analysis across 270 source modules, the 264-module library build, the 334-module Storybook build, package verification of 168 runtime exports across 1,280 packed files, and all 119 Chromium and 119 WebKit semantic/Axe cases. All 235 Chromium visual tests passed against 243 Windows baselines. Exactly 15 reviewed `phase-21-treelist-*` baselines were added, and all 228 older snapshots passed unchanged. Firefox remains environment-blocked before page creation by the host SWGL framebuffer mapping failure; no TreeList assertion or Axe scan ran in Firefox.
+
+Phase 24.1 verification on 2026-09-06 passed strict typecheck and lint, 67 Vitest files/669 tests, cycle analysis across 317 source modules, the 319-module library build, the 396-module Storybook build, package verification of 198 runtime exports across 1,557 packed files, and all 172 Chromium plus 172 WebKit semantic/Axe cases. Four inspected `phase-24-1-*` Chromium baselines were added; all 275 older visual cases produced passing evidence unchanged, including focused reruns for two transient Map tile captures and restored legacy KeyComboBox story copy. Firefox remains environment-blocked before page creation by the known headless SWGL framebuffer mapping failure. The exact command-level record and intentional exclusions are in the parity ledger.
 
 ## Packaging
 

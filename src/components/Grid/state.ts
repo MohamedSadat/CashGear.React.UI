@@ -1,12 +1,39 @@
 import type { CgFilterEvaluationContext, CgFilterFieldDescriptor, CgFilterNode, CgFilterProblem } from '../../filter';
 import { mapFilterFieldIds } from '../../filter';
 import type {
-  CgGridColumnDescriptor, CgGridColumnState, CgGridFilterNode, CgGridState, CgGridSummaryDescriptor, CgGridSummaryState,
+  CgGridColumnDescriptor, CgGridColumnState, CgGridFilterNode, CgGridState, CgGridSummaryDescriptor, CgGridSummaryState, CgGridTableAppearance,
 } from './CgGrid.types';
 import { clampColumnWidth, columnAliases, isDataColumn } from './columns';
 import { normalizeGridFilter, validateGridFilter } from './filtering';
 
-export const CG_GRID_STATE_VERSION = 10;
+export const CG_GRID_STATE_VERSION = 11;
+
+export const DEFAULT_GRID_TABLE_APPEARANCE: CgGridTableAppearance = Object.freeze({
+  color: 'blue', intensity: 'medium', banding: 'rows', borders: 'horizontal', density: 'compact',
+  coloredHeader: true, emphasizeFirstColumn: false, emphasizeLastColumn: false, emphasizeTotals: true,
+});
+
+const TABLE_COLORS = new Set(['blue', 'green', 'teal', 'gray', 'orange', 'purple']);
+const TABLE_INTENSITIES = new Set(['light', 'medium', 'dark']);
+const TABLE_BANDING = new Set(['none', 'rows', 'columns']);
+const TABLE_BORDERS = new Set(['none', 'horizontal', 'all']);
+const TABLE_DENSITIES = new Set(['compact', 'normal', 'comfortable']);
+
+export function normalizeGridTableAppearance(source: Partial<CgGridTableAppearance> | null | undefined): CgGridTableAppearance | null {
+  if (source == null) return null;
+  const fallback = DEFAULT_GRID_TABLE_APPEARANCE;
+  return Object.freeze({
+    color: TABLE_COLORS.has(String(source.color)) ? source.color! : fallback.color,
+    intensity: TABLE_INTENSITIES.has(String(source.intensity)) ? source.intensity! : fallback.intensity,
+    banding: TABLE_BANDING.has(String(source.banding)) ? source.banding! : fallback.banding,
+    borders: TABLE_BORDERS.has(String(source.borders)) ? source.borders! : fallback.borders,
+    density: TABLE_DENSITIES.has(String(source.density)) ? source.density! : fallback.density,
+    coloredHeader: typeof source.coloredHeader === 'boolean' ? source.coloredHeader : fallback.coloredHeader,
+    emphasizeFirstColumn: typeof source.emphasizeFirstColumn === 'boolean' ? source.emphasizeFirstColumn : fallback.emphasizeFirstColumn,
+    emphasizeLastColumn: typeof source.emphasizeLastColumn === 'boolean' ? source.emphasizeLastColumn : fallback.emphasizeLastColumn,
+    emphasizeTotals: typeof source.emphasizeTotals === 'boolean' ? source.emphasizeTotals : fallback.emphasizeTotals,
+  });
+}
 
 export interface CgGridStateNormalizationOptions<TItem> {
   readonly filterFields?: ReadonlyArray<CgFilterFieldDescriptor<TItem>>;
@@ -57,6 +84,7 @@ export function createGridState<TItem>(columns: ReadonlyArray<CgGridColumnDescri
     selectedKeys: input.selectedKeys ?? [], focusedRowKey: input.focusedRowKey ?? null, focusedColumnId: input.focusedColumnId ?? null,
     columns: input.columns?.length ? input.columns : columnState, collapsedGroupKeys: input.collapsedGroupKeys ?? [],
     groups: input.groups?.length ? input.groups : initialGroups, expandedGroupPaths: input.expandedGroupPaths ?? [], summaries: input.summaries ?? [],
+    tableAppearance: normalizeGridTableAppearance(input.tableAppearance),
   };
 }
 
@@ -87,6 +115,7 @@ export function normalizeGridState<TItem>(columns: ReadonlyArray<CgGridColumnDes
     filter: validation.criteria, filterDisabled: version < 10 ? false : source.filterDisabled ?? false, filterProblems: validation.problems,
     columns: normalizedColumns, focusedColumnId: source.focusedColumnId ? (known.has(migrate(source.focusedColumnId)) ? migrate(source.focusedColumnId) : null) : null,
     expandedGroupPaths: version < 8 ? [] : source.expandedGroupPaths ?? [], summaries: normalizeSummaryStates(version < 9 ? [] : source.summaries, options.summaries),
+    tableAppearance: version < 11 ? null : normalizeGridTableAppearance(source.tableAppearance),
   });
 }
 

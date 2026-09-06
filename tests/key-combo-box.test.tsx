@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createRef, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { CgKeyComboBox } from '../src';
-import type { CgKeyComboBoxProps } from '../src';
+import type { CgKeyComboBoxActions, CgKeyComboBoxProps } from '../src';
 
 interface Customer {
   id: number;
@@ -89,6 +89,7 @@ describe('CgKeyComboBox', () => {
       previousValue: null,
       selectedItem: customers[0],
     }));
+    expect(changes.mock.calls.filter(([, details]) => details.reason === 'reset')).toHaveLength(1);
   });
 
   it('supports uncontrolled string keys', () => {
@@ -166,7 +167,7 @@ describe('CgKeyComboBox', () => {
     expect(input).toHaveValue(getLabel(offPage));
   });
 
-  it('renders unresolved and mismatched fallback keys as empty and invalid when required', () => {
+  it('preserves unresolved fallback keys while keeping required resolution invalid', () => {
     render(
       <CgKeyComboBox
         options={customers}
@@ -180,9 +181,9 @@ describe('CgKeyComboBox', () => {
     );
 
     const input = screen.getByRole('combobox') as HTMLInputElement;
-    expect(input).toHaveValue('');
+    expect(input).toHaveValue('99');
     expect(input.checkValidity()).toBe(false);
-    expect(document.querySelector('input[type="hidden"]')).toHaveValue('');
+    expect(document.querySelector('input[type="hidden"]')).toHaveValue('99');
   });
 
   it('retains a selected remote item after a controlled key accepts it', async () => {
@@ -250,5 +251,26 @@ describe('CgKeyComboBox', () => {
         getOptionKey={getKey}
       />,
     )).toThrow(/finite strings or numbers/u);
+  });
+
+  it('resolves selected keys by context, caches attempts, and refreshes explicitly', async () => {
+    const actions = createRef<CgKeyComboBoxActions>();
+    const resolver = vi.fn(async (value: number, context: { queryContext: string }) => ({ ...customers[value]!, name: `${customers[value]!.name} ${context.queryContext}` }));
+    const { rerender } = render(<CgKeyComboBox loadOptions={() => []} value={1} queryContext="north" itemResolver={resolver} actionsRef={actions} getOptionLabel={getLabel} getOptionKey={getKey} />);
+    await waitFor(() => expect((screen.getByRole('combobox') as HTMLInputElement).value).toContain('north'));
+    expect(resolver).toHaveBeenCalledOnce();
+    rerender(<CgKeyComboBox loadOptions={() => []} value={1} queryContext="south" itemResolver={resolver} actionsRef={actions} getOptionLabel={getLabel} getOptionKey={getKey} />);
+    await waitFor(() => expect((screen.getByRole('combobox') as HTMLInputElement).value).toContain('south'));
+    expect(resolver).toHaveBeenCalledTimes(2);
+    await act(async () => { await actions.current?.refreshSelectedItem(); });
+    await waitFor(() => expect(resolver).toHaveBeenCalledTimes(3));
+  });
+
+  it('diagnoses resolver key mismatches while preserving the scalar fallback', async () => {
+    const diagnostic = vi.fn();
+    render(<CgKeyComboBox loadOptions={() => []} value={99} queryContext="tenant-a" itemResolver={async () => customers[1]} onResolutionError={diagnostic} resolutionErrorMessage="Resolution unavailable" getOptionLabel={getLabel} getOptionKey={getKey} />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Resolution unavailable');
+    expect(screen.getByRole('combobox')).toHaveValue('99');
+    expect(diagnostic).toHaveBeenCalledWith(expect.objectContaining({ value: 99, queryContext: 'tenant-a', error: expect.any(Error) }));
   });
 });

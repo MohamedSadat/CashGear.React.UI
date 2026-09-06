@@ -67,6 +67,7 @@ describe('CgSearchBox', () => {
     const input = screen.getByRole('searchbox', { name: 'Search' });
     fireEvent.compositionStart(input);
     fireEvent.change(input, { target: { value: '検索' } });
+    fireEvent.keyDown(input, { key: 'Enter', isComposing: true });
     expect(search).not.toHaveBeenCalled();
     fireEvent.compositionEnd(input, { data: '検索' });
     expect(search).toHaveBeenCalledTimes(1);

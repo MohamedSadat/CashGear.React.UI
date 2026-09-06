@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -17,6 +17,75 @@ const columns: ReadonlyArray<CgGridColumnDescriptor<Row>> = [
 ];
 
 describe('CgGrid advanced editing', () => {
+  it.each(['popup', 'inlineRow', 'cell', 'batch'] as const)('retains invalid lookup drafts and blocks %s persistence', async (mode) => {
+    const actions = createRef<CgGridActions<Row>>();
+    const update = vi.fn(async () => ({ succeeded: true as const }));
+    const commitBatch = vi.fn(async () => ({ succeeded: true as const }));
+    const lookupColumns: ReadonlyArray<CgGridColumnDescriptor<Row>> = [
+      { type: 'text', fieldId: 'name', title: 'Name', accessor: (row) => row.name, editor: { kind: 'enum', options: source.map((row) => ({ key: row.name, label: row.name, value: row.name })), setValue: (row, value) => ({ ...row, name: String(value) }) } },
+      { type: 'number', fieldId: 'amount', title: 'Amount', accessor: (row) => row.amount },
+    ];
+    render(<CgGrid data={source} columns={lookupColumns} keySelector={(row) => row.id} showSearch={false} showFilterRow={false} actionsRef={actions} editing={mode === 'batch' ? { mode, navigationPolicy: 'preserve', update: true, editModelFactory: (row) => ({ ...row }), commitBatch } : { mode, navigationPolicy: 'preserve', update: true, editModelFactory: (row) => ({ ...row }), updateItem: update }} />);
+    await act(async () => { await actions.current?.beginEdit(1); });
+    const editor = screen.getByRole('combobox', { name: /Name/u });
+    fireEvent.change(editor, { target: { value: 'Missing option' } });
+    await act(async () => { expect(await actions.current?.commitEdits()).toBe(false); });
+    expect(editor).toHaveValue('Missing option');
+    expect(editor).toHaveAttribute('aria-invalid', 'true');
+    expect(update).not.toHaveBeenCalled();
+    expect(commitBatch).not.toHaveBeenCalled();
+  });
+
+  it('retains invalid raw numeric drafts, focuses them, and blocks persistence', async () => {
+    const actions = createRef<CgGridActions<Row>>();
+    const update = vi.fn(async () => ({ succeeded: true as const }));
+    render(<CgGrid data={source} columns={columns} keySelector={(row) => row.id} showSearch={false} showFilterRow={false} actionsRef={actions} editing={{ mode: 'popup', update: true, editModelFactory: (row) => ({ ...row }), updateItem: update }} />);
+    await act(async () => { await actions.current?.beginEdit(1); });
+    const amount = within(screen.getByRole('dialog')).getByRole('textbox', { name: /Amount/u });
+    fireEvent.change(amount, { target: { value: 'not-a-number' } });
+    await act(async () => { expect(await actions.current?.commitEdits()).toBe(false); });
+    expect(update).not.toHaveBeenCalled();
+    expect(amount).toHaveValue('not-a-number');
+    expect(amount).toHaveAttribute('aria-invalid', 'true');
+    await waitFor(() => expect(amount).toHaveFocus());
+    expect(actions.current?.getEditState()).toMatchObject({ dirtyRowCount: 1, persistenceState: 'failed' });
+  });
+
+  it('merges synchronous cross-field validation with metadata errors', async () => {
+    const actions = createRef<CgGridActions<Row>>();
+    const update = vi.fn(async () => ({ succeeded: true as const }));
+    render(<CgGrid data={source} columns={columns} keySelector={(row) => row.id} showSearch={false} showFilterRow={false} actionsRef={actions} editing={{ mode: 'popup', update: true, editModelFactory: (row) => ({ ...row }), updateItem: update, validateEdit: ({ model }) => model.name === 'Blocked' ? { fieldErrors: { amount: 'Amount is incompatible.' }, generalErrors: 'This row cannot be saved.' } : undefined }} />);
+    await act(async () => { await actions.current?.beginEdit(1); });
+    const dialog = screen.getByRole('dialog');
+    const name = within(dialog).getByRole('textbox', { name: /Name/u });
+    await userEvent.clear(name); await userEvent.type(name, 'Blocked');
+    await act(async () => { expect(await actions.current?.commitEdits()).toBe(false); });
+    expect(update).not.toHaveBeenCalled();
+    expect(within(dialog).getByText('Amount is incompatible.')).toBeInTheDocument();
+    expect(within(dialog).getByText('This row cannot be saved.')).toBeInTheDocument();
+  });
+
+  it('locks the complete editor and rejects competing actions until persistence settles', async () => {
+    const actions = createRef<CgGridActions<Row>>();
+    let settle!: (result: { succeeded: false; outcome: 'rejected' }) => void;
+    const update = vi.fn(() => new Promise<{ succeeded: false; outcome: 'rejected' }>((resolve) => { settle = resolve; }));
+    render(<CgGrid data={source} columns={columns} keySelector={(row) => row.id} showSearch={false} showFilterRow={false} actionsRef={actions} editing={{ mode: 'popup', update: true, editModelFactory: (row) => ({ ...row }), updateItem: update }} />);
+    await act(async () => { await actions.current?.beginEdit(1); });
+    const name = within(screen.getByRole('dialog')).getByRole('textbox', { name: /Name/u });
+    await userEvent.type(name, '!');
+    let commit!: Promise<boolean>;
+    act(() => { commit = actions.current!.commitEdits(); });
+    await waitFor(() => expect(update).toHaveBeenCalledOnce());
+    expect(name).toBeDisabled();
+    expect(name.closest('fieldset')).toHaveAttribute('inert');
+    await expect(actions.current?.cancelEdits()).resolves.toBe(false);
+    await expect(actions.current?.beginEdit(2)).resolves.toBe(false);
+    await expect(actions.current?.reloadAuthoritative()).resolves.toBe(false);
+    await act(async () => { settle({ succeeded: false, outcome: 'rejected' }); await commit; });
+    expect(name).not.toBeDisabled();
+    expect(name).toHaveValue('Alpha!');
+  });
+
   it('opens the requested cell from rapid printable typing and drops refused seeds', async () => {
     const editableColumns: ReadonlyArray<CgGridColumnDescriptor<Row>> = [
       { type: 'number', fieldId: 'id', title: 'Id', accessor: (row) => row.id },

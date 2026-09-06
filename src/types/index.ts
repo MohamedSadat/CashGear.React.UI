@@ -9,6 +9,7 @@ export type {
   CgIconName,
   CgIconSource,
   CgIntent,
+  CgLookupErrorDetails,
   CgOrientation,
   CgSize,
   CgSizeMode,

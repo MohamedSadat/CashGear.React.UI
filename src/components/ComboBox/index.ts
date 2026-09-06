@@ -1,4 +1,5 @@
 export { CgComboBox } from './CgComboBox';
+export type { CgLookupErrorDetails } from '../../types';
 export type {
   CgComboBoxChangeReason,
   CgComboBoxErrorMessage,

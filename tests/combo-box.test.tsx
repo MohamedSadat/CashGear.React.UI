@@ -172,4 +172,52 @@ describe('CgComboBox', () => {
     fireEvent.click(screen.getByRole('option', { hidden: true }));
     expect(input).toHaveValue(label(customers[0]!));
   });
+
+  it('re-indexes same-reference local data by version and requires explicit highlighting for incomplete results', async () => {
+    const mutable = [...customers];
+    const changed = vi.fn();
+    const { rerender } = render(<CgComboBox options={mutable} dataVersion={0} maxVisibleItems={1} onValueChange={changed} getOptionLabel={label} getOptionKey={key} />);
+    const input = screen.getByRole('combobox');
+    mutable.push({ id: 4, name: 'New customer', code: 'N-400' });
+    act(() => rerender(<CgComboBox options={mutable} dataVersion={1} maxVisibleItems={1} onValueChange={changed} getOptionLabel={label} getOptionKey={key} />));
+    await waitFor(() => expect(input).toHaveAttribute('aria-expanded', 'false'));
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle options' }));
+    expect(await screen.findByRole('status', { hidden: true })).toHaveTextContent('Refine');
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(changed).not.toHaveBeenCalled();
+    fireEvent.change(input, { target: { value: 'New customer' } });
+    expect(screen.getByRole('option', { hidden: true })).toHaveTextContent('New customer');
+  });
+
+  it('invalidates remote work by context and reports safe diagnostics', async () => {
+    let reject!: (error: unknown) => void;
+    let signal!: AbortSignal;
+    const diagnostic = vi.fn();
+    const load = vi.fn((_query: string, context: { signal: AbortSignal }) => { signal = context.signal; return new Promise<ReadonlyArray<Customer>>((_resolve, rejectPromise) => { reject = rejectPromise; }); });
+    const { rerender } = render(<CgComboBox loadOptions={load} queryContext="north" onSearchError={diagnostic} getOptionLabel={label} getOptionKey={key} searchDelay={0} />);
+    const input = screen.getByRole('combobox');
+    fireEvent.change(input, { target: { value: 'acme' } });
+    await waitFor(() => expect(load).toHaveBeenCalled());
+    rerender(<CgComboBox loadOptions={load} queryContext="south" onSearchError={diagnostic} getOptionLabel={label} getOptionKey={key} searchDelay={0} />);
+    expect(signal.aborted).toBe(true);
+    expect(input).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.change(input, { target: { value: 'contoso' } });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+    reject(new Error('private details'));
+    expect(await screen.findByRole('alert', { hidden: true })).toHaveTextContent('Unable to load results.');
+    expect(diagnostic).toHaveBeenCalledWith(expect.objectContaining({ searchText: 'contoso', queryContext: 'south', error: expect.any(Error) }));
+  });
+
+  it('ignores commit keys during IME and exposes gated control-delete shortcuts', () => {
+    const changed = vi.fn();
+    render(<CgComboBox options={customers} defaultValue={customers[0]} onValueChange={changed} getOptionLabel={label} getOptionKey={key} />);
+    const input = screen.getByRole('combobox');
+    expect(input).toHaveAttribute('aria-keyshortcuts', 'Control+Backspace Control+Delete');
+    fireEvent.compositionStart(input);
+    fireEvent.keyDown(input, { key: 'Enter', isComposing: true });
+    expect(changed).not.toHaveBeenCalled();
+    fireEvent.compositionEnd(input);
+    fireEvent.keyDown(input, { key: 'Delete', ctrlKey: true });
+    expect(changed).toHaveBeenLastCalledWith(null, expect.objectContaining({ reason: 'clear' }));
+  });
 });

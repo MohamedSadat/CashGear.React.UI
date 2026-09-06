@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event';
 import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { CgGrid, CgGridFilterConfigurationError, CG_GRID_STATE_VERSION, calculateGridSummaries, createGridDataRequest, createGridState, createGridXlsx, encodeGridDataRequest, evaluateGridFilter, normalizeGridState, processLocalGridData, replaceFilterRowConditions, sanitizeGridExportFileName } from '../src';
+import { CgGrid, CgGridFilterConfigurationError, CG_GRID_STATE_VERSION, calculateGridSummaries, createGridDataRequest, createGridState, createGridXlsx, encodeGridDataRequest, evaluateGridFilter, normalizeGridState, processLocalGridData, replaceFilterRowConditions, sanitizeGridExportFileName, savedViewState } from '../src';
 import type { CgGridActions, CgGridColumnDescriptor, CgGridDataProvider, CgGridFilterNode, CgGridProps, CgGridState } from '../src';
 
 interface Row { id: number; name: string; amount: number; active: boolean; date: string; region: string }
@@ -28,17 +28,27 @@ describe('CgGrid pure contracts and engines', () => {
     expect(state.focusedColumnId).toBeNull();
   });
 
-  it.each(Array.from({ length: 9 }, (_, index) => index + 1))('characterizes and upgrades Grid state v%i through the v10 canonical filter model', (version) => {
+  it.each(Array.from({ length: 10 }, (_, index) => index + 1))('characterizes and upgrades Grid state v%i through the v11 canonical model', (version) => {
     const state = normalizeGridState(columns, {
       version,
       filter: { kind: 'condition', fieldId: 'amount', operator: 'greaterThan', value: 10 },
       filterDisabled: true,
       summaries: version >= 9 ? [{ id: 'total', visible: false }] : [],
     }, { summaries: [{ id: 'total', type: 'sum', fieldId: 'amount' }] });
-    expect(state.version).toBe(10);
+    expect(state.version).toBe(11);
     expect(state.filter).toMatchObject({ kind: 'condition', fieldId: 'amount', values: [{ kind: 'number', text: '10' }], source: version < 5 ? 'filterRow' : 'caller' });
-    expect(state.filterDisabled).toBe(false);
+    expect(state.filterDisabled).toBe(version < 10 ? false : true);
     expect(state.summaries).toEqual([{ id: 'total', visible: version < 9 }]);
+    expect(state.tableAppearance).toBeNull();
+  });
+
+  it('round-trips and normalizes v11 table appearance without changing legacy defaults', () => {
+    const state = normalizeGridState(columns, { version: 11, tableAppearance: { color: 'purple', intensity: 'dark', banding: 'columns', borders: 'all', density: 'comfortable', coloredHeader: false, emphasizeFirstColumn: true, emphasizeLastColumn: true, emphasizeTotals: false } });
+    expect(state.tableAppearance).toEqual({ color: 'purple', intensity: 'dark', banding: 'columns', borders: 'all', density: 'comfortable', coloredHeader: false, emphasizeFirstColumn: true, emphasizeLastColumn: true, emphasizeTotals: false });
+    expect(savedViewState(state).tableAppearance).toEqual(state.tableAppearance);
+    const invalid = normalizeGridState(columns, { version: 11, tableAppearance: { color: 'invalid', intensity: 'invalid' } as never });
+    expect(invalid.tableAppearance).toMatchObject({ color: 'blue', intensity: 'medium', banding: 'rows', borders: 'horizontal', density: 'compact', coloredHeader: true, emphasizeTotals: true });
+    expect(createGridState(columns).tableAppearance).toBeNull();
   });
 
   it('preserves v10 negation, builder ownership, suspension, and invalid saved-filter diagnostics', () => {
@@ -93,6 +103,36 @@ describe('CgGrid pure contracts and engines', () => {
 });
 
 describe('CgGrid rendering and interaction', () => {
+  it('renders the integrated 18-preset appearance gallery and preserves controlled authority without provider reloads', async () => {
+    const actions = createRef<CgGridActions<Row>>();
+    const changed = vi.fn();
+    const provider = vi.fn<CgGridDataProvider<Row>>(async () => ({ rows, totalCount: rows.length, authorizedFilteredRowCount: rows.length }));
+    const controlled = createGridState(columns);
+    render(<CgGrid dataProvider={provider} columns={columns} keySelector={(row) => row.id} state={controlled} onStateChange={changed} actionsRef={actions} allowTableStyling tableStyleLabels={{ title: 'Format table' }} />);
+    await screen.findByText('Alpha');
+    provider.mockClear();
+    await userEvent.click(screen.getByRole('button', { name: 'Format table' }));
+    expect(document.querySelectorAll('[data-cg-grid-table-style-picker] button[aria-pressed]')).toHaveLength(18);
+    await userEvent.click(screen.getByRole('button', { name: 'Purple Dark' }));
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ tableAppearance: expect.objectContaining({ color: 'purple', intensity: 'dark' }) }), expect.objectContaining({ operation: 'table-appearance' }));
+    expect(actions.current?.getState().tableAppearance).toBeNull();
+    expect(provider).not.toHaveBeenCalled();
+  });
+
+  it('applies density and logical appearance attributes while reset restores only the initial appearance', async () => {
+    const actions = createRef<CgGridActions<Row>>();
+    render(<CgGrid data={rows} columns={columns} keySelector={(row) => row.id} actionsRef={actions} stripedRows defaultState={{ pageSize: 2 }} />);
+    const root = screen.getByRole('grid').closest('div[dir]')!;
+    expect(root).not.toHaveAttribute('data-table-intensity');
+    await act(async () => { await actions.current?.setTableAppearance({ color: 'teal', intensity: 'medium', banding: 'columns', borders: 'all', density: 'comfortable', coloredHeader: true, emphasizeFirstColumn: true, emphasizeLastColumn: false, emphasizeTotals: true }); });
+    expect(root).toHaveAttribute('data-table-banding', 'columns');
+    expect(root).toHaveStyle({ '--cg-table-row-height': '48px' });
+    expect(screen.getAllByRole('row')[2]?.querySelectorAll('[data-band-column="true"]').length).toBeGreaterThan(0);
+    await act(async () => { await actions.current?.resetTableAppearance(); });
+    expect(root).not.toHaveAttribute('data-table-intensity');
+    expect(actions.current?.getState()).toMatchObject({ pageIndex: 0, pageSize: 2, tableAppearance: null });
+  });
+
   it('renders accessible metadata, striped rows, stable sorting, paging, and search', async () => {
     render(<CgGrid data={rows} columns={columns} keySelector={(row) => row.id} stripedRows pageSizeOptions={[2, 3]} defaultState={{ pageSize: 2 }} />);
     const grid = screen.getByRole('grid');

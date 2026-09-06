@@ -1,7 +1,7 @@
 export { CgGrid } from './CgGrid';
 export { CgGridBrowserViewStore, CgGridViewConcurrencyError, gridSchemaSignature } from './views';
 export { createGridXlsx, downloadGridExport, sanitizeGridExportFileName } from './exportXlsx';
-export { createGridState, normalizeGridState, savedViewState, CG_GRID_STATE_VERSION } from './state';
+export { createGridState, normalizeGridState, normalizeGridTableAppearance, savedViewState, CG_GRID_STATE_VERSION } from './state';
 export type { CgGridStateNormalizationOptions } from './state';
 export { processLocalGridData, processLocalGridDataAsync, stableSortGridItems } from './dataEngine';
 export type { CgGridLocalDataOptions, CgGridLocalResult } from './dataEngine';

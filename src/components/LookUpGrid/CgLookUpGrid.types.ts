@@ -6,7 +6,7 @@ import type {
   Ref,
   SyntheticEvent,
 } from 'react';
-import type { CgBaseProps, CgDensity, CgDirection, CgSizeMode, CgValidationState } from '../../types';
+import type { CgBaseProps, CgDensity, CgDirection, CgLookupErrorDetails, CgSizeMode, CgValidationState } from '../../types';
 
 export type CgLookUpGridAlignment = 'start' | 'center' | 'end';
 export type CgLookUpGridSortDirection = 'ascending' | 'descending';
@@ -124,6 +124,7 @@ export interface CgLookUpGridLabels {
   readonly sortDescending: (title: ReactNode, fieldId: string) => string;
   readonly sortCleared: string;
   readonly filterRemoved: (fieldId: string) => string;
+  readonly resolutionError: ReactNode;
 }
 
 declare const cgLookUpGridActionsValue: unique symbol;
@@ -136,6 +137,7 @@ export interface CgLookUpGridActions<TItem, TValue> {
   focus: () => void;
   clear: () => Promise<void>;
   reload: () => Promise<void>;
+  refreshSelectedItem: () => Promise<void>;
   loadMore: () => Promise<void>;
   sortBy: (fieldId?: string, direction?: CgLookUpGridSortDirection) => Promise<void>;
   setColumnFilter: (fieldId: string, value?: string) => Promise<void>;
@@ -153,9 +155,9 @@ export type CgLookUpGridDataLoader<TItem, TContext> = (
   context: { readonly signal: AbortSignal },
 ) => PromiseLike<CgLookUpGridResult<TItem>>;
 
-export type CgLookUpGridItemResolver<TItem, TValue> = (
+export type CgLookUpGridItemResolver<TItem, TValue, TContext = unknown> = (
   value: TValue,
-  context: { readonly signal: AbortSignal },
+  context: { readonly signal: AbortSignal; readonly queryContext: TContext },
 ) => PromiseLike<TItem | null | undefined>;
 
 type NativeLookUpGridProps = Omit<
@@ -177,10 +179,11 @@ interface CgLookUpGridCommonProps<TItem, TValue, TContext>
   onItemSelect?: (item: TItem, details: CgLookUpGridItemSelectDetails<TItem, TValue>) => void;
   onClear?: (details: CgLookUpGridValueChangeDetails<TItem, TValue>) => void;
   isValueEqual?: (left: TValue, right: TValue) => boolean;
-  itemResolver?: CgLookUpGridItemResolver<TItem, TValue>;
+  itemResolver?: CgLookUpGridItemResolver<TItem, TValue, TContext>;
 
   queryContext?: TContext;
   isQueryContextEqual?: (left: TContext, right: TContext) => boolean;
+  dataVersion?: unknown;
   pageSize?: number;
   allowPaging?: boolean;
   showHeader?: boolean;
@@ -197,6 +200,8 @@ interface CgLookUpGridCommonProps<TItem, TValue, TContext>
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean, details: CgLookUpGridOpenChangeDetails) => void;
   onSearchTextChange?: (searchText: string | null) => void;
+  onSearchError?: (details: CgLookupErrorDetails<never, TContext>) => void;
+  onResolutionError?: (details: CgLookupErrorDetails<TValue, TContext>) => void;
   onSortChange?: (sort: CgLookUpGridSort | null, details: CgLookUpGridSortChangeDetails) => void;
   onColumnFiltersChange?: (
     filters: Readonly<Record<string, string>>,

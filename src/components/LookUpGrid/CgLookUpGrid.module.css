@@ -211,6 +211,12 @@
   font-size: var(--cg-font-size-sm);
 }
 
+.resolutionError {
+  margin-block-start: var(--cg-space-1);
+  color: var(--cg-danger, #b91c1c);
+  font-size: var(--cg-font-size-sm);
+}
+
 .visuallyHidden {
   position: absolute;
   inline-size: 1px;

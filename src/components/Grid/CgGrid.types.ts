@@ -27,6 +27,23 @@ export type CgGridEditOperation = 'create' | 'update' | 'delete';
 export type CgGridPersistenceState = 'idle' | 'dirty' | 'validating' | 'saving' | 'conflict' | 'failed';
 export type CgGridMutationOutcome = 'succeeded' | 'validationError' | 'conflict' | 'rejected' | 'failed';
 export type CgGridEditNavigationReason = 'paging' | 'sorting' | 'filtering' | 'grouping' | 'view' | 'refresh' | 'external';
+export type CgGridTableColor = 'blue' | 'green' | 'teal' | 'gray' | 'orange' | 'purple';
+export type CgGridTableIntensity = 'light' | 'medium' | 'dark';
+export type CgGridTableBanding = 'none' | 'rows' | 'columns';
+export type CgGridTableBorders = 'none' | 'horizontal' | 'all';
+export type CgGridTableDensity = 'compact' | 'normal' | 'comfortable';
+
+export interface CgGridTableAppearance {
+  readonly color: CgGridTableColor;
+  readonly intensity: CgGridTableIntensity;
+  readonly banding: CgGridTableBanding;
+  readonly borders: CgGridTableBorders;
+  readonly density: CgGridTableDensity;
+  readonly coloredHeader: boolean;
+  readonly emphasizeFirstColumn: boolean;
+  readonly emphasizeLastColumn: boolean;
+  readonly emphasizeTotals: boolean;
+}
 
 /** @deprecated Use CgFilterGroup. Legacy scalar operands remain accepted at input boundaries. */
 export interface CgGridFilterGroup { readonly kind: 'group'; readonly operator: CgGridLogicalOperator; readonly children: ReadonlyArray<CgGridFilterNode>; readonly negated?: boolean }
@@ -66,6 +83,7 @@ export interface CgGridState {
   readonly groups: ReadonlyArray<CgGridGroupDescriptor>;
   readonly expandedGroupPaths: ReadonlyArray<CgGridGroupPath>;
   readonly summaries: ReadonlyArray<CgGridSummaryState>;
+  readonly tableAppearance: CgGridTableAppearance | null;
 }
 
 export interface CgGridGroupNode {
@@ -167,6 +185,8 @@ export interface CgGridDataErrorDetails { readonly error: unknown; readonly requ
 
 export interface CgGridConflictMetadata<TItem = unknown> { readonly code: string; readonly message?: string; readonly fieldIds?: ReadonlyArray<string>; readonly authoritativeItem?: TItem; readonly concurrencyToken?: string }
 export interface CgGridMutationResult<TItem = unknown> { readonly succeeded: boolean; readonly outcome?: CgGridMutationOutcome; readonly concurrencyToken?: string; readonly conflict?: CgGridConflictMetadata<TItem>; readonly generalErrors?: ReadonlyArray<string>; readonly fieldErrors?: Readonly<Record<string, ReadonlyArray<string>>> }
+export interface CgGridValidationResult { readonly fieldErrors?: Readonly<Record<string, string | ReadonlyArray<string>>>; readonly generalErrors?: string | ReadonlyArray<string> }
+export interface CgGridValidateEditContext<TItem> { readonly mode: 'create' | 'edit'; readonly model: TItem; readonly originalItem?: TItem }
 export interface CgGridUpdateRequest<TItem> { readonly rowKey: string; readonly originalItem: TItem; readonly editModel: TItem; readonly changedFieldIds?: ReadonlyArray<string>; readonly concurrencyToken?: string; readonly attemptNumber?: number }
 export interface CgGridCreateRequest<TItem> { readonly createModel: TItem; readonly changedFieldIds?: ReadonlyArray<string>; readonly concurrencyToken?: string; readonly attemptNumber?: number }
 export interface CgGridDeleteRequest<TItem> { readonly rowKey: string; readonly item: TItem; readonly changedFieldIds?: ReadonlyArray<string>; readonly concurrencyToken?: string; readonly attemptNumber?: number }
@@ -225,6 +245,7 @@ interface CgGridEditingCommon<TItem> {
   readonly confirmDiscard?: (details: CgGridEditNavigationDetails<TItem>) => PromiseLike<boolean>;
   readonly confirmDelete?: (request: CgGridDeleteRequest<TItem>) => PromiseLike<boolean>;
   readonly onEditStateChange?: (state: CgGridEditState<TItem>) => void;
+  readonly validateEdit?: (context: CgGridValidateEditContext<TItem>) => CgGridValidationResult | void;
   readonly protectExternalNavigation?: boolean;
   /** Opens a focused Cell/Batch editor with the printable character that started it. Defaults to true. */
   readonly allowTypeToEdit?: boolean;
@@ -252,12 +273,14 @@ export type CgGridContextMenuSelectionBehavior = 'preserve' | 'focus' | 'selectI
 export interface CgGridContext<TItem> { readonly area: CgGridContextMenuArea; readonly item?: TItem; readonly rowKey?: string; readonly column?: CgGridColumnDescriptor<TItem>; readonly value?: unknown; readonly groupKey?: string; readonly actions: CgGridActions<TItem> }
 
 export interface CgGridLabels { searchPlaceholder: string; loading: string; empty: string; loadError: string; refreshError: string; retry: string; rowsPerPage: string; records: string; add: string; edit: string; delete: string; save: string; cancel: string; columns: string; groupPanel: string; loadMore: string; summaryUnavailable: string; activeFilters: string; editFilters: string; suspendFilters: string; resumeFilters: string; clearFilters: string }
+export interface CgGridTableStyleLabels { title: string; options: string; color: string; intensity: string; banding: string; borders: string; density: string; coloredHeader: string; emphasizeFirstColumn: string; emphasizeLastColumn: string; emphasizeTotals: string; reset: string; close: string; savedViewHint: string; temporaryHint: string; blue: string; green: string; teal: string; gray: string; orange: string; purple: string; light: string; medium: string; dark: string; none: string; rows: string; columns: string; horizontal: string; all: string; compact: string; normal: string; comfortable: string; presets: string }
 
 export interface CgGridActions<TItem> {
   refresh(): Promise<void>; reload(): Promise<void>;
   refreshCurrentPage(): Promise<void>; goToPage(pageIndex: number): Promise<void>; goToFirstPage(): Promise<void>; goToLastPage(): Promise<void>; setPageSize(pageSize: number): Promise<void>;
   getVisibleItems(): ReadonlyArray<TItem>;
   getState(): CgGridState; applyState(state: Partial<CgGridState>): Promise<void>; resetState(): Promise<void>;
+  setTableAppearance(appearance: CgGridTableAppearance | null): Promise<void>; resetTableAppearance(): Promise<void>;
   focusRow(key: CgGridKey): Promise<boolean>; focusCell(key: CgGridKey, fieldId: string): Promise<boolean>;
   clearSelection(): Promise<void>; selectRowsByKey(keys: ReadonlyArray<CgGridKey>, replace?: boolean): Promise<void>;
   beginCreate(): Promise<boolean>; beginEdit(key: CgGridKey): Promise<boolean>; requestDelete(key: CgGridKey): Promise<boolean>;
@@ -325,5 +348,6 @@ interface CgGridCommonProps<TItem> extends NativeGridProps {
   toolbar?: ReactNode | ((actions: CgGridActions<TItem>) => ReactNode);
   renderLoading?: () => ReactNode; renderEmpty?: () => ReactNode; renderError?: (details: CgGridDataErrorDetails) => ReactNode;
   stickyHeader?: boolean; stripedRows?: boolean; height?: CSSProperties['height']; size?: CgSizeMode; direction?: CgDirection; labels?: Partial<CgGridLabels>; actionsRef?: Ref<CgGridActions<TItem>>;
+  allowTableStyling?: boolean; tableStyleLabels?: Partial<CgGridTableStyleLabels>;
 }
 export type CgGridProps<TItem> = CgGridCommonProps<TItem> & ({ readonly data: ReadonlyArray<TItem>; readonly dataProvider?: never } | { readonly data?: never; readonly dataProvider: CgGridDataProvider<TItem> });
