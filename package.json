@@ -42,6 +42,7 @@
     "clean": "node --eval \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "build": "npm run clean && npm run typecheck && npm run build:lib",
     "build:lib": "vite build",
+    "build:vendor:pdfjs": "npm --prefix vendor-src/pdfjs run build",
     "prepare": "npm run build:lib",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build -o storybook-static --quiet",

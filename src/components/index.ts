@@ -32,6 +32,7 @@ export * from './Memo';
 export * from './Map';
 export * from './NumericEdit';
 export * from './Pager';
+export * from './PdfViewer';
 export * from './Popup';
 export * from './ProgressBar';
 export * from './Radio';

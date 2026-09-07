@@ -2,7 +2,9 @@
 
 `CgScheduler` adds Day, Work Week, Week, Month, and Timeline scheduling with CRUD, drag/resize, timezone-aware dates, and cancellable range loading. See [Scheduler usage and contracts](src/components/Scheduler/README.md).
 
-CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–24.1 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, TimeEdit, Calendar, DateRangePicker, FileUploader, RangeSelector, Chart, Tooltip, StatusBadge, Splitter, Drawer, Toast and Confirmation providers, MessageBox alerts, overlays, MaskedInput, command surfaces, GridLayout, responsive FormLayout, TreeView, the focused `CgLookUpGrid`, and the advanced Filter/Grid/Pager surface without Bootstrap or DevExpress.
+`CgPdfViewer` adds lazy browser PDF rendering with URL, data, or authorized-provider sources, navigation, search, zoom, rotation, thumbnails, outlines, password handling, and opt-in annotations. See [PDF Viewer usage and security](src/components/PdfViewer/README.md).
+
+CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–25 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, TimeEdit, Calendar, DateRangePicker, FileUploader, PDF Viewer, RangeSelector, Chart, Tooltip, StatusBadge, Splitter, Drawer, Toast and Confirmation providers, MessageBox alerts, overlays, MaskedInput, command surfaces, GridLayout, responsive FormLayout, TreeView, the focused `CgLookUpGrid`, and the advanced Filter/Grid/Pager surface without Bootstrap or DevExpress.
 
 ## Install and import
 
@@ -26,6 +28,8 @@ Phase 23 adds [`CgButtonGroup`](src/components/ButtonGroup/README.md), [`CgMap`]
 Phase 24 adds `CgTimeEdit`, `CgGridLayout`/`CgGridLayoutItem`, `CgWaitIndicator`, and alert-style `CgMessageBox`. Alerts also join the existing confirmation provider through `useCgConfirmation().alert(...)`, preserving the shared FIFO and cancellation lifecycle. Explore the four `Phase 24` Storybook groups.
 
 Phase 24.1 refreshes Grid and lookup reliability against `CashGear.Blazor.UI` commit `c5c03fb9e5bc2f49b7a3af87729cfbb83ab86c1c`: Grid state v11 adds opt-in table appearance, all edit modes share parsing and synchronous validation, pending persistence locks the editor session, and ComboBox/KeyComboBox/LookUpGrid gain query-context/data-version invalidation, diagnostics, resolver refresh, and safer IME/keyboard behavior. Explore `Phase 24.1/Reliability Refresh` in Storybook.
+
+Phase 25 mirrors `CgPdfViewer` from `CashGear.Blazor.UI` commit `32edd96e1220ec5cf1b5ed691795fd95f605c19a`. A typed URL/data/provider source union and generation-scoped `AbortSignal` replace .NET stream callbacks while preserving the complete viewer interaction surface. PDF.js 6.2.108 is pinned as checked-in, integrity-verified, lazily loaded package content; external links and form controls remain opt-in. Explore `Phase 25/PdfViewer` in Storybook.
 
 ## Theme, density, and direction
 
@@ -894,7 +898,7 @@ Components:
 - `CgTextBox`, `CgMemo`, `CgRichTextEditor`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgKeyComboBox`, `CgLookUpGrid`, `CgListBox`, `CgTagBox`, `CgDropDownBox`, `CgDateEdit`, `CgTimeEdit`, `CgCalendar`, `CgDateRangePicker`, `CgFileUploader`
 - `CgFlyout`, `CgPopup`, `CgWindow`, `CgMessageBox`, `CgMaskedInput`
 - `CgSplitter`, `CgDrawer`
-- `CgChart`, `CgMap`, `CgRangeSelector`, `CgTooltip`, `CgStatusBadge`
+- `CgChart`, `CgMap`, `CgPdfViewer`, `CgRangeSelector`, `CgTooltip`, `CgStatusBadge`
 - `CgMenu`, `CgContextMenu`, `CgDropDownButton`, `CgSplitButton`, `CgToolbar`
 - `CgLayoutBreakpoint`, `CgGridLayout`, `CgGridLayoutItem`, `CgTabs`, `CgStepper`, `CgAccordion`, `CgTreeView`, `CgTreeList`, `CgFilterBuilder`, `CgPager`, `CgGrid`
 - `CgFormLayout`, `CgFormLayoutItem`, `CgFormLayoutGroup`, `CgFormLayoutTabs`
@@ -903,7 +907,7 @@ Components:
 - `CgLoadingPanel`, `CgWaitIndicator`, `CgProgressBar`
 - `CgToastProvider`, `CgConfirmationProvider`
 
-Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, canonical `CgDateValue`/`CgDateRangeValue`/`CgTimeValue`, the Filter Core AST/registry/persistence contracts, the DateEdit/TimeEdit/Calendar/DateRangePicker contracts, the FileUploader item/transport/event/render/action contracts, the Chart descriptor/axis/selection/action/localization contracts, the GridLayout descriptors, the TreeList binding/column/node/provider/mutation/output/state/render/action contracts, the Splitter versioned-state/descriptor/detail contracts, the Drawer lifecycle/render/action contracts, WaitIndicator, MessageBox, Toast and Confirmation APIs, the shared overlay contracts, and each descriptor component's props, actions, lifecycle details, and render/state contexts. Private chart model/layout/browser modules, endpoint-session tokens, menu, adaptive-layout, TreeView normalization/check/filter engines, and TreeList hierarchy/projection internals are not exported. There is intentionally no universal component-state interface.
+Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, canonical `CgDateValue`/`CgDateRangeValue`/`CgTimeValue`, the Filter Core AST/registry/persistence contracts, the DateEdit/TimeEdit/Calendar/DateRangePicker contracts, the FileUploader item/transport/event/render/action contracts, the PDF source/state/event/render/action contracts, the Chart descriptor/axis/selection/action/localization contracts, the GridLayout descriptors, the TreeList binding/column/node/provider/mutation/output/state/render/action contracts, the Splitter versioned-state/descriptor/detail contracts, the Drawer lifecycle/render/action contracts, WaitIndicator, MessageBox, Toast and Confirmation APIs, the shared overlay contracts, and each descriptor component's props, actions, lifecycle details, and render/state contexts. Private PDF controller/model modules, chart model/layout/browser modules, endpoint-session tokens, menu, adaptive-layout, TreeView normalization/check/filter engines, and TreeList hierarchy/projection internals are not exported. There is intentionally no universal component-state interface.
 
 The public hooks are `useControllableState`, `useCgId`, `useCgContextMenuTarget`, `useCgToast`, and `useCgConfirmation`; `cx` is the public class-name utility. All other primitives and hooks are private implementation details.
 
@@ -949,8 +953,10 @@ Phase 21 verification on 2026-08-31 passed strict typecheck and lint, 53 Vitest 
 
 Phase 24.1 verification on 2026-09-06 passed strict typecheck and lint, 67 Vitest files/669 tests, cycle analysis across 317 source modules, the 319-module library build, the 396-module Storybook build, package verification of 198 runtime exports across 1,557 packed files, and all 172 Chromium plus 172 WebKit semantic/Axe cases. Four inspected `phase-24-1-*` Chromium baselines were added; all 275 older visual cases produced passing evidence unchanged, including focused reruns for two transient Map tile captures and restored legacy KeyComboBox story copy. Firefox remains environment-blocked before page creation by the known headless SWGL framebuffer mapping failure. The exact command-level record and intentional exclusions are in the parity ledger.
 
+Phase 25 verification on 2026-09-06 passed strict typecheck and lint, 69 Vitest files/683 tests, cycle analysis across 321 source modules, the 324-module library build, the 401-module Storybook build, and package verification of 199 runtime exports across 2,159 packed files. The real PDF.js worker passed all nine focused interaction/Axe cases in both Chromium and WebKit; six new Windows Chromium baselines passed and were visually inspected. Poppler metadata and page rendering independently verified the 48-page, four-page AcroForm/link, and two-page encrypted fixtures. Firefox remains environment-blocked before page creation by the known headless SWGL framebuffer mapping failure.
+
 ## Packaging
 
-The library is ESM-only. Vite preserves modules for tree-shaking, keeps React external, emits declarations and declaration maps, and produces `dist/cashgear-ui.css`, exported only as `@cashgear/ui/styles.css`. Leaflet and the rich-text engine are emitted as lazy chunks; their licenses, notices, images, pins, and integrity manifests ship with the package. `npm run verify:package` verifies their exact hashes, rejects bare runtime vendor imports, and runs `npm pack --dry-run` so the publish allow-list is checked before release.
+The library is ESM-only. Vite preserves modules for tree-shaking, keeps React external, emits declarations and declaration maps, and produces `dist/cashgear-ui.css`, exported only as `@cashgear/ui/styles.css`. Leaflet and the rich-text engine are emitted as lazy chunks. The PDF.js browser distribution is emitted unchanged under `dist/vendor/pdfjs` for host deployment. Their licenses, notices, images, pins, and integrity manifests ship with the package. `npm run verify:package` verifies exact hashes and copied bytes, rejects bare runtime vendor imports, and runs `npm pack --dry-run` so the publish allow-list is checked before release.
 
 See [the parity ledger](docs/cgcomplib-react-parity.md) for the original and current Razor snapshots, source/test/story paths, intentional differences, exact verification results, and deferred advanced components.

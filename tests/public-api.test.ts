@@ -67,6 +67,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'CgMenu',
   'CgNumericEdit',
   'CgPager',
+  'CgPdfViewer',
   'CgPopup',
   'CgProgressBar',
   'CgRadio',

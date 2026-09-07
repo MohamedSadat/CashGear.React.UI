@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync } from 'node:fs';
+import { copyFileSync, cpSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
@@ -28,6 +28,11 @@ function copyVendorMetadata() {
         mkdirSync(dirname(destination), { recursive: true });
         copyFileSync(source, destination);
       }
+      cpSync(
+        fileURLToPath(new URL('./src/vendor/pdfjs', import.meta.url)),
+        fileURLToPath(new URL('./dist/vendor/pdfjs', import.meta.url)),
+        { recursive: true },
+      );
     },
   };
 }

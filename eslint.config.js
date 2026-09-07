@@ -71,4 +71,9 @@ export default tseslint.config(
     languageOptions: { globals: globals.browser },
     rules: { 'no-control-regex': 'off' },
   },
+  {
+    files: ['src/components/PdfViewer/pdfController.js'],
+    languageOptions: { globals: globals.browser },
+    rules: { 'no-empty': 'off' },
+  },
 );

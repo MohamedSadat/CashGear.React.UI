@@ -25,6 +25,8 @@ export type { CgDateRangePickerActions, CgDateRangePickerBeforeValueChangeDetail
 export type { CgDateRangeValue } from './types';
 export { CgPager, CG_PAGER_DEFAULT_AUTO_INPUT_THRESHOLD, CG_PAGER_DEFAULT_NUMERIC_BUTTONS, calculateNumericWindow, calculatePageCount, calculatePageSkip, calculatePageSkipChecked, calculateVisibleItemRange, clampPageIndex, normalizeNumericButtonCount, normalizePageCount, normalizePageSize, normalizePageSizeOptions, parsePagerDisplayNumber, preserveFirstItemPageIndex, shouldUsePagerInput, toDisplayPageNumber, toPageIndex } from './components/Pager';
 export type { CgPagerActions, CgPagerButtonContext, CgPagerItemRange, CgPagerLabels, CgPagerMode, CgPagerNavigationDetails, CgPagerNavigationReason, CgPagerPageSizeChangeDetails, CgPagerProps, CgPagerSummaryContext, CgPagerWindow } from './components/Pager';
+export { CgPdfViewer } from './components/PdfViewer';
+export type * from './components/PdfViewer';
 export { CgFilterBuilder } from './components/FilterBuilder';
 export type { CgFilterBuilderActions, CgFilterBuilderApplyDetails, CgFilterBuilderApplyMode, CgFilterBuilderApplyReason, CgFilterBuilderCancelableResult, CgFilterBuilderChangeDetails, CgFilterBuilderDisplayContext, CgFilterBuilderEditorContext, CgFilterBuilderFieldDescriptor, CgFilterBuilderLabels, CgFilterBuilderNodeDescriptor, CgFilterBuilderNodeKind, CgFilterBuilderProps, CgFilterBuilderValidationDetails } from './components/FilterBuilder';
 export { CgDropDownButton } from './components/DropDownButton';

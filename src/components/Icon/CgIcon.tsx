@@ -16,6 +16,13 @@ const paths: Record<CgIconProps['name'], ReactNode> = {
   'chevron-down': <path d="m5 9 7 7 7-7" />,
   'chevron-start': <path d="m15 5-7 7 7 7" />,
   'chevron-end': <path d="m9 5 7 7-7 7" />,
+  sidebar: <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></>,
+  'zoom-out': <><circle cx="10.5" cy="10.5" r="6.5" /><path d="M7.5 10.5h6m2 5 4.5 4.5" /></>,
+  'zoom-in': <><circle cx="10.5" cy="10.5" r="6.5" /><path d="M7.5 10.5h6m-3-3v6m5 2 4.5 4.5" /></>,
+  rotate: <><path d="M20 7v5h-5" /><path d="M19 12a7 7 0 1 0-2 5" /></>,
+  print: <><path d="M7 8V3h10v5M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2" /><path d="M7 14h10v7H7z" /></>,
+  download: <><path d="M12 3v12m-5-5 5 5 5-5" /><path d="M5 21h14" /></>,
+  fullscreen: <><path d="M8 3H3v5m13-5h5v5M8 21H3v-5m13 5h5v-5" /></>,
 };
 
 export const CgIcon = forwardRef<SVGSVGElement, CgIconProps>(function CgIcon(

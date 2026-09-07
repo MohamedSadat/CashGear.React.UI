@@ -16,7 +16,10 @@ function sha256(path) { return createHash('sha256').update(readFileSync(path)).d
 function verifyIntegrity(directory) {
   const integrityPath = join(directory, 'integrity-manifest.json');
   const integrity = JSON.parse(readFileSync(integrityPath, 'utf8'));
-  for (const entry of integrity.files) {
+  const entries = Array.isArray(integrity.files)
+    ? integrity.files
+    : Object.entries(integrity.files).map(([file, digest]) => ({ file, sha256: digest }));
+  for (const entry of entries) {
     const path = join(directory, entry.file);
     assert.ok(existsSync(path), `Integrity file missing: ${path}`);
     assert.equal(sha256(path), entry.sha256, `Integrity mismatch: ${path}`);
@@ -40,6 +43,37 @@ for (const [name, version] of Object.entries(vendorInputs.dependencies)) {
   assert.equal(editorLock.packages[`node_modules/${name}`].version, version, `Editor lockfile pin mismatch: ${name}`);
 }
 assert.equal(editorLock.packages['node_modules/esbuild'].version, '0.28.2');
+const pdfIntegrity = verifyIntegrity(join(root, 'src/vendor/pdfjs'));
+assert.equal(pdfIntegrity.name, 'pdfjs-dist');
+assert.equal(pdfIntegrity.version, '6.2.108');
+const pdfInputs = JSON.parse(readFileSync(join(root, 'vendor-src/pdfjs/package.json'), 'utf8'));
+assert.equal(pdfInputs.dependencies['pdfjs-dist'], '6.2.108');
+const pdfLock = JSON.parse(readFileSync(join(root, 'vendor-src/pdfjs/package-lock.json'), 'utf8'));
+assert.equal(pdfLock.packages['node_modules/pdfjs-dist'].version, '6.2.108');
+assert.equal(pdfLock.packages['node_modules/pdfjs-dist'].integrity, pdfIntegrity.npmIntegrity);
+const pdfPaths = Object.keys(pdfIntegrity.files).sort();
+assert.ok(pdfPaths.length > 250, 'PDF.js integrity manifest is unexpectedly incomplete');
+assert.deepEqual(
+  pdfPaths,
+  (() => {
+    const paths = [];
+    function visit(directory) {
+      for (const name of readdirSync(directory)) {
+        const path = join(directory, name);
+        if (statSync(path).isDirectory()) visit(path);
+        else {
+          const relativePath = path.slice(join(root, 'src/vendor/pdfjs').length + 1).replaceAll('\\', '/');
+          if (relativePath !== 'integrity-manifest.json') paths.push(relativePath);
+        }
+      }
+    }
+    visit(join(root, 'src/vendor/pdfjs'));
+    return paths.sort();
+  })(),
+  'PDF.js integrity manifest must cover every shipped upstream file',
+);
+assert.ok(pdfPaths.includes('build/pdf.mjs') && pdfPaths.includes('build/pdf.worker.mjs') && pdfPaths.includes('web/pdf_viewer.mjs'));
+assert.doesNotMatch(pdfPaths.join('\n'), /(?:^|\/)(?:legacy|types|sandbox|quickjs)(?:\/|\.|$)|\.map$/iu, 'Excluded PDF.js development or eval assets were shipped');
 
 const allFiles = [];
 function collect(directory) { for (const name of readdirSync(directory)) { const path = join(directory, name); if (statSync(path).isDirectory()) collect(path); else allFiles.push(path); } }
@@ -68,6 +102,12 @@ for (const relativePath of copiedVendorFiles) {
   assert.ok(existsSync(emitted), `Missing dist/vendor/${relativePath}`);
   assert.equal(sha256(emitted), sha256(source), `Emitted vendor file differs: ${relativePath}`);
 }
+for (const relativePath of [...pdfPaths, 'integrity-manifest.json']) {
+  const source = join(root, 'src/vendor/pdfjs', relativePath);
+  const emitted = join(root, 'dist/vendor/pdfjs', relativePath);
+  assert.ok(existsSync(emitted), `Missing dist/vendor/pdfjs/${relativePath}`);
+  assert.equal(sha256(emitted), sha256(source), `Emitted PDF.js file differs: ${relativePath}`);
+}
 for (const file of [
   'dist/vendor/leaflet/leaflet-src.esm.js',
   'dist/vendor/rich-text-editor/editor.js',
@@ -83,6 +123,7 @@ expected.push('CgGridLayout', 'CgGridLayoutItem', 'CgMessageBox', 'CgTimeEdit', 
 expected.push('normalizeGridTableAppearance');
 expected.push('CG_TREE_LIST_DEFAULT_MAXIMUM_DEPTH', 'CG_TREE_LIST_MAXIMUM_DEPTH_LIMIT', 'CG_TREE_LIST_STATE_VERSION', 'CgTreeList', 'createTreeListState', 'createTreeListXlsx', 'downloadTreeListExport', 'normalizeTreeListState', 'sanitizeTreeListExportFileName', 'treeListKeyToken');
 expected.push('CG_PIVOT_LAYOUT_VERSION', 'CgPivotBrowserLayoutStore', 'CgPivotCalculatedMeasures', 'CgPivotError', 'CgPivotLimitError', 'CgPivotTable', 'createPivotAggregate', 'createPivotCalculatedState', 'createPivotExport', 'createPivotMember', 'createPivotQuery', 'downloadPivotExport', 'getPivotDistinctValues', 'getPivotDrillDown', 'normalizePivotLayout', 'pivotPathKey', 'pivotValueKey', 'processPivotData', 'validatePivotResult');
+expected.push('CgPdfViewer');
 assert.deepEqual(Object.keys(runtime).sort(), expected.sort());
 
 const npmCli = process.env.npm_execpath;
@@ -107,10 +148,13 @@ const packedPaths = new Set(packResult[0].files.map((entry) => entry.path));
 for (const file of [
   'package.json', 'README.md', 'dist/index.js', 'dist/index.d.ts', 'dist/cashgear-ui.css',
   'dist/vendor/leaflet/leaflet-src.esm.js', 'dist/vendor/rich-text-editor/editor.js',
+  'dist/vendor/pdfjs/build/pdf.mjs', 'dist/vendor/pdfjs/build/pdf.worker.mjs',
+  'dist/vendor/pdfjs/web/pdf_viewer.mjs', 'dist/vendor/pdfjs/integrity-manifest.json',
   'dist/vendor/leaflet/integrity-manifest.json', 'dist/vendor/rich-text-editor/integrity-manifest.json',
   'dist/vendor/rich-text-editor/THIRD-PARTY-NOTICES.txt', 'dist/vendor/leaflet/LICENSE',
   'dist/vendor/leaflet/images/layers.png', 'dist/vendor/leaflet/images/layers-2x.png',
   'dist/vendor/leaflet/images/marker-icon.png', 'dist/vendor/leaflet/images/marker-icon-2x.png',
   'dist/vendor/leaflet/images/marker-shadow.png', 'src/vendor/leaflet/LICENSE',
+  'src/vendor/pdfjs/LICENSE', 'src/vendor/pdfjs/integrity-manifest.json',
 ]) assert.ok(packedPaths.has(file), `Tarball missing ${file}`);
 console.log(`Package verified: ${runtime.CgButton ? expected.length : 0} runtime exports, ${packedPaths.size} packed files.`);

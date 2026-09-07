@@ -38,7 +38,14 @@ export type CgIconName =
   | 'chevron-up'
   | 'chevron-down'
   | 'chevron-start'
-  | 'chevron-end';
+  | 'chevron-end'
+  | 'sidebar'
+  | 'zoom-out'
+  | 'zoom-in'
+  | 'rotate'
+  | 'print'
+  | 'download'
+  | 'fullscreen';
 
 export type CgIconSource = CgIconName | ReactElement;
 
