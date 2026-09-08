@@ -1,26 +1,22 @@
-# Resume CashGear parity after Phase 28
+# Resume CashGear parity after Phase 29
 
-The user requested stopping after Phase 28 on 2026-09-08. Do not start Phase 29 until they resume the work. No scheduled continuation was created.
+The user resumed on 2026-09-09. Phase 29 is complete and work is paused at the requested phase boundary. Start Phase 30 only when the user resumes. No scheduled continuation was created.
 
 React starting revision: `7791c80d652cdb0c26a57ac6c9846fadcf380842`.
 Read-only Blazor reference: `79cf0c2bfb0b885641c842a03d88392bdbf2c2c4`, repository `D:/LiveProjects/CGWebApp`.
-Phase 26 commit: `699e59d`. Phase 27 commit: `e47c890`. The Phase 28 commit contains this document; use Git history for its full revision.
+Phase 26 commit: `699e59d`. Phase 27 commit: `e47c890`. Phase 28 commit: `30832cd`. The Phase 29 commit contains this updated checkpoint.
 
 Current implementation and verification are tracked in [the acceptance record](parity-implementation-status.md). Component contracts are documented under EditorCommit, DecimalEdit, and KeyTagBox. Keep existing React defaults, controlled ownership, saved-state compatibility, host-owned persistence and authorization. Blazor/backend repositories remain read-only. Do not publish or modify consuming applications.
 
-## Next: Phase 29
+## Next: Phase 30
 
-Implement opt-in fixed-row and column virtualization, status/fallback diagnostics, and Grid export scopes/limits/cancellation using the existing remoteExport callback. Inspect `src/components/Grid/CgGrid.tsx`, `CgGrid.types.ts`, `columns.ts`, `exportXlsx.ts`, `provider.ts`, and `summaries.ts` first.
+Start with PivotTable and TreeList hardening. Inspect component/provider/export types and current tests before editing. Both already have commit integration from Phase 26 and exact decimal metadata from Phase 27.
 
-Read-only reconnaissance found:
+- Pivot: propagate dataVersion/queryContext to views, distinct values, drill-down and exports; invalidate pending/retained work on ownership changes. Add opt-in source/contribution budgets, evaluate measure selectors once, complete hidden/dependent filters and distinct pagination, null/timezone validation, and scoped incremental exports.
+- TreeList: forward version/context consistently; tighten root/child/detail/path ownership, overlapping page and total/key checks; finish validation/persistence locking, virtualization diagnostics/focus, and postorder weighted/partial descendant summaries.
+- Reconcile Phase 30 against Blazor fb523d4c and the accepted plan. Do not treat features deferred in both libraries as missing parity.
 
-- Grid currently renders all page rows and all visible columns. Preserve pager ownership and use full rendered rows for grouped/detail layouts. Ensure focus actions mount and scroll targets and retain active editing across windows.
-- Frozen CSS uses `--cg-grid-frozen-offset`, but the Grid currently does not assign it. Multiple frozen columns need verified offsets across headers, filters, body, and totals.
-- Local export already reads `local.filteredSortedItems`, independent of the viewport. Keep this default. Add currentPage and selectedRecords, including hidden local selections; keep committed records separate from edit drafts.
-- Remote export currently borrows the data request coordinator, which can cancel ordinary loading. Give exports their own cancellation ownership while extending the same callback with scope, selection, allowed field IDs, and limits.
-- Group summaries currently appear in local group headers; group footer rendering requires completion. Existing XLSX helper exports header plus flat data; scope-aware totals/summaries require explicit handling.
-
-No Phase 29 source changes were made.
+Phase 29 adds private useGridVirtualization/exportRecords helpers, extended public Grid types, optional row/column modes, group footers, and export scopes/limits/cancellation. No stored-state migration or new runtime export was needed. The Grid README and Phase 29 story/tests describe host adapters and fallback semantics. Its commit contains this checkpoint; find the hash in Git history.
 
 ## Remaining phases
 

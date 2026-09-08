@@ -970,4 +970,8 @@ See [implementation acceptance record](parity-implementation-status.md) and [com
 
 ListBox adds guarded selection actions, displayed-order ranges, mounted active descendants, group semantics, review-state behavior, and corrected virtual geometry. TagBox adds version/context invalidation and query/IME/Enter reliability. `CgKeyTagBox` provides key values, cached abortable resolution, fallback labels, comparer support, and native form behavior. See the [ListBox contracts](../src/components/ListBox/README.md), [TagBox contracts](../src/components/TagBox/README.md), [key adapter](../src/components/KeyTagBox/README.md), and [acceptance matrix](parity-implementation-status.md).
 
-Implementation is paused at the user's request after Phase 28. [Resume with Phase 29](parity-resume.md); Phases 29–32 and final integration remain outstanding.
+## Phase 29 — Grid virtualization and exports
+
+Grid adds opt-in fixed row/column windows with focus retention, frozen geometry, status/fallback diagnostics, and optional group footers. Exports retain the full-filtered default and add current-page/hidden-selection scopes, hard row limits, independent cancellation, committed-record summaries, and an extended typed remote adapter. Inherited RTL detection is corrected while explicit direction and existing saved-state version 11 remain intact. See the [Grid contracts](../src/components/Grid/README.md), [acceptance record](parity-implementation-status.md), and [resume checkpoint](parity-resume.md).
+
+Implementation is paused after Phase 29. Phases 30–32 and final cross-phase integration remain outstanding.

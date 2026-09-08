@@ -98,6 +98,7 @@ export interface CgGridGroupNode {
   readonly hasChildren: boolean;
   readonly fullPath: CgGridGroupPath;
   readonly summaries?: Readonly<Record<string, unknown>>;
+  readonly aggregateStates?: Readonly<Record<string, CgGridAggregateValue>>;
 }
 
 export interface CgGridDataRequest {
@@ -267,8 +268,18 @@ export interface CgGridStoredView { readonly view: CgGridViewEntry; readonly sta
 export interface CgGridViewSaveRequest { readonly viewId?: string; readonly name: string; readonly scope: CgGridViewScope; readonly roleName?: string; readonly state: CgGridState; readonly concurrencyToken?: string }
 export interface CgGridViewStore { getCatalog(context: CgGridViewContext, signal: AbortSignal): PromiseLike<CgGridViewCatalog>; load(context: CgGridViewContext, viewId: string, signal: AbortSignal): PromiseLike<CgGridStoredView | null>; save(context: CgGridViewContext, request: CgGridViewSaveRequest, signal: AbortSignal): PromiseLike<CgGridStoredView>; delete(context: CgGridViewContext, viewId: string, concurrencyToken: string | undefined, signal: AbortSignal): PromiseLike<void>; setDefault(context: CgGridViewContext, viewId: string | undefined, signal: AbortSignal): PromiseLike<void>; resetDefault(context: CgGridViewContext, signal: AbortSignal): PromiseLike<void> }
 
-export interface CgGridExportResult { readonly fileName: string; readonly mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'; readonly bytes: Uint8Array }
-export interface CgGridExportOptions { readonly fileName?: string; readonly download?: boolean }
+export interface CgGridVirtualizationStatus {
+  readonly rows: boolean; readonly columns: boolean; readonly rowStart: number; readonly rowEnd: number;
+  readonly rowFallback?: 'disabled' | 'grouped' | 'details' | 'editing';
+  readonly columnFallback?: 'disabled' | 'nonNumericWidths' | 'editing';
+}
+export type CgGridExportScope = 'fullFiltered' | 'currentPage' | 'selectedRecords';
+export interface CgGridRemoteExportContext {
+  readonly signal: AbortSignal; readonly scope: CgGridExportScope; readonly selectedKeys: ReadonlyArray<string>;
+  readonly authorizedFieldIds: ReadonlyArray<string>; readonly maxRows?: number;
+}
+export interface CgGridExportResult { readonly rowCount?: number; readonly fileName: string; readonly mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'; readonly bytes: Uint8Array }
+export interface CgGridExportOptions { readonly fileName?: string; readonly download?: boolean; readonly scope?: CgGridExportScope; readonly signal?: AbortSignal; readonly maxRows?: number }
 
 export type CgGridContextMenuArea = 'row' | 'cell' | 'header' | 'footer' | 'groupRow' | 'groupFooter' | 'groupPanel' | 'emptyArea';
 export type CgGridContextMenuSelectionBehavior = 'preserve' | 'focus' | 'selectIfNeeded' | 'replace';
@@ -280,6 +291,7 @@ export interface CgGridTableStyleLabels { title: string; options: string; color:
 export interface CgGridActions<TItem> {
   refresh(): Promise<void>; reload(): Promise<void>;
   refreshCurrentPage(): Promise<void>; goToPage(pageIndex: number): Promise<void>; goToFirstPage(): Promise<void>; goToLastPage(): Promise<void>; setPageSize(pageSize: number): Promise<void>;
+  getVirtualizationStatus(): CgGridVirtualizationStatus;
   getVisibleItems(): ReadonlyArray<TItem>;
   getState(): CgGridState; applyState(state: Partial<CgGridState>): Promise<void>; resetState(): Promise<void>;
   setTableAppearance(appearance: CgGridTableAppearance | null): Promise<void>; resetTableAppearance(): Promise<void>;
@@ -296,6 +308,10 @@ export interface CgGridActions<TItem> {
 
 type NativeGridProps = Omit<HTMLAttributes<HTMLDivElement>, 'children' | 'onChange' | 'onError'>;
 interface CgGridCommonProps<TItem> extends NativeGridProps {
+  rowVirtualization?: { readonly rowHeight?: number; readonly overscan?: number };
+  columnVirtualization?: { readonly overscan?: number };
+  onVirtualizationStatusChange?: (status: CgGridVirtualizationStatus) => void;
+  isExportFieldAuthorized?: (column: CgGridColumnDescriptor<TItem>) => boolean;
   columns: ReadonlyArray<CgGridColumnDescriptor<TItem>>;
   keySelector: (item: TItem) => CgGridKey;
   state?: CgGridState;
@@ -328,6 +344,7 @@ interface CgGridCommonProps<TItem> extends NativeGridProps {
   maxGroupLevels?: number;
   totalSummaries?: ReadonlyArray<CgGridSummaryDescriptor<TItem>>;
   groupSummaries?: ReadonlyArray<CgGridSummaryDescriptor<TItem>>;
+  showGroupFooters?: boolean;
   renderSummary?: (context: CgGridSummaryRenderContext<TItem>) => ReactNode;
   onAggregateError?: (details: CgGridAggregateErrorDetails<TItem>) => void;
   renderDetail?: (context: CgGridDetailRenderContext<TItem>) => ReactNode;
@@ -346,7 +363,7 @@ interface CgGridCommonProps<TItem> extends NativeGridProps {
   onContextMenuItemActivate?: (details: CgContextMenuCommandDetails<CgGridContext<TItem>>) => void | PromiseLike<void>;
   onContextMenuCommandFailure?: (details: CgContextMenuCommandFailureDetails<CgGridContext<TItem>>) => void | PromiseLike<void>;
   onDataError?: (details: CgGridDataErrorDetails) => void;
-  remoteExport?: (request: CgGridDataRequest, options: CgGridExportOptions, context: { signal: AbortSignal }) => PromiseLike<CgGridExportResult>;
+  remoteExport?: (request: CgGridDataRequest, options: CgGridExportOptions, context: CgGridRemoteExportContext) => PromiseLike<CgGridExportResult>;
   toolbar?: ReactNode | ((actions: CgGridActions<TItem>) => ReactNode);
   renderLoading?: () => ReactNode; renderEmpty?: () => ReactNode; renderError?: (details: CgGridDataErrorDetails) => ReactNode;
   stickyHeader?: boolean; stripedRows?: boolean; height?: CSSProperties['height']; size?: CgSizeMode; direction?: CgDirection; labels?: Partial<CgGridLabels>; actionsRef?: Ref<CgGridActions<TItem>>;

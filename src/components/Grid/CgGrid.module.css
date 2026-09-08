@@ -21,7 +21,7 @@
 .filterPanelActions { display: flex; flex-wrap: wrap; gap: var(--cg-space-2); }
 .filterProblem { flex-basis: 100%; color: var(--cg-danger-text); }
 .row:hover .cell { background: var(--cg-hover); }
-.striped .row:nth-of-type(even) .cell { background: color-mix(in srgb, var(--cg-surface-subtle) 55%, transparent); }
+.striped .row:nth-of-type(even) .cell { background: color-mix(in srgb, var(--cg-surface-subtle) 55%, var(--cg-surface)); }
 .selected .cell { background: var(--cg-selected) !important; }
 .cell[data-align='center'], .footerCell[data-align='center'] { text-align: center; }
 .cell[data-align='end'], .footerCell[data-align='end'] { text-align: end; font-variant-numeric: tabular-nums; }
@@ -78,3 +78,14 @@
 @media (forced-colors: active) { .root, .headerCell, .cell, .filterCell { border-color: CanvasText; } .selected .cell { outline: 2px solid Highlight; } .tableStyled[data-colored-header='true'] .headerCell { color: CanvasText; background: Canvas; } }
 @media (prefers-reduced-motion: reduce) { .root * { scroll-behavior: auto !important; transition-duration: 0s !important; animation-duration: 0s !important; } }
 @container (max-width: 520px) { .toolbar { align-items: stretch; } .toolbar > * { flex: 1 1 100%; } .headerCell, .cell { padding-inline: var(--cg-space-3); } }
+
+.virtualRow > .cell { height: var(--cg-grid-row-height); padding-block: 0; box-sizing: border-box; }
+.virtualContent { max-height: calc(var(--cg-grid-row-height) - 2px); overflow: hidden; text-overflow: ellipsis; }
+.sticky .headerCell.frozen { z-index: 4; }
+.filterCell.frozen { background: var(--cg-surface-subtle); }
+.footerCell.frozen { background: var(--cg-surface); }
+.frozen[data-frozen-boundary] { border-inline-end: 2px solid var(--cg-border); }
+
+.striped .virtualRow[data-cg-row-odd="false"] .cell { background: var(--cg-surface); }
+.striped .virtualRow[data-cg-row-odd="true"] .cell { background: color-mix(in srgb, var(--cg-surface-subtle) 55%, var(--cg-surface)); }
+.striped .virtualRow:hover .cell { background: var(--cg-hover); }

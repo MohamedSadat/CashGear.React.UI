@@ -21,17 +21,57 @@ function cell(reference: string, value: unknown, style?: number): string {
 }
 function colName(index: number): string { let result = ''; for (let n = index + 1; n > 0; n = Math.floor((n - 1) / 26)) result = String.fromCharCode(65 + (n - 1) % 26) + result; return result; }
 export function sanitizeGridExportFileName(value = 'grid-export.xlsx'): string { const base = value.trim().replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').replace(/[. ]+$/g, '') || 'grid-export'; const stem = base.replace(/\.xlsx$/i, '').replace(/[. ]+$/g, '') || 'grid-export'; return `${stem}.xlsx`.slice(0, 180); }
-export function createGridXlsx<TItem>(items: ReadonlyArray<TItem>, columns: ReadonlyArray<CgGridColumnDescriptor<TItem>>, fileName?: string): CgGridExportResult {
+export interface CgGridXlsxSettings {
+  readonly signal?: AbortSignal;
+  readonly maxRows?: number;
+  readonly direction?: 'ltr' | 'rtl';
+  readonly summaryRows?: ReadonlyArray<{ readonly label: string; readonly values: Readonly<Record<string, unknown>> }>;
+}
+function* worksheetRows<TItem>(items: ReadonlyArray<TItem>, columns: ReadonlyArray<CgGridColumnDescriptor<TItem>>, settings: CgGridXlsxSettings) {
   const exported = columns.filter((column) => column.visible !== false && column.exportEnabled !== false && column.accessor && !['selection', 'command', 'template'].includes(column.type));
-  const rows = [[...exported.map((column, index) => cell(`${colName(index)}1`, column.title ?? column.fieldId))], ...items.map((item, row) => exported.map((column, index) => { const value = column.accessor?.(item); const native = column.type === 'date' && typeof value === 'string' ? new Date(value) : value; return cell(`${colName(index)}${row + 2}`, native, column.type === 'date' ? column.dateTime ? 2 : 1 : undefined); }))].map((cells, index) => `<row r="${index + 1}">${cells.join('')}</row>`).join('');
+  if (settings.maxRows !== undefined && (!Number.isSafeInteger(settings.maxRows) || settings.maxRows < 0)) throw new RangeError('Grid export maxRows must be a non-negative safe integer.');
+  if (items.length > (settings.maxRows ?? Number.MAX_SAFE_INTEGER)) throw new RangeError('Grid export row limit exceeded.');
+  if (items.length + 1 + (settings.summaryRows?.length ?? 0) > 1048576 || exported.length > 16384) throw new RangeError('Grid export exceeds worksheet dimensions.');
+  settings.signal?.throwIfAborted();
+  yield '<row r="1">' + exported.map((column, index) => cell(`${colName(index)}1`, column.title ?? column.fieldId)).join('') + '</row>';
+  let rowNumber = 1;
+  for (const item of items) {
+    settings.signal?.throwIfAborted(); rowNumber++;
+    yield `<row r="${rowNumber}">` + exported.map((column, index) => {
+      const value = column.accessor?.(item);
+      const native = column.type === 'date' && typeof value === 'string' ? new Date(value) : value;
+      return cell(`${colName(index)}${rowNumber}`, native, column.type === 'date' ? column.dateTime ? 2 : 1 : undefined);
+    }).join('') + '</row>';
+  }
+  for (const summary of settings.summaryRows ?? []) {
+    settings.signal?.throwIfAborted(); rowNumber++;
+    yield `<row r="${rowNumber}">` + exported.map((column, index) => {
+      const value = summary.values[column.fieldId];
+      return cell(`${colName(index)}${rowNumber}`, index === 0 ? value === undefined ? summary.label : `${summary.label}: ${String(value)}` : value);
+    }).join('') + '</row>';
+  }
+}
+export function createGridXlsx<TItem>(items: ReadonlyArray<TItem>, columns: ReadonlyArray<CgGridColumnDescriptor<TItem>>, fileName?: string, settings: CgGridXlsxSettings = {}): CgGridExportResult {
+  return packageWorksheet([...worksheetRows(items, columns, settings)].join(''), items.length, fileName, settings.direction);
+}
+export async function createGridXlsxAsync<TItem>(items: ReadonlyArray<TItem>, columns: ReadonlyArray<CgGridColumnDescriptor<TItem>>, fileName: string | undefined, settings: CgGridXlsxSettings): Promise<CgGridExportResult> {
+  const chunks: string[] = [];
+  for (const row of worksheetRows(items, columns, settings)) {
+    chunks.push(row);
+    if (chunks.length % 256 === 0) await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  }
+  settings.signal?.throwIfAborted();
+  return packageWorksheet(chunks.join(''), items.length, fileName, settings.direction);
+}
+function packageWorksheet(rows: string, rowCount: number, fileName?: string, direction?: 'ltr' | 'rtl'): CgGridExportResult {
   const entries = [
     { name: '[Content_Types].xml', data: '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>' },
     { name: '_rels/.rels', data: '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>' },
     { name: 'xl/workbook.xml', data: '<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Data" sheetId="1" r:id="rId1"/></sheets></workbook>' },
     { name: 'xl/_rels/workbook.xml.rels', data: '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>' },
     { name: 'xl/styles.xml', data: '<?xml version="1.0" encoding="UTF-8"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="2"><numFmt numFmtId="164" formatCode="yyyy-mm-dd"/><numFmt numFmtId="165" formatCode="yyyy-mm-dd hh:mm"/></numFmts><fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts><fills count="1"><fill><patternFill patternType="none"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf/></cellStyleXfs><cellXfs count="3"><xf/><xf numFmtId="164" applyNumberFormat="1"/><xf numFmtId="165" applyNumberFormat="1"/></cellXfs></styleSheet>' },
-    { name: 'xl/worksheets/sheet1.xml', data: `<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${rows}</sheetData></worksheet>` },
+    { name: 'xl/worksheets/sheet1.xml', data: `<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0" rightToLeft="${direction === 'rtl' ? 1 : 0}"/></sheetViews><sheetData>${rows}</sheetData></worksheet>` },
   ];
-  return { fileName: sanitizeGridExportFileName(fileName), mimeType: MIME, bytes: zip(entries) };
+  return { rowCount, fileName: sanitizeGridExportFileName(fileName), mimeType: MIME, bytes: zip(entries) };
 }
 export function downloadGridExport(result: CgGridExportResult): void { if (typeof document === 'undefined' || typeof URL === 'undefined' || typeof Blob === 'undefined') throw new Error('Browser downloading is unavailable in this environment.'); const url = URL.createObjectURL(new Blob([result.bytes as BlobPart], { type: result.mimeType })); const anchor = document.createElement('a'); anchor.href = url; anchor.download = result.fileName; anchor.click(); URL.revokeObjectURL(url); }

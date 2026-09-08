@@ -10,3 +10,5 @@ export { createGridDataRequest, decodeGridDataRequest, encodeGridDataRequest } f
 export type { CgGridDataRequestOptions } from './provider';
 export { calculateCustomGridSummaries, calculateGridSummaries, providerGridSummaries } from './summaries';
 export type * from './CgGrid.types';
+
+export type { CgGridXlsxSettings } from './exportXlsx';

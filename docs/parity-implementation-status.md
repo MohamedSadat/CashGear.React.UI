@@ -10,7 +10,7 @@ This record tracks implementation separately from acceptance. An implemented API
 | 26 | Commit scopes, editor flush/reset, protected dialogs, overlay hardening | Implemented | Focused and integration checks passed; see below |
 | 27 | Numeric policies, exact decimal editor | Implemented | Focused checks passed; final cross-phase integration pending |
 | 28 | ListBox transactions, TagBox context, key adapter | Implemented | Phase checks passed; final cross-phase integration pending |
-| 29 | Grid virtualization, export scopes | Pending | Pending |
+| 29 | Grid virtualization, export scopes | Implemented | Phase acceptance below; final cross-phase integration pending |
 | 30 | PivotTable and TreeList hardening | Pending | Pending |
 | 31 | Calendar multiple selection, preset selector | Pending | Pending |
 | 32 | Scheduler recurrence, resources, reminders, templates, iCalendar | Pending | Pending |
@@ -55,4 +55,27 @@ All 26 selected Chromium/WebKit interaction and accessibility scenarios passed, 
 
 Library and Storybook builds passed. Package verification reported 203 runtime exports and 2,213 packed files including the component README additions. The Phase 28 Firefox attempt reproduced the 30-second `RenderCompositorSWGL failed mapping default framebuffer` launch timeout before page creation; no Firefox component assertion ran. No package was published and no consumer or backend repository was edited.
 
-The user requested stopping after this phase. Phases 29–32 remain pending; [resume notes](parity-resume.md) preserve the next steps. Full-library browser integration and final reconciliation of all three reference commits remain required after the remaining phases.
+The user requested stopping after Phase 28, then resumed on 2026-09-09 for Phase 29. [Resume notes](parity-resume.md) preserve the next steps. Full-library browser integration and final reconciliation of all three reference commits remain required after the remaining phases.
+
+## Phase 29 acceptance matrix
+
+Phase starting revision: `30832cd` (Phase 28). Blazor comparison remains pinned to `79cf0c2bfb0b885641c842a03d88392bdbf2c2c4`; `CgGrid.razor.cs` and `CgGridExportContracts.cs` provide the virtualization/export reference.
+
+| Gap / reference behavior | React capability / adaptation | Evidence |
+| --- | --- | --- |
+| Row/column virtualization | Independent opt-in fixed windows; page ownership unchanged; numeric bounded widths; frozen and focused cells retained | Phase 29 bounded-window/far-focus unit tests; Chromium/WebKit geometry |
+| Group/detail/editing fallback | Complete grouped/detail rows; inline drafts disable both windows; status/action callbacks explain fallback | Unit fallback suite; browser group/edit/cancel scenario |
+| Focus, resize/reorder, RTL and frozen boundary | Scroll before focus; preserve offscreen focus; measured logical frozen offsets; inherited RTL; opaque stripe backgrounds; logical row banding | Far-cell navigation, grouped records outside flat pages, resize/reorder checks in both engines |
+| Group footers | Opt-in footers using existing summary render/context-menu APIs; provider aggregateStates | Group-footer context unit regression |
+| Export scopes and committed source | Full-filtered remains default; current page and selected source records independent of viewport/collapse/drafts | Unit scope, hidden-selection, draft and collapsed-summary checks |
+| Limits and cancellation | Opt-in record limit; worksheet dimension cap; abortable incremental local serialization; separate export generation ownership | Local/remote limits, pre-abort, ignored host cancellation, query/replacement cancellation tests |
+| Remote adapter | Existing remoteExport gains immutable selection/field/scope/limit context; limited results report rowCount; server authorization remains host-owned | Typed in-memory adapter and consumer story; independent load/export race test |
+| Compatibility | No runtime dependency or runtime export added; old three-argument XLSX calls and signal-only remote callbacks remain valid; state version 11 unchanged | Existing Grid/type/public API suites and package checks |
+
+React adaptations: local selected-record export includes selections hidden by filters, as agreed in the resume plan; Blazor describes intersecting selected keys with the authorized filtered view. Remote hosts remain responsible for their authorized scope. Limits are opt-in record limits (headers/summaries excluded), preserving existing unlimited exports; worksheet caps include all rows. Group summary rows are appended in the workbook rather than tied to the viewport. Grouped/detail fallback and disabled virtualization remain complete rendering, not a missing feature. No backend/consumer changes or package publication are included.
+
+Phase 29 verification: all 712 Vitest tests in 73 files passed with two workers. The final nine-case Phase 29 suite also passed after adding the legacy signal-only export adapter fixture and header-focus retention. TypeScript, full ESLint, and cycle analysis (335 source modules) passed. Production and Storybook builds passed; package verification reported 203 runtime exports and 2,227 packed files.
+
+Chromium/WebKit passed the eight Phase 29 interaction/Axe scenarios and four existing Grid editing/personalization regressions. Fourteen visual comparisons passed: eleven existing Grid baselines remained unchanged and three new light/dark/Arabic-RTL-narrow baselines were visually inspected. Firefox was attempted once for this acceptance pass and reproduced the 30-second `RenderCompositorSWGL failed mapping default framebuffer` launch timeout before page creation; no Firefox component coverage is claimed.
+
+Work stops at this phase boundary. Phases 30–32 and final cross-phase integration/reconciliation remain pending. [Resume checkpoint](parity-resume.md).
