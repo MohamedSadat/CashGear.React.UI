@@ -73,6 +73,12 @@ export const CgTextBox = forwardRef<HTMLInputElement, CgTextBoxProps>(function C
   });
   const debounced = useDebouncedCallback((next: string) => { void emit(next, 'debounce'); }, debounceMs);
   const controlledRef = useRef(value);
+  useEffect(() => {
+    debounced.cancel();
+    if (composingRef.current || field.disabled || field.readOnly || draftRef.current === publishedRef.current) return;
+    if (commitMode === 'input') void emit(draftRef.current, 'input');
+    else if (commitMode === 'debounced') debounced.schedule(draftRef.current);
+  }, [commitMode, debounced, emit, field.disabled, field.readOnly]);
 
   useEffect(() => {
     if (value === undefined || controlledRef.current === value) return;

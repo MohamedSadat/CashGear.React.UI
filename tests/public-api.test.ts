@@ -190,7 +190,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
 
 describe('@cashgear/ui public API', () => {
   it('exports exactly the documented runtime members', () => {
-    expect(Object.keys(publicApi).sort()).toEqual([...EXPECTED_RUNTIME_EXPORTS, 'CgEditorCommitProvider', 'useCgEditorCommit', 'CG_PIVOT_LAYOUT_VERSION', 'CgPivotBrowserLayoutStore', 'CgPivotCalculatedMeasures', 'CgPivotError', 'CgPivotLimitError', 'CgPivotTable', 'createPivotAggregate', 'createPivotCalculatedState', 'createPivotExport', 'createPivotMember', 'createPivotQuery', 'downloadPivotExport', 'getPivotDistinctValues', 'getPivotDrillDown', 'normalizePivotLayout', 'pivotPathKey', 'pivotValueKey', 'processPivotData', 'validatePivotResult'].sort());
+    expect(Object.keys(publicApi).sort()).toEqual([...EXPECTED_RUNTIME_EXPORTS, 'CgEditorCommitProvider', 'CgDecimalEdit', 'useCgEditorCommit', 'CG_PIVOT_LAYOUT_VERSION', 'CgPivotBrowserLayoutStore', 'CgPivotCalculatedMeasures', 'CgPivotError', 'CgPivotLimitError', 'CgPivotTable', 'createPivotAggregate', 'createPivotCalculatedState', 'createPivotExport', 'createPivotMember', 'createPivotQuery', 'downloadPivotExport', 'getPivotDistinctValues', 'getPivotDrillDown', 'normalizePivotLayout', 'pivotPathKey', 'pivotValueKey', 'processPivotData', 'validatePivotResult'].sort());
   });
 
   it('does not leak internal implementation modules', () => {

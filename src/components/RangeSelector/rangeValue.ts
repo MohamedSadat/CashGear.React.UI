@@ -1,3 +1,5 @@
+import { normalizeDecimalString as normalizeCgDecimalValue } from '../../internal/decimalValue';
+export { normalizeDecimalString as normalizeCgDecimalValue } from '../../internal/decimalValue';
 import {
   civilToDayNumber,
   dayNumberToCivil,
@@ -94,15 +96,6 @@ function decimalText(coefficient: bigint, scale: number): string {
   return `${negative ? '-' : ''}${digits}`;
 }
 
-export function normalizeCgDecimalValue(input: string): CgDecimalValue {
-  const value = input.trim();
-  const match = DECIMAL.exec(value);
-  if (!match) fail('decimal values must use base-10 notation without an exponent.');
-  const integer = (match[2] ?? '').replace(/^0+(?=\d)/u, '') || '0';
-  const fraction = (match[3] ?? '').replace(/0+$/u, '');
-  const zero = /^0+$/u.test(integer) && fraction.length === 0;
-  return `${match[1] === '-' && !zero ? '-' : ''}${integer}${fraction ? `.${fraction}` : ''}` as CgDecimalValue;
-}
 
 function parseCivilTime(match: RegExpExecArray): CivilTimeParts {
   const date = parseCanonicalDate(match[1] ?? '');

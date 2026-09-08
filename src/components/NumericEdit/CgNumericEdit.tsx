@@ -1,8 +1,9 @@
+import { flushSync } from 'react-dom';
 import { useEditorRegistration } from '../EditorCommit/CgEditorCommit';
 import { createEditorPublication } from '../../internal/editorPublication';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, InputHTMLAttributes, KeyboardEvent } from 'react';
-import { useControllableState, useFormReset, useMergedRefs, useStableCallback } from '../../hooks';
+import { useControllableState, useDebouncedCallback, useFormReset, useMergedRefs, useStableCallback } from '../../hooks';
 import { EditorButton, InputShell, useFieldControl } from '../../internal';
 import { createNumberFormatter, normalizeNumericValue, parseLocalizedNumber } from '../../internal/numeric';
 import { assertFinite, assertNonNegativeInteger, assertPositive } from '../../internal/validation';
@@ -24,9 +25,11 @@ interface CgNumericEditCoreProps extends CgNumericEditProps {
 }
 
 export const CgNumericEditCore = forwardRef<HTMLInputElement, CgNumericEditCoreProps>(function CgNumericEditCore(
-  { actionsRef, onCommitError, onCompositionStart, onCompositionEnd, value, defaultValue = null, onValueChange, onChange, onInvalidValue, locale, formatStyle = 'decimal', currency, precision, useGrouping = true, min, max, step, allowNegative = true, prefix, suffix, buttons = [], size = 'medium', validationState = 'none', fullWidth = false, id, required, disabled, readOnly, className, style, 'data-testid': testId, onBlur, onFocus, onKeyDown, 'aria-describedby': ariaDescribedBy, 'aria-label': ariaLabel, 'aria-labelledby': ariaLabelledBy, classifyDraft, inputMode = 'decimal', suppressDuplicateCommit = false, updateValueOnInput = false, ...nativeProps },
+  { rangeBehavior = 'clamp', roundingMode, commitMode, debounceMs = 500, invalidValueMessage, actionsRef, onCommitError, onCompositionStart, onCompositionEnd, value, defaultValue = null, onValueChange, onChange, onInvalidValue, locale, formatStyle = 'decimal', currency, precision, useGrouping = true, min, max, step, allowNegative = true, prefix, suffix, buttons = [], size = 'medium', validationState = 'none', fullWidth = false, id, required, disabled, readOnly, className, style, 'data-testid': testId, onBlur, onFocus, onKeyDown, 'aria-describedby': ariaDescribedBy, 'aria-label': ariaLabel, 'aria-labelledby': ariaLabelledBy, classifyDraft, inputMode = 'decimal', suppressDuplicateCommit = false, updateValueOnInput = false, ...nativeProps },
   forwardedRef,
 ) {
+  if (!Number.isFinite(debounceMs) || debounceMs < 0) throw new RangeError('debounceMs must be nonnegative.');
+  const publishMode = commitMode ?? (updateValueOnInput ? 'input' : 'blur');
   assertFinite('value', value);
   assertFinite('defaultValue', defaultValue);
   assertFinite('min', min);
@@ -49,10 +52,11 @@ export const CgNumericEditCore = forwardRef<HTMLInputElement, CgNumericEditCoreP
   const editingRef = useRef(false);
   const dirtyRef = useRef(false);
   const composingRef = useRef(false);
+  const echoRef = useRef<number | null | undefined>(undefined);
   const publication = useMemo(() => createEditorPublication<number | null>(), []);
   const publish = useStableCallback((next: number | null, details: Parameters<NonNullable<CgNumericEditProps['onValueChange']>>[1]) => {
     const revision = publication.revision;
-    const pending = publication.publish(next, (item) => onValueChange?.(item, details));
+    const pending = publication.publish(next, (item) => { echoRef.current = item; return onValueChange?.(item, details); });
     void pending.catch((error: unknown) => { if (revision === publication.revision) { dirtyRef.current = true; onCommitError?.(error); } });
     return pending;
   });
@@ -61,17 +65,36 @@ export const CgNumericEditCore = forwardRef<HTMLInputElement, CgNumericEditCoreP
     const parsed = parseLocalizedNumber(text, formatter, formatStyle);
     return parsed === undefined ? { kind: 'invalid' } : { kind: 'value', value: parsed };
   }, [classifyDraft, formatStyle, formatter]);
+  const inputPublication = useStableCallback((text: string, event?: ChangeEvent<HTMLInputElement>, reason: CgNumericChangeReason = 'input') => {
+    if (composingRef.current || field.disabled || field.readOnly) return;
+    const parsed = classify(text);
+    if (parsed.kind === 'incomplete') return;
+    if (parsed.kind === 'invalid' || (!allowNegative && parsed.value !== null && parsed.value < 0) || (rangeBehavior === 'reject' && parsed.value !== null && ((min !== undefined && parsed.value < min) || (max !== undefined && parsed.value > max)))) {
+      setDraftInvalid(true); onInvalidValue?.(text); return;
+    }
+    const next = parsed.value === null ? null : normalizeNumericValue(parsed.value, min, max, precision, roundingMode);
+    if (Object.is(publishedRef.current, next)) return;
+    publishedRef.current = next; setCommitted(next); void publish(next, { reason, event });
+  });
+  const delayed = useDebouncedCallback(() => inputPublication(inputRef.current?.value ?? draft, undefined, 'debounce'), debounceMs);
+  useEffect(() => {
+    delayed.cancel();
+    if (!dirtyRef.current || composingRef.current || field.disabled || field.readOnly) return;
+    if (publishMode === 'input') inputPublication(inputRef.current?.value ?? '');
+    else if (publishMode === 'debounced') delayed.schedule();
+  }, [delayed, field.disabled, field.readOnly, inputPublication, publishMode]);
   const commit = useStableCallback((reason: CgNumericChangeReason, event?: ChangeEvent<HTMLInputElement> | KeyboardEvent<HTMLInputElement>) => {
+    delayed.cancel();
     if (composingRef.current) return false;
     if (!dirtyRef.current) return true;
     const text = inputRef.current?.value ?? draft;
     const parsed = classify(text);
-    if (parsed.kind !== 'value' || (!allowNegative && parsed.value !== null && parsed.value < 0)) {
+    if (parsed.kind !== 'value' || (!allowNegative && parsed.value !== null && parsed.value < 0) || (rangeBehavior === 'reject' && parsed.value !== null && ((min !== undefined && parsed.value < min) || (max !== undefined && parsed.value > max)))) {
       setDraftInvalid(true);
       onInvalidValue?.(text);
       return false;
     }
-    const next = parsed.value === null ? null : normalizeNumericValue(parsed.value, min, max, precision);
+    const next = parsed.value === null ? null : normalizeNumericValue(parsed.value, min, max, precision, roundingMode);
     setDraftInvalid(false);
     setCommitted(next);
     const duplicate = suppressDuplicateCommit && Object.is(publishedRef.current, next);
@@ -81,7 +104,7 @@ export const CgNumericEditCore = forwardRef<HTMLInputElement, CgNumericEditCoreP
     if (!duplicate) void publish(next, { reason, event });
     return true;
   });
-  const resetDraft = useStableCallback(() => { publication.reset(); dirtyRef.current = false; setDraftInvalid(false); setDraft(format(value !== undefined ? value : committed)); });
+  const resetDraft = useStableCallback(() => { publication.reset(); delayed.cancel(); dirtyRef.current = false; setDraftInvalid(false); setDraft(format(value !== undefined ? value : committed)); });
   const flush = useStableCallback(async () => {
     if (composingRef.current) return false;
     if (field.disabled || field.readOnly) return true;
@@ -98,12 +121,13 @@ export const CgNumericEditCore = forwardRef<HTMLInputElement, CgNumericEditCoreP
     formatterRef.current = formatter;
     if (!formattingChanged && !controlledChanged) return;
     if (value !== undefined) controlledRef.current = value;
+    if (controlledChanged && Object.is(value, echoRef.current) && !formattingChanged) { echoRef.current = undefined; return; }
     if (controlledChanged && !Object.is(value, publishedRef.current)) { publication.reset(); dirtyRef.current = false; }
     if (controlledChanged) publishedRef.current = value ?? null;
-    if (updateValueOnInput && editingRef.current && !formattingChanged) return;
+    delayed.cancel();
     setDraft(format(value !== undefined ? value : committed));
     setDraftInvalid(false);
-  }, [committed, format, formatter, publication, updateValueOnInput, value]);
+  }, [committed, delayed, format, formatter, publication, value]);
   useFormReset(inputRef, () => {
     publication.reset(); dirtyRef.current = false;
     const next = value !== undefined ? value : defaultValue;
@@ -134,31 +158,12 @@ export const CgNumericEditCore = forwardRef<HTMLInputElement, CgNumericEditCoreP
         aria-invalid={draftInvalid || field.validationState === 'error' || undefined}
         aria-describedby={field.describedBy}
         aria-errormessage={field.errorMessageId}
-        onChange={(event) => {
-          const text = event.target.value;
-          editingRef.current = true;
-          dirtyRef.current = true;
-          setDraftInvalid(false);
-          setDraft(text);
-          onChange?.(event);
-          if (!updateValueOnInput || composingRef.current) return;
-          const parsed = classify(text);
-          if (parsed.kind === 'incomplete') return;
-          if (parsed.kind === 'invalid' || (!allowNegative && parsed.value !== null && parsed.value < 0)) {
-            setDraftInvalid(true);
-            onInvalidValue?.(text);
-            return;
-          }
-          const next = parsed.value === null ? null : normalizeNumericValue(parsed.value, min, max, precision);
-          if (Object.is(publishedRef.current, next)) return;
-          publishedRef.current = next;
-          setCommitted(next);
-          void publish(next, { reason: 'input', event });
-        }}
-        onCompositionStart={(event) => { composingRef.current = true; onCompositionStart?.(event); }}
-        onCompositionEnd={(event) => { composingRef.current = false; onCompositionEnd?.(event); }}
-        onFocus={(event) => { editingRef.current = true; onFocus?.(event); }}
-        onBlur={(event) => { commit('blur', event); editingRef.current = false; onBlur?.(event); }}
+        title={draftInvalid ? invalidValueMessage ?? (locale?.startsWith('ar') ? 'أدخل رقمًا صالحًا ضمن الحدود.' : 'Enter a valid number within the allowed range.') : nativeProps.title}
+        onChange={(event) => { const text = event.currentTarget.value; editingRef.current = true; dirtyRef.current = true; setDraftInvalid(false); setDraft(text); onChange?.(event); if (composingRef.current) return; if (publishMode === 'input') inputPublication(text, event); else if (publishMode === 'debounced') delayed.schedule(); }}
+        onCompositionStart={(event) => { composingRef.current = true; delayed.cancel(); onCompositionStart?.(event); }}
+        onCompositionEnd={(event) => { composingRef.current = false; onCompositionEnd?.(event); if (publishMode === 'input') inputPublication(event.currentTarget.value); else if (publishMode === 'debounced') delayed.schedule(); }}
+        onFocus={(event) => { editingRef.current = true; if (!dirtyRef.current && committed !== null) flushSync(() => setDraft(new Intl.NumberFormat(locale, { style: formatStyle, currency, useGrouping: false, maximumFractionDigits: 100 }).format(committed))); event.currentTarget.select(); onFocus?.(event); }}
+        onBlur={(event) => { const valid = commit('blur', event); editingRef.current = false; if (valid) setDraft(format(publishedRef.current)); onBlur?.(event); }}
         onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); commit('enter', event); } onKeyDown?.(event); }}
       />
     </InputShell>

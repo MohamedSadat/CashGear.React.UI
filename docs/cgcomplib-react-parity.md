@@ -961,3 +961,7 @@ Poppler 26.07 independently reported the expected 48-page handbook, four-page Ac
 ## Phase 26 — Editor commits and protected dialogs
 
 See [implementation acceptance record](parity-implementation-status.md) and [commit scope contracts](../src/components/EditorCommit/README.md). Adds CgEditorCommitProvider/useCgEditorCommit, TextBox and numeric flush/reset actions, Grid/TreeList save integration, and optional Popup/Window busy/dirty/discard policies. Controlled visibility and unmount remain authoritative. Reference: `79cf0c2bfb0b885641c842a03d88392bdbf2c2c4`; runtime dependencies unchanged.
+
+## Phase 27 — Numeric entry and exact decimals
+
+`CgDecimalEdit` adds exact decimal-string arithmetic, expressions, range/rounding policies, localized display, native form values, and commit actions. NumericEdit/SpinEdit remain IEEE-754 editors with opt-in policy additions. Grid/TreeList accept decimal editor metadata. See [decimal contracts](../src/components/DecimalEdit/README.md) and the [acceptance record](parity-implementation-status.md).

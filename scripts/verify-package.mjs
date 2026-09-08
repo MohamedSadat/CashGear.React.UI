@@ -123,7 +123,7 @@ expected.push('CgGridLayout', 'CgGridLayoutItem', 'CgMessageBox', 'CgTimeEdit', 
 expected.push('normalizeGridTableAppearance');
 expected.push('CG_TREE_LIST_DEFAULT_MAXIMUM_DEPTH', 'CG_TREE_LIST_MAXIMUM_DEPTH_LIMIT', 'CG_TREE_LIST_STATE_VERSION', 'CgTreeList', 'createTreeListState', 'createTreeListXlsx', 'downloadTreeListExport', 'normalizeTreeListState', 'sanitizeTreeListExportFileName', 'treeListKeyToken');
 expected.push('CG_PIVOT_LAYOUT_VERSION', 'CgPivotBrowserLayoutStore', 'CgPivotCalculatedMeasures', 'CgPivotError', 'CgPivotLimitError', 'CgPivotTable', 'createPivotAggregate', 'createPivotCalculatedState', 'createPivotExport', 'createPivotMember', 'createPivotQuery', 'downloadPivotExport', 'getPivotDistinctValues', 'getPivotDrillDown', 'normalizePivotLayout', 'pivotPathKey', 'pivotValueKey', 'processPivotData', 'validatePivotResult');
-expected.push('CgPdfViewer', 'CgEditorCommitProvider', 'useCgEditorCommit');
+expected.push('CgPdfViewer', 'CgEditorCommitProvider', 'CgDecimalEdit', 'useCgEditorCommit');
 assert.deepEqual(Object.keys(runtime).sort(), expected.sort());
 
 const npmCli = process.env.npm_execpath;

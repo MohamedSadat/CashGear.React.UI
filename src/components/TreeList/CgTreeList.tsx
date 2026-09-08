@@ -1,3 +1,5 @@
+import { CgDecimalEdit } from '../DecimalEdit';
+import { normalizeDecimalString } from '../../internal/decimalValue';
 import { CgEditorCommitProvider, useEditorCommitController } from '../EditorCommit/CgEditorCommit';
 /* eslint-disable @typescript-eslint/no-base-to-string, @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/require-await, react-hooks/exhaustive-deps -- Unknown values are formatted at descriptor boundaries; promise-shaped actions may settle synchronously; stable runtime refs intentionally read the latest render state. */
 import {
@@ -828,6 +830,7 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
     const context = Object.freeze({ item: entry?.internal.item ?? editSession.original ?? editSession.draft, model: editSession.draft, key: editSession.key, value, setValue, fieldErrors, disabled: !!props.disabled, readOnly: !!props.readOnly });
     if (column.renderEditor) return column.renderEditor(context as never);
     if (!column.updateValue && !column.editor) return null;
+    if (column.editor?.kind === 'decimal') return <CgDecimalEdit {...column.editor.decimal} value={value == null ? null : normalizeDecimalString(String(value))} onValueChange={setValue} disabled={props.disabled || editSession.saving || column.editor.disabled} readOnly={props.readOnly || column.editor.readOnly} required={column.editor.required} />;
     if (column.type === 'boolean') return <input type="checkbox" checked={Boolean(value)} onChange={(event) => setValue(event.currentTarget.checked)} />;
     return <input className={styles.editor} type={column.type === 'number' ? 'number' : column.type === 'date' ? 'date' : 'text'} value={value === null || value === undefined ? '' : String(value)} onChange={(event) => setValue(column.type === 'number' ? event.currentTarget.valueAsNumber : event.currentTarget.value)} />;
   };

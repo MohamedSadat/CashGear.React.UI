@@ -1,3 +1,4 @@
+import type { DecimalRounding } from './decimal';
 const ARABIC_ZERO = '٠'.charCodeAt(0);
 const EASTERN_ZERO = '۰'.charCodeAt(0);
 
@@ -70,11 +71,16 @@ export function parseLocalizedNumber(text: string, formatter: Intl.NumberFormat,
   return style === 'percent' ? parsed / 100 : parsed;
 }
 
-export function normalizeNumericValue(value: number, min?: number, max?: number, precision?: number): number {
+export function normalizeNumericValue(value: number, min?: number, max?: number, precision?: number, rounding?: DecimalRounding): number {
   let next = value;
   if (precision !== undefined) {
     const scale = 10 ** Math.max(0, precision);
-    next = Math.round((next + Number.EPSILON) * scale) / scale;
+    if (!rounding) next = Math.round((next + Number.EPSILON) * scale) / scale;
+    else {
+      const scaled = next * scale; const sign = scaled < 0 ? -1 : 1; const magnitude = Math.abs(scaled); const whole = Math.floor(magnitude);
+      const midpoint = Math.abs(magnitude - whole - 0.5) <= Number.EPSILON * Math.max(1, magnitude);
+      next = (rounding === 'floor' ? Math.floor(scaled) : rounding === 'ceiling' ? Math.ceil(scaled) : rounding === 'toZero' ? Math.trunc(scaled) : sign * (midpoint ? rounding === 'toEven' && whole % 2 === 0 ? whole : whole + 1 : Math.round(magnitude))) / scale;
+    }
   }
   if (min !== undefined) next = Math.max(min, next);
   if (max !== undefined) next = Math.min(max, next);

@@ -1,3 +1,4 @@
+import type { CgDecimalEditProps } from '../DecimalEdit';
 import type { CSSProperties, HTMLAttributes, KeyboardEvent, MouseEvent, ReactNode, Ref } from 'react';
 import type { CgContextMenuCommandDetails, CgContextMenuCommandFailureDetails, CgContextMenuCustomizeDetails, CgContextMenuItem } from '../ContextMenu';
 import type { CgDirection, CgSizeMode } from '../../types';
@@ -19,7 +20,7 @@ export type CgGridSelectionMode = 'none' | 'single' | 'multiple' | 'checkbox';
 export type CgGridColumnAlignment = 'start' | 'center' | 'end';
 export type CgGridSummaryType = 'count' | 'sum' | 'average' | 'minimum' | 'maximum' | 'custom';
 export type CgGridProviderMode = 'rows' | 'groupNodes' | 'groupItems';
-export type CgGridEditorKind = 'text' | 'number' | 'date' | 'dateTime' | 'boolean' | 'enum' | 'lookup';
+export type CgGridEditorKind = 'text' | 'number' | 'decimal' | 'date' | 'dateTime' | 'boolean' | 'enum' | 'lookup';
 export type CgGridChangeSource = 'pointer' | 'keyboard' | 'action' | 'state' | 'provider' | 'view' | 'crud';
 export type CgGridEditMode = 'popup' | 'inlineRow' | 'cell' | 'batch';
 export type CgGridDirtyNavigationPolicy = 'preserve' | 'confirmDiscard' | 'block';
@@ -122,6 +123,7 @@ export type CgGridDataProvider<TItem> = (request: CgGridDataRequest, context: { 
 export interface CgGridEditorOption<TValue = unknown> { readonly key: string; readonly label: string; readonly value: TValue; readonly disabled?: boolean }
 export interface CgGridEditorMetadata<TItem, TValue = unknown> {
   readonly kind: CgGridEditorKind;
+  readonly decimal?: Pick<CgDecimalEditProps, 'min' | 'max' | 'step' | 'precision' | 'roundingMode' | 'rangeBehavior' | 'allowExpressions' | 'locale' | 'currency' | 'formatStyle'>;
   readonly setValue: (model: TItem, value: TValue) => TItem;
   readonly label?: string;
   readonly required?: boolean;

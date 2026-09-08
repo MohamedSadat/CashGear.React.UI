@@ -168,3 +168,7 @@ export * from './components/PivotTable';
 export { CgEditorCommitProvider, useCgEditorCommit } from './components/EditorCommit';
 export type { CgEditorActions, CgEditorCommitApi } from './components/EditorCommit';
 export type { CgDialogClosePolicy } from './internal/dialogClosePolicy';
+
+export { CgDecimalEdit } from './components/DecimalEdit';
+export type { CgDecimalEditProps } from './components/DecimalEdit';
+export type { DecimalRounding as CgNumericRoundingMode } from './internal/decimal';

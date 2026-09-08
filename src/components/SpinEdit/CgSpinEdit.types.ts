@@ -1,6 +1,7 @@
 import type { InputHTMLAttributes } from 'react';
 import type { CgNumericEditProps } from '../NumericEdit';
 export interface CgSpinEditProps extends Omit<CgNumericEditProps, 'buttons' | 'onValueChange' | 'step'> {
+  enableKeyboardStepping?: boolean;
   step?: number;
   pageStep?: number;
   onValueChange?: CgNumericEditProps['onValueChange'];

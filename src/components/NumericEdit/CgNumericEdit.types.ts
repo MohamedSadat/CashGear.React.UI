@@ -1,3 +1,4 @@
+import type { DecimalRounding } from '../../internal/decimal';
 import type { Ref } from 'react';
 import type { CgEditorActions } from '../EditorCommit';
 import type { ChangeEvent, InputHTMLAttributes, KeyboardEvent, ReactNode } from 'react';
@@ -6,6 +7,11 @@ type NativeNumericProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'className
 export type CgNumericChangeReason = 'input' | 'blur' | 'enter' | 'step' | 'reset' | 'flush' | 'debounce';
 export interface CgNumericValueChange { reason: CgNumericChangeReason; event?: ChangeEvent<HTMLInputElement> | KeyboardEvent<HTMLInputElement>; }
 export interface CgNumericEditProps extends NativeNumericProps, CgBaseProps {
+  rangeBehavior?: 'clamp' | 'reject';
+  roundingMode?: DecimalRounding;
+  commitMode?: 'input' | 'blur' | 'debounced';
+  debounceMs?: number;
+  invalidValueMessage?: string;
   actionsRef?: Ref<CgEditorActions>;
   onCommitError?: (error: unknown) => void;
   value?: number | null;

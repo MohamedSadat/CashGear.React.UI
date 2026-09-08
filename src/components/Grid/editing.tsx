@@ -1,3 +1,6 @@
+import { CgDecimalEdit } from '../DecimalEdit';
+import { normalizeDecimalString } from '../../internal/decimalValue';
+import { decimalParts, compareDecimal } from '../../internal/decimal';
 /* eslint-disable @typescript-eslint/no-base-to-string -- explicit editor metadata controls string conversion. */
 import type { ReactNode } from 'react';
 import { CgCheckBox } from '../CheckBox';
@@ -22,6 +25,7 @@ export function renderAutomaticGridEditor<TItem>(column: CgGridColumnDescriptor<
   const raw = options?.rawDrafts?.[column.fieldId];
   let editor: ReactNode;
   switch (metadata.kind) {
+    case 'decimal': editor = <CgDecimalEdit {...common} {...metadata.decimal} value={value == null ? null : normalizeDecimalString(String(value))} onValueChange={(next) => { options?.onRawDraft?.(column.fieldId, { value: next ?? '', invalid: false }); set(next); }} />; break;
     case 'number': editor = <input type="text" inputMode="decimal" value={raw?.value ?? (typeof value === 'number' ? String(value) : '')} disabled={common.disabled} readOnly={common.readOnly} required={common.required} aria-describedby={common['aria-describedby']} aria-invalid={Boolean(error || raw?.invalid) || undefined} onChange={(event) => { const draft = event.currentTarget.value; const parsed = draft.trim() === '' ? null : Number(draft.trim().replace(',', '.')); const invalid = parsed !== null && !Number.isFinite(parsed); options?.onRawDraft?.(column.fieldId, { value: draft, invalid, ...(invalid ? { message: 'Enter a valid finite number.' } : {}) }); if (!invalid) set(parsed); }} />; break;
     case 'date': editor = <input type="text" inputMode="numeric" placeholder={metadata.placeholder ?? 'YYYY-MM-DD'} value={raw?.value ?? dateValue(value) ?? ''} disabled={common.disabled} readOnly={common.readOnly} required={common.required} aria-describedby={common['aria-describedby']} aria-invalid={Boolean(error || raw?.invalid) || undefined} onChange={(event) => { const draft = event.currentTarget.value; const parsed = /^\d{4}-\d{2}-\d{2}$/u.test(draft) && dateValue(draft) === draft ? draft : null; const invalid = draft.trim() !== '' && parsed === null; options?.onRawDraft?.(column.fieldId, { value: draft, invalid, ...(invalid ? { message: 'Enter a valid date.' } : {}) }); if (!invalid) set(parsed); }} />; break;
     case 'dateTime': editor = <CgTextBox {...common} type="text" value={raw?.value ?? (value == null ? '' : String(value))} onChange={(event) => { const draft = event.currentTarget.value; const invalid = draft.trim() !== '' && !Number.isFinite(Date.parse(draft)); options?.onRawDraft?.(column.fieldId, { value: draft, invalid, ...(invalid ? { message: 'Enter a valid date and time.' } : {}) }); }} onValueChange={(next) => { if (!next.trim() || Number.isFinite(Date.parse(next))) set(next); }} />; break;
@@ -42,6 +46,10 @@ export function validateAutomaticGridEditors<TItem>(columns: ReadonlyArray<CgGri
     const metadata = column.editor; if (!metadata || !column.accessor || metadata.disabled || metadata.readOnly) continue;
     const value = column.accessor(model); const text = value == null ? '' : String(value); const field: string[] = [];
     const raw = rawDrafts[column.fieldId];
+    if (metadata.kind === 'decimal' && value != null && value !== '') {
+      try { const parsed = decimalParts(String(value)); if (metadata.decimal?.min && compareDecimal(parsed, decimalParts(metadata.decimal.min)) < 0 || metadata.decimal?.max && compareDecimal(parsed, decimalParts(metadata.decimal.max)) > 0) field.push('Decimal is outside the allowed range.'); }
+      catch { field.push('Enter a valid decimal.'); }
+    }
     if (raw?.invalid) field.push(raw.message ?? 'Enter a valid value.');
     if (metadata.required && (value === null || value === undefined || text.trim() === '')) field.push(`${metadata.label ?? column.title ?? column.fieldId} is required.`);
     if (metadata.minimumLength !== undefined && text.length > 0 && text.length < metadata.minimumLength) field.push(`Enter at least ${metadata.minimumLength} characters.`);
