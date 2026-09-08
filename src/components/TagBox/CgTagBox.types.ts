@@ -5,7 +5,9 @@ export type CgTagBoxSearchMode = 'contains' | 'startsWith';
 export type CgTagBoxChangeReason = 'select' | 'remove' | 'backspace' | 'clear' | 'reset';
 
 export interface CgTagBoxLoadContext {
-  signal: AbortSignal;
+  readonly signal: AbortSignal;
+  readonly dataVersion?: string | number;
+  readonly queryContext?: unknown;
   requestId: number;
 }
 
@@ -55,6 +57,9 @@ type NativeTagBoxProps = Omit<
 >;
 
 interface CgTagBoxCommonProps<TItem> extends NativeTagBoxProps, CgBaseProps {
+  dataVersion?: string | number;
+  queryContext?: unknown;
+  onLoadError?: (error: unknown, context: CgTagBoxLoadContext) => void;
   value?: ReadonlyArray<TItem>;
   defaultValue?: ReadonlyArray<TItem>;
   onValueChange?: (value: ReadonlyArray<TItem>, details: CgTagBoxValueChangeDetails<TItem>) => void;

@@ -1,5 +1,8 @@
 export { CgListBox } from './CgListBox';
 export type {
+  CgListBoxItemActivationDetails,
+  CgListBoxActions,
+  CgListBoxSelectionProposal,
   CgListBoxCellRenderContext,
   CgListBoxChangeReason,
   CgListBoxColumn,

@@ -1,0 +1,126 @@
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { createRef } from 'react';
+import { describe, expect, it, vi } from 'vitest';
+import { CgKeyTagBox, CgListBox, CgTagBox } from '../src';
+import type { CgKeyTagBoxActions, CgListBoxActions, CgListBoxSelectionProposal, CgTagBoxLoadContext } from '../src';
+
+const items = [{ id: 1, label: 'First', group: 'A' }, { id: 2, label: 'Second', group: 'B' }, { id: 3, label: 'Third', group: 'A' }];
+type Item = typeof items[number];
+const key = (item: Item) => item.id;
+const label = (item: Item) => item.label;
+function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>((done) => { resolve = done; }); return { promise, resolve }; }
+
+describe('Phase 28 ownership and selection', () => {
+  it('vetoes, supersedes and invalidates immutable selection proposals', async () => {
+    const proposals: CgListBoxSelectionProposal<Item>[] = [];
+    const pending = [deferred<boolean>(), deferred<boolean>(), deferred<boolean>()];
+    const before = vi.fn((proposal: CgListBoxSelectionProposal<Item>) => { proposals.push(proposal); return pending[proposals.length - 1]!.promise; });
+    const changed = vi.fn();
+    const actions = createRef<CgListBoxActions<Item>>();
+    const props = { items, getItemKey: key, getItemLabel: label, actionsRef: actions, onBeforeSelectionChange: before, onValueChange: changed };
+    const view = render(<CgListBox {...props} />);
+    fireEvent.click(screen.getByRole('option', { name: 'First' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Second' }));
+    expect(proposals[0]!.signal.aborted).toBe(true);
+    expect(Object.isFrozen(proposals[1]!.proposedValue)).toBe(true);
+    await act(async () => { pending[0]!.resolve(true); pending[1]!.resolve(false); });
+    expect(changed).not.toHaveBeenCalled();
+    let result!: Promise<boolean>;
+    act(() => { result = actions.current!.setSelection([items[0]!]); });
+    view.rerender(<CgListBox {...props} value={[items[2]!]} />);
+    await act(async () => { expect(await result).toBe(false); pending[2]!.resolve(true); });
+    expect(screen.getByRole('option', { name: 'Third' })).toHaveAttribute('aria-selected', 'true');
+    expect(changed).not.toHaveBeenCalled();
+  });
+  it('selects ranges in displayed group order and protects loading data', () => {
+    const changed = vi.fn();
+    const props = { items, getItemKey: key, getItemLabel: label, getItemGroupKey: (item: Item) => item.group, onValueChange: changed };
+    const view = render(<CgListBox {...props} selectionMode="multiple" />);
+    fireEvent.click(screen.getByRole('option', { name: 'First' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Second' }), { shiftKey: true });
+    expect(changed.mock.calls.at(-1)![0]).toEqual([items[0], items[2], items[1]]);
+    view.rerender(<CgListBox {...props} selectionMode="multiple" loading />);
+    changed.mockClear();
+    fireEvent.keyDown(screen.getByRole('listbox'), { key: 'ArrowDown' });
+    expect(changed).not.toHaveBeenCalled();
+  });
+  it('aborts searches immediately and never restores stale context results', async () => {
+    const pending = [deferred<readonly Item[]>(), deferred<readonly Item[]>()];
+    const contexts: CgTagBoxLoadContext[] = [];
+    const loader = vi.fn((_query: string, context: CgTagBoxLoadContext) => { contexts.push(context); return pending[contexts.length - 1]!.promise; });
+    const props = { loadOptions: loader, getOptionKey: key, getOptionLabel: label, searchDelay: 0 };
+    const view = render(<CgTagBox {...props} queryContext="A" dataVersion={1} />);
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Fi' } });
+    await waitFor(() => expect(loader).toHaveBeenCalledTimes(1));
+    view.rerender(<CgTagBox {...props} queryContext="B" dataVersion={2} />);
+    expect(contexts[0]!.signal.aborted).toBe(true);
+    await waitFor(() => expect(loader).toHaveBeenCalledTimes(2));
+    await act(async () => { pending[1]!.resolve([items[1]!]); pending[0]!.resolve([items[0]!]); });
+    expect(screen.getByText('Second')).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'First' })).toBeNull();
+    expect(contexts[1]!.queryContext).toBe('B');
+  });
+  it('requires explicit navigation for incomplete Enter and ignores composing keys', () => {
+    const changed = vi.fn();
+    render(<CgTagBox options={items} getOptionKey={key} getOptionLabel={label} maxVisibleItems={1} onValueChange={changed} />);
+    const input = screen.getByRole('combobox');
+    fireEvent.change(input, { target: { value: 'i' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(changed).not.toHaveBeenCalled();
+    fireEvent.keyDown(input, { key: 'Home' });
+    fireEvent.compositionStart(input);
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(changed).not.toHaveBeenCalled();
+    fireEvent.compositionEnd(input);
+    fireEvent.keyDown(input, { key: 'Home' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(changed).toHaveBeenCalledTimes(1);
+  });
+  it('retains missing keys, caches failed outcomes, refreshes and resets native values', async () => {
+    const resolver = vi.fn(async (id: number) => items.find((item) => item.id === id));
+    const actions = createRef<CgKeyTagBoxActions>();
+    const view = render(<form><CgKeyTagBox options={items} defaultValue={[99]} getOptionKey={key} getOptionLabel={label} itemResolver={resolver} actionsRef={actions} name="ids" /></form>);
+    await waitFor(() => expect(resolver).toHaveBeenCalledTimes(1));
+    expect(new FormData(view.container.querySelector('form')!).getAll('ids')).toEqual(['99']);
+    expect(screen.getByRole('button', { name: 'Remove 99' })).toBeVisible();
+    await act(async () => { await actions.current!.refreshSelectedItems(); });
+    expect(resolver).toHaveBeenCalledTimes(2);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove 99' }));
+    expect(new FormData(view.container.querySelector('form')!).getAll('ids')).toEqual([]);
+    await act(async () => { view.container.querySelector('form')!.reset(); });
+    expect(new FormData(view.container.querySelector('form')!).getAll('ids')).toEqual(['99']);
+    expect(resolver).toHaveBeenCalledTimes(2);
+  });
+  it('invalidates resolver labels on tenant changes and ignores late resolutions', async () => {
+    const first = deferred<Item | undefined>();
+    const second = deferred<Item | undefined>();
+    const resolver = vi.fn((_id: number, context: { queryContext: unknown }) => context.queryContext === 'A' ? first.promise : second.promise);
+    const props = { options: [] as Item[], value: [9], getOptionKey: key, getOptionLabel: label, itemResolver: resolver };
+    const view = render(<CgKeyTagBox {...props} queryContext="A" />);
+    view.rerender(<CgKeyTagBox {...props} queryContext="B" />);
+    await act(async () => { second.resolve({ id: 9, label: 'Tenant B', group: '' }); first.resolve({ id: 9, label: 'Tenant A', group: '' }); });
+    expect(screen.getByRole('button', { name: 'Remove Tenant B' })).toBeVisible();
+    expect(screen.queryByText('Tenant A')).toBeNull();
+  });
+  it('keeps review navigation and guarded actions while blocking user selection', async () => {
+    const actions = createRef<CgListBoxActions<Item>>();
+    const activation = vi.fn();
+    const changed = vi.fn();
+    const props = { items, defaultValue: [items[2]!], getItemKey: key, getItemLabel: label, getItemGroupKey: (item: Item) => item.group, actionsRef: actions, onItemActivate: activation, onValueChange: changed };
+    const view = render(<CgListBox {...props} readOnly />);
+    const list = screen.getByRole('listbox');
+    fireEvent.focus(list);
+    expect(list).toHaveAttribute('aria-activedescendant', screen.getByRole('option', { name: 'Third' }).id);
+    expect(screen.getByRole('group', { name: 'A' })).toBeInTheDocument();
+    fireEvent.keyDown(list, { key: 'Enter' });
+    expect(activation).toHaveBeenCalledOnce();
+    expect(changed).not.toHaveBeenCalled();
+    await act(async () => { expect(await actions.current!.setSelection([items[0]!])).toBe(true); });
+    expect(changed).toHaveBeenCalledOnce();
+    view.rerender(<CgListBox {...props} loading />);
+    expect(list).not.toHaveAttribute('aria-activedescendant');
+    await act(async () => { expect(await actions.current!.clearSelection()).toBe(true); });
+    view.rerender(<CgListBox {...props} disabled />);
+    await act(async () => { expect(await actions.current!.setSelection([items[0]!])).toBe(false); });
+  });
+});

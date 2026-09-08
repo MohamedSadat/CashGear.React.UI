@@ -20,6 +20,9 @@ function CgTagBoxInner<TItem>(
   {
     options,
     loadOptions,
+    dataVersion,
+    queryContext,
+    onLoadError,
     value,
     defaultValue = [],
     onValueChange,
@@ -132,7 +135,9 @@ function CgTagBoxInner<TItem>(
     return result;
   }, [getOptionKey]);
 
-  const localItems = useMemo(() => validateSourceItems(options ?? []), [options, validateSourceItems]);
+  // dataVersion explicitly refreshes in-place host data.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const localItems = useMemo(() => validateSourceItems(options ?? []), [options, dataVersion, validateSourceItems]);
   const sourceItems = loadOptions ? remoteItems : localItems;
   const sourceByToken = useMemo(() => new Map(sourceItems.map((item) => [tagBoxKeyToken(getOptionKey(item)), item])), [getOptionKey, sourceItems]);
   const normalizedSelection = useMemo(() => {
@@ -165,14 +170,16 @@ function CgTagBoxInner<TItem>(
     else setDraft(query);
   }, [query]);
 
-  const filteredItems = useMemo(() => {
-    if (loadOptions) return sourceItems.slice(0, maxVisibleItems);
+  const matchingItems = useMemo(() => {
+    if (draft.trim().length < minimumSearchLength) return [];
+    if (loadOptions) return sourceItems;
     const normalizedQuery = normalizeTagBoxSearch(draft, locale, ignoreDiacritics);
-    if (!normalizedQuery) return sourceItems.slice(0, maxVisibleItems);
+    if (!normalizedQuery) return sourceItems;
     return sourceItems
-      .filter((item) => tagBoxTextMatches(getOptionSearchText(item) ?? '', normalizedQuery, searchMode, locale, ignoreDiacritics))
-      .slice(0, maxVisibleItems);
-  }, [draft, getOptionSearchText, ignoreDiacritics, loadOptions, locale, maxVisibleItems, searchMode, sourceItems]);
+      .filter((item) => tagBoxTextMatches(getOptionSearchText(item) ?? '', normalizedQuery, searchMode, locale, ignoreDiacritics));
+  }, [draft, getOptionSearchText, ignoreDiacritics, loadOptions, locale, minimumSearchLength, searchMode, sourceItems]);
+  const filteredItems = matchingItems.slice(0, maxVisibleItems);
+  const incompleteResults = matchingItems.length > maxVisibleItems;
 
   const optionIsDisabled = useCallback((item: TItem) => {
     if (isOptionDisabled?.(item)) return true;
@@ -216,13 +223,13 @@ function CgTagBoxInner<TItem>(
     void asyncOperation.run(async ({ signal, generation }) => {
       requestId = generation;
       requestSignal = signal;
-      const items = await loadOptions(trimmed, { signal, requestId: generation });
+      const items = await loadOptions(trimmed, Object.freeze({ signal, requestId: generation, dataVersion, queryContext }));
       return { generation, signal, items };
     }).then(
       ({ generation, signal, items }) => {
         if (signal.aborted || generation !== asyncOperation.generationRef.current) return;
         try {
-          setRemoteItems(validateSourceItems(items).slice(0, maxVisibleItems));
+          setRemoteItems(validateSourceItems(items));
           setLoadError(undefined);
           setActiveIndex(-1);
         } catch (error) {
@@ -235,6 +242,7 @@ function CgTagBoxInner<TItem>(
         if (error instanceof DOMException && error.name === 'AbortError') return;
         setRemoteItems([]);
         setLoadError(error);
+        if (requestSignal) onLoadError?.(error, { signal: requestSignal, requestId, dataVersion, queryContext });
       },
     );
   });
@@ -248,8 +256,19 @@ function CgTagBoxInner<TItem>(
       setRemoteItems([]);
       return;
     }
+    cancelRemote();
+    setRemoteItems([]);
     debouncedRemote.schedule(rawQuery);
   });
+
+  const invalidateSource = useStableCallback(() => {
+    debouncedRemote.cancel();
+    cancelRemote();
+    setRemoteItems([]);
+    setActiveIndex(-1);
+    if (openRef.current && !field.disabled && !field.readOnly) scheduleRemote(queryRef.current);
+  });
+  useLayoutEffect(invalidateSource, [dataVersion, queryContext, searchQuery, loadOptions, minimumSearchLength, maxVisibleItems, field.disabled, field.readOnly, invalidateSource]);
 
   const closePopup = useStableCallback(() => {
     debouncedRemote.cancel();
@@ -263,7 +282,7 @@ function CgTagBoxInner<TItem>(
   const beginOpen = useStableCallback((fromEnd = false) => {
     if (field.disabled || field.readOnly) return;
     setLoadError(undefined);
-    setActiveIndex(fromEnd ? firstEnabledIndex(true) : firstEnabledIndex());
+    setActiveIndex(fromEnd ? firstEnabledIndex(true) : incompleteResults ? -1 : firstEnabledIndex());
     setPopupOpen(true);
     if (loadOptions) scheduleRemote(draft);
   });
@@ -418,9 +437,9 @@ function CgTagBoxInner<TItem>(
     return () => proxy.setCustomValidity('');
   }, [field.required, normalizedSelection.length]);
 
-  useEffect(() => () => {
-    mountedRef.current = false;
-    debouncedRemote.cancel();
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; debouncedRemote.cancel(); };
   }, [debouncedRemote]);
 
   const moveActive = (delta: 1 | -1) => {
@@ -441,7 +460,7 @@ function CgTagBoxInner<TItem>(
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (field.disabled || field.readOnly) {
+    if (field.disabled || field.readOnly || composingRef.current || event.nativeEvent.isComposing) {
       onKeyDown?.(event);
       return;
     }
@@ -457,7 +476,7 @@ function CgTagBoxInner<TItem>(
       setActiveIndex(firstEnabledIndex(true));
     } else if (event.key === 'Enter' && open) {
       const item = filteredItems[effectiveActiveIndex];
-      if (item && !optionIsDisabled(item)) {
+      if (item && !optionIsDisabled(item) && !asyncOperation.pending && (!incompleteResults || activeIndex >= 0)) {
         event.preventDefault();
         toggleOption(item, event);
       }
@@ -473,7 +492,7 @@ function CgTagBoxInner<TItem>(
     onKeyDown?.(event);
   };
 
-  const belowMinimum = Boolean(loadOptions && draft.trim().length < minimumSearchLength);
+  const belowMinimum = draft.trim().length < minimumSearchLength;
   const status = belowMinimum
     ? typeof minimumLengthMessage === 'function' ? minimumLengthMessage(minimumSearchLength, draft) : minimumLengthMessage
     : asyncOperation.pending
@@ -552,7 +571,7 @@ function CgTagBoxInner<TItem>(
               if (!composingRef.current) handleQueryChange(event.target.value, event);
             }}
             onKeyDown={handleKeyDown}
-            onCompositionStart={(event: CompositionEvent<HTMLInputElement>) => { composingRef.current = true; onCompositionStart?.(event); }}
+            onCompositionStart={(event: CompositionEvent<HTMLInputElement>) => { composingRef.current = true; debouncedRemote.cancel(); cancelRemote(); onCompositionStart?.(event); }}
             onCompositionEnd={(event: CompositionEvent<HTMLInputElement>) => {
               composingRef.current = false;
               if (pendingQueryRef.current !== undefined) {

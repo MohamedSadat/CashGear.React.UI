@@ -965,3 +965,9 @@ See [implementation acceptance record](parity-implementation-status.md) and [com
 ## Phase 27 — Numeric entry and exact decimals
 
 `CgDecimalEdit` adds exact decimal-string arithmetic, expressions, range/rounding policies, localized display, native form values, and commit actions. NumericEdit/SpinEdit remain IEEE-754 editors with opt-in policy additions. Grid/TreeList accept decimal editor metadata. See [decimal contracts](../src/components/DecimalEdit/README.md) and the [acceptance record](parity-implementation-status.md).
+
+## Phase 28 — ListBox and TagBox reliability
+
+ListBox adds guarded selection actions, displayed-order ranges, mounted active descendants, group semantics, review-state behavior, and corrected virtual geometry. TagBox adds version/context invalidation and query/IME/Enter reliability. `CgKeyTagBox` provides key values, cached abortable resolution, fallback labels, comparer support, and native form behavior. See the [ListBox contracts](../src/components/ListBox/README.md), [TagBox contracts](../src/components/TagBox/README.md), [key adapter](../src/components/KeyTagBox/README.md), and [acceptance matrix](parity-implementation-status.md).
+
+Implementation is paused at the user's request after Phase 28. [Resume with Phase 29](parity-resume.md); Phases 29–32 and final integration remain outstanding.

@@ -1,11 +1,11 @@
-import type { CSSProperties, FormEvent, HTMLAttributes, KeyboardEvent, MouseEvent, ReactNode } from 'react';
+import type { CSSProperties, FormEvent, HTMLAttributes, KeyboardEvent, MouseEvent, ReactNode, Ref } from 'react';
 import type { CgBaseProps, CgDirection, CgSizeMode, CgValidationState } from '../../types';
 
 export type CgListBoxSelectionMode = 'single' | 'multiple';
 export type CgListBoxRenderMode = 'entire' | 'virtual';
 export type CgListBoxSearchCondition = 'contains' | 'startsWith' | 'equals';
 export type CgListBoxSearchParseMode = 'allWords' | 'anyWord' | 'exact';
-export type CgListBoxChangeReason = 'pointer' | 'keyboard' | 'selectAll' | 'deselectAll' | 'clear' | 'reset';
+export type CgListBoxChangeReason = 'pointer' | 'keyboard' | 'selectAll' | 'deselectAll' | 'clear' | 'reset' | 'programmatic';
 export type CgListBoxColumnAlignment = 'start' | 'center' | 'end';
 
 export interface CgListBoxTextFragment {
@@ -76,13 +76,37 @@ export interface CgListBoxItemClickDetails<TItem> {
   event: MouseEvent<HTMLElement>;
 }
 
+export interface CgListBoxItemActivationDetails<TItem> extends Omit<CgListBoxItemClickDetails<TItem>, 'event'> {
+  reason: 'pointer' | 'keyboard';
+  event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>;
+}
+
 type NativeListBoxProps = Omit<
   HTMLAttributes<HTMLDivElement>,
   'children' | 'className' | 'style' | 'defaultValue' | 'onChange' | 'onInvalid' | 'role'
 >;
 
+export interface CgListBoxSelectionProposal<TItem> {
+  readonly previousValue: ReadonlyArray<TItem>;
+  readonly proposedValue: ReadonlyArray<TItem>;
+  readonly reason: CgListBoxChangeReason;
+  readonly signal: AbortSignal;
+}
+
+export interface CgListBoxActions<TItem> {
+  setSelection(value: ReadonlyArray<TItem>): Promise<boolean>;
+  clearSelection(): Promise<boolean>;
+  selectAll(): Promise<boolean>;
+  focusItem(key: string | number): boolean;
+  scrollToItem(key: string | number): boolean;
+}
+
 export interface CgListBoxProps<TItem> extends NativeListBoxProps, CgBaseProps {
   items: ReadonlyArray<TItem>;
+  dataVersion?: string | number;
+  actionsRef?: Ref<CgListBoxActions<TItem>>;
+  onBeforeSelectionChange?: (proposal: CgListBoxSelectionProposal<TItem>) => boolean | void | PromiseLike<boolean | void>;
+  onSelectionError?: (error: unknown) => void;
   value?: ReadonlyArray<TItem>;
   defaultValue?: ReadonlyArray<TItem>;
   onValueChange?: (value: ReadonlyArray<TItem>, details: CgListBoxValueChangeDetails<TItem>) => void;
@@ -136,6 +160,7 @@ export interface CgListBoxProps<TItem> extends NativeListBoxProps, CgBaseProps {
   name?: string;
   form?: string;
   fullWidth?: boolean;
+  onItemActivate?: (details: CgListBoxItemActivationDetails<TItem>) => void;
   onItemClick?: (details: CgListBoxItemClickDetails<TItem>) => void;
   onInvalid?: (event: FormEvent<HTMLSelectElement>) => void;
 }

@@ -1,10 +1,11 @@
-import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import { useControllableState, useDirection, useFormReset, useMergedRefs, useStableCallback } from '../../hooks';
 import { useFieldControl } from '../../internal';
 import { createListBoxTextFragments, listBoxKeyToken, listBoxTextMatches, normalizeListBoxSearch, toCssLength } from '../../internal/listBox';
 import { assertNonNegative, assertNonNegativeInteger, assertPositive } from '../../internal/validation';
 import { useVirtualWindow } from '../../internal/useVirtualWindow';
+import { awaitWithAbort } from '../../internal/awaitWithAbort';
 import { cx } from '../../utils';
 import { CgCheckBox } from '../CheckBox';
 import { CgSearchBox } from '../SearchBox';
@@ -53,6 +54,10 @@ function accessibleText(value: ReactNode): string | undefined {
 function CgListBoxInner<TItem>(
   {
     items,
+    dataVersion,
+    actionsRef,
+    onBeforeSelectionChange,
+    onSelectionError,
     value,
     defaultValue = emptyItems,
     onValueChange,
@@ -107,6 +112,7 @@ function CgListBoxInner<TItem>(
     form,
     fullWidth = false,
     onItemClick,
+    onItemActivate,
     onInvalid,
     id,
     className,
@@ -160,7 +166,9 @@ function CgListBoxInner<TItem>(
       seen.add(token);
       return { item, key, token, label: getItemLabel(item), disabled: isItemDisabled(item), sourceIndex, visibleIndex: -1 };
     });
-  }, [getItemKey, getItemLabel, isItemDisabled, items]);
+  // Hosts use dataVersion for in-place collection updates.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getItemKey, getItemLabel, isItemDisabled, items, dataVersion]);
   const recordByToken = useMemo(() => new Map(records.map((record) => [record.token, record])), [records]);
 
   const normalizedSelection = useMemo(() => {
@@ -236,19 +244,50 @@ function CgListBoxInner<TItem>(
       });
       result.push(...group.visible.map((record) => ({ kind: 'item' as const, key: record.token, record })));
     }
-    return result;
+    let displayedIndex = 0;
+    return result.map((row) => row.kind === 'item' ? { ...row, record: { ...row.record, visibleIndex: displayedIndex++ } } : row);
   }, [applicationRecords, getGroupLabel, getItemGroupKey, visibleRecords]);
 
-  const resolvedItemSize = itemSize ?? (size === 'small' ? 32 : size === 'large' ? 48 : 40);
-  const virtual = useVirtualWindow(viewportRef, rows.length, resolvedItemSize, overscanCount, renderMode === 'virtual');
+  const displayedRecords = rows.flatMap((row) => row.kind === 'item' ? [row.record] : []);
+  const displaySignature = JSON.stringify(displayedRecords.map((record) => [record.token, record.disabled]));
+  const selectionRequest = useRef<AbortController | null>(null);
+  useLayoutEffect(() => {
+    selectionRequest.current?.abort();
+  }, [items, value, dataVersion, committedSearch, displaySignature, selectionMode, field.disabled, field.readOnly, loading]);
+  useEffect(() => () => selectionRequest.current?.abort(), []);
+  const [touchGeometry, setTouchGeometry] = useState(false);
+  useLayoutEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const media = window.matchMedia('(max-width: 600px), (pointer: coarse)');
+    const update = () => setTouchGeometry(media.matches);
+    update(); media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+  const resolvedItemSize = Math.max(renderMode === 'virtual' && touchGeometry ? 44 : 0, itemSize ?? (size === 'small' ? 32 : size === 'large' ? 48 : 40));
+  const virtual = useVirtualWindow(viewportRef, rows.length, resolvedItemSize, overscanCount, renderMode === 'virtual', visibleColumns.length > 0 ? resolvedItemSize : 0);
   const renderedRows = rows.slice(virtual.start, virtual.end);
-  const activeRecord = activeToken ? visibleRecords.find((record) => record.token === activeToken) : undefined;
+  const activeRecord = activeToken ? displayedRecords.find((record) => record.token === activeToken) : undefined;
   const listboxId = field.id;
-  const statusId = `${listboxId}-status`;
-  const activeId = activeRecord ? `${listboxId}-option-${activeRecord.sourceIndex}` : undefined;
+  const groupOwnership = useMemo(() => {
+    const descriptions = new Map<string, string>();
+    const groups: Array<{ id: string; label: string; start: number; end: number }> = [];
+    rows.forEach((row, index) => {
+      if (row.kind === 'group') {
+        const previous = groups.at(-1);
+        if (previous) previous.end = index;
+        groups.push({ id: `${listboxId}-group-${groups.length}`, label: row.context.label, start: index, end: rows.length });
+      } else {
+        const group = groups.at(-1);
+        if (group) descriptions.set(row.record.token, group.id);
+      }
+    });
+    return { descriptions, groups };
+  }, [rows, listboxId]);
+  const statusId =  `${listboxId}-status`;
+  const activeId = !loading && activeRecord && renderedRows.some((row) => row.kind === 'item' && row.record.token === activeRecord.token) ? `${listboxId}-option-${activeRecord.sourceIndex}` : undefined;
   const gridTemplate = visibleColumns.length > 0
     ? `${showCheckboxes ? '2rem ' : ''}${visibleColumns.map((column) => toCssLength(column.width, 'minmax(8rem, 1fr)')).join(' ')}`
-    : undefined;
+    : showCheckboxes ? '2rem minmax(0, 1fr)' : undefined;
 
   const commitSearch = useStableCallback((next: string) => {
     setCommittedSearch(next);
@@ -256,8 +295,9 @@ function CgListBoxInner<TItem>(
     setActiveToken(undefined);
     setAnchorToken(undefined);
   });
-  const commitSelection = useStableCallback((requested: ReadonlyArray<TItem>, reason: CgListBoxChangeReason, event?: Event | MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>, force = false, emitUnchanged = false) => {
-    if (!force && (field.disabled || field.readOnly)) return;
+  const commitSelection = useStableCallback((requested: ReadonlyArray<TItem>, reason: CgListBoxChangeReason, event?: Event | MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>, force = false, emitUnchanged = false, programmatic = false) => {
+    selectionRequest.current?.abort();
+    if (!force && (field.disabled || (!programmatic && (field.readOnly || loading)))) return false;
     const seen = new Set<string>();
     const next: TItem[] = [];
     for (const item of requested) {
@@ -269,19 +309,36 @@ function CgListBoxInner<TItem>(
     const normalized = selectionMode === 'single' && next.length > 1 ? [next.at(-1)!] : next;
     const previousTokens = normalizedSelection.map((item) => listBoxKeyToken(getItemKey(item)));
     const nextTokens = normalized.map((item) => listBoxKeyToken(getItemKey(item)));
-    if (!emitUnchanged && previousTokens.length === nextTokens.length && previousTokens.every((token, index) => token === nextTokens[index])) return;
+    if (!emitUnchanged && previousTokens.length === nextTokens.length && previousTokens.every((token, index) => token === nextTokens[index])) return true;
     const previousSet = new Set(previousTokens);
     const nextSet = new Set(nextTokens);
     const details: CgListBoxValueChangeDetails<TItem> = {
       reason,
-      previousValue: normalizedSelection,
+      previousValue: Object.freeze([...normalizedSelection]),
       addedItems: normalized.filter((item) => !previousSet.has(listBoxKeyToken(getItemKey(item)))),
       removedItems: normalizedSelection.filter((item) => !nextSet.has(listBoxKeyToken(getItemKey(item)))),
       event,
     };
-    setSelected(normalized);
-    setInternalInvalid(false);
-    onValueChange?.(normalized, details);
+    const controller = new AbortController();
+    selectionRequest.current = controller;
+    const proposal = Object.freeze({ previousValue: details.previousValue, proposedValue: Object.freeze([...normalized]), reason, signal: controller.signal });
+    const finish = (allowed: boolean | void) => {
+      if (allowed === false || controller.signal.aborted || selectionRequest.current !== controller) return false;
+      setSelected(proposal.proposedValue);
+      setInternalInvalid(false);
+      onValueChange?.(proposal.proposedValue, details);
+      return true;
+    };
+    try {
+      const result = force ? undefined : onBeforeSelectionChange?.(proposal);
+      if (result && typeof result === 'object' && 'then' in result) {
+        return awaitWithAbort(result, controller.signal).then(finish, (error: unknown) => {
+          if (!controller.signal.aborted) onSelectionError?.(error);
+          return false;
+        });
+      }
+      return finish(result);
+    } catch (error) { onSelectionError?.(error); return false; }
   });
 
   const toggleRecord = (record: ItemRecord<TItem>) => {
@@ -290,14 +347,14 @@ function CgListBoxInner<TItem>(
     return next;
   };
   const rangeRecords = (target: ItemRecord<TItem>, additive: boolean) => {
-    const anchorIndex = anchorToken ? visibleRecords.findIndex((record) => record.token === anchorToken) : target.visibleIndex;
+    const anchorIndex = anchorToken ? displayedRecords.findIndex((record) => record.token === anchorToken) : target.visibleIndex;
     const safeAnchor = anchorIndex < 0 ? target.visibleIndex : anchorIndex;
     const from = Math.min(safeAnchor, target.visibleIndex);
     const to = Math.max(safeAnchor, target.visibleIndex);
     const next = additive ? [...normalizedSelection] : [];
     const tokens = new Set(next.map((item) => listBoxKeyToken(getItemKey(item))));
     for (let index = from; index <= to; index += 1) {
-      const record = visibleRecords[index];
+      const record = displayedRecords[index];
       if (!record || record.disabled || tokens.has(record.token)) continue;
       tokens.add(record.token);
       next.push(record.item);
@@ -305,20 +362,20 @@ function CgListBoxInner<TItem>(
     return next;
   };
 
-  const selectAll = (event?: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>) => {
+  const selectAll = (event?: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>, programmatic = false) => {
     const next = [...normalizedSelection];
     const tokens = new Set(next.map((item) => listBoxKeyToken(getItemKey(item))));
-    for (const record of visibleRecords) {
+    for (const record of displayedRecords) {
       if (!record.disabled && !tokens.has(record.token)) {
         tokens.add(record.token);
         next.push(record.item);
       }
     }
-    commitSelection(next, 'selectAll', event);
+    return commitSelection(next, 'selectAll', event, false, false, programmatic);
   };
   const deselectAll = (event?: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>) => {
-    const visibleEnabled = new Set(visibleRecords.filter((record) => !record.disabled).map((record) => record.token));
-    commitSelection(normalizedSelection.filter((item) => !visibleEnabled.has(listBoxKeyToken(getItemKey(item)))), 'deselectAll', event);
+    const visibleEnabled = new Set(displayedRecords.filter((record) => !record.disabled).map((record) => record.token));
+    void commitSelection(normalizedSelection.filter((item) => !visibleEnabled.has(listBoxKeyToken(getItemKey(item)))), 'deselectAll', event);
   };
 
   const handleItemClick = (record: ItemRecord<TItem>, event: MouseEvent<HTMLDivElement>) => {
@@ -343,9 +400,10 @@ function CgListBoxInner<TItem>(
       else next = [record.item];
       setActiveToken(record.token);
       if (!shift) setAnchorToken(record.token);
-      commitSelection(next, 'pointer', event);
+      void commitSelection(next, 'pointer', event);
     }
     onItemClick?.(details);
+    onItemActivate?.({ ...details, reason: 'pointer' });
   };
 
   const scrollRecordIntoView = useStableCallback((record: ItemRecord<TItem>) => {
@@ -355,14 +413,34 @@ function CgListBoxInner<TItem>(
       const top = rowIndex * resolvedItemSize;
       const bottom = top + resolvedItemSize;
       if (top < viewport.scrollTop) viewport.scrollTop = top;
-      else if (bottom > viewport.scrollTop + viewport.clientHeight) viewport.scrollTop = bottom - viewport.clientHeight;
+      else if (bottom > viewport.scrollTop + viewport.clientHeight - (visibleColumns.length > 0 ? resolvedItemSize : 0)) viewport.scrollTop = bottom - viewport.clientHeight + (visibleColumns.length > 0 ? resolvedItemSize : 0);
       viewport.dispatchEvent(new Event('scroll'));
     }
     requestAnimationFrame(() => document.getElementById(`${listboxId}-option-${record.sourceIndex}`)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' }));
   });
 
+  useImperativeHandle(actionsRef, () => ({
+    setSelection: async (next) => commitSelection(next, 'programmatic', undefined, false, false, true),
+    clearSelection: async () => commitSelection([], 'clear', undefined, false, false, true),
+    selectAll: async () => selectAll(undefined, true),
+    focusItem: (key) => {
+      const record = displayedRecords.find((item) => item.token === listBoxKeyToken(key));
+      if (!record || record.disabled || field.disabled || loading) return false;
+      setActiveToken(record.token);
+      listRef.current?.focus({ preventScroll: true });
+      scrollRecordIntoView(record);
+      return true;
+    },
+    scrollToItem: (key) => {
+      const record = displayedRecords.find((item) => item.token === listBoxKeyToken(key));
+      if (!record) return false;
+      scrollRecordIntoView(record);
+      return true;
+    },
+  }));
+
   const navigate = (delta: number, event: KeyboardEvent<HTMLDivElement>) => {
-    const enabledRecords = visibleRecords.filter((record) => !record.disabled);
+    const enabledRecords = displayedRecords.filter((record) => !record.disabled);
     if (enabledRecords.length === 0) return;
     const current = activeToken ? enabledRecords.findIndex((record) => record.token === activeToken) : -1;
     let targetIndex: number;
@@ -374,19 +452,19 @@ function CgListBoxInner<TItem>(
     if (!target) return;
     const extending = event.shiftKey && selectionMode === 'multiple';
     if (extending && !anchorToken && activeRecord) setAnchorToken(activeRecord.token);
-    if (!extending) setAnchorToken(target.token);
+    if (!extending && (!anchorToken || selectionMode === 'single')) setAnchorToken(target.token);
     setActiveToken(target.token);
-    if (selectionMode === 'single') commitSelection([target.item], 'keyboard', event);
-    else if (extending) commitSelection(rangeRecords(target, event.ctrlKey || event.metaKey), 'keyboard', event);
+    if (selectionMode === 'single') void commitSelection([target.item], 'keyboard', event);
+    else if (extending) void commitSelection(rangeRecords(target, event.ctrlKey || event.metaKey), 'keyboard', event);
     scrollRecordIntoView(target);
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (!field.disabled) {
+    if (!field.disabled && !loading) {
       const ctrl = event.ctrlKey || event.metaKey;
       if (ctrl && event.key.toLowerCase() === 'a' && selectionMode === 'multiple') {
         event.preventDefault();
-        selectAll(event);
+        void selectAll(event);
       } else if (event.key === 'Escape') {
         if (committedSearch) {
           event.preventDefault();
@@ -411,10 +489,12 @@ function CgListBoxInner<TItem>(
             event.preventDefault();
             let next: ReadonlyArray<TItem>;
             if (selectionMode === 'single') next = selectedTokens.has(record.token) ? normalizedSelection : [record.item];
+            else if (event.shiftKey) next = rangeRecords(record, ctrl);
             else if (showCheckboxes || (ctrl && event.key === ' ')) next = toggleRecord(record);
             else next = [record.item];
             if (!anchorToken) setAnchorToken(record.token);
-            commitSelection(next, 'keyboard', event);
+            void commitSelection(next, 'keyboard', event);
+            if (event.key === 'Enter') onItemActivate?.({ item: record.item, key: record.key, visibleIndex: record.visibleIndex, disabled: record.disabled, ctrlKey: event.ctrlKey, metaKey: event.metaKey, shiftKey: event.shiftKey, event, reason: 'keyboard' });
           }
         }
       }
@@ -429,14 +509,14 @@ function CgListBoxInner<TItem>(
     setCommittedSearch(nextSearch);
     setActiveToken(undefined);
     setAnchorToken(undefined);
-    if (value === undefined) commitSelection(nextSelection, 'reset', undefined, true, true);
+    if (value === undefined) void commitSelection(nextSelection, 'reset', undefined, true, true);
     if (searchQuery === undefined) onSearchQueryChange?.(nextSearch);
   });
   useLayoutEffect(() => {
     const proxy = formProxyRef.current;
     if (proxy) proxy.setCustomValidity(field.required && normalizedSelection.length === 0 ? 'Please select at least one item.' : '');
   }, [field.required, normalizedSelection.length]);
-  const selectableVisible = visibleRecords.filter((record) => !record.disabled);
+  const selectableVisible = displayedRecords.filter((record) => !record.disabled);
   const selectedVisibleCount = selectableVisible.filter((record) => selectedTokens.has(record.token)).length;
   const selectAllState = selectedVisibleCount === 0 ? false : selectedVisibleCount === selectableVisible.length ? true : 'indeterminate';
   const rootStyle = {
@@ -449,7 +529,7 @@ function CgListBoxInner<TItem>(
     ? (renderLoading ? renderContent(renderLoading) : <><span className={styles.spinner} aria-hidden="true" />{loadingMessage}</>)
     : records.length === 0
       ? (renderEmpty ? renderContent(renderEmpty) : emptyMessage)
-      : visibleRecords.length === 0
+      : displayedRecords.length === 0
         ? (renderNoResults ? typeof renderNoResults === 'function' ? renderNoResults(committedSearch) : renderNoResults : noResultsMessage)
         : null;
   const labelledBy = field.labelledBy;
@@ -460,7 +540,7 @@ function CgListBoxInner<TItem>(
   const renderRow = (row: RenderRow<TItem>) => {
     if (row.kind === 'group') {
       return (
-        <div key={row.key} className={styles.group} role="separator" aria-label={row.context.label} style={renderMode === 'virtual' ? { height: resolvedItemSize } : undefined}>
+        <div key={row.key} className={styles.group} role="separator" aria-label={row.context.label} style={renderMode === 'virtual' ? { height: resolvedItemSize, overflow: 'hidden' } : undefined}>
           {renderGroupHeader ? renderGroupHeader(row.context) : <><span>{row.context.label}</span><span className={styles.groupCount}>{row.context.visibleItems.length}</span></>}
         </div>
       );
@@ -490,17 +570,20 @@ function CgListBoxInner<TItem>(
         className={styles.option}
         role="option"
         aria-label={record.label}
+        aria-describedby={renderMode === 'virtual' ? groupOwnership.descriptions.get(record.token) : undefined}
+        aria-posinset={record.visibleIndex + 1}
+        aria-setsize={displayedRecords.length}
         aria-selected={selectedRecord}
         aria-disabled={record.disabled || undefined}
         data-selected={selectedRecord || undefined}
         data-active={active || undefined}
         data-disabled={record.disabled || undefined}
         data-visible-index={record.visibleIndex}
-        style={{ gridTemplateColumns: gridTemplate, ...(renderMode === 'virtual' ? { height: resolvedItemSize } : null) }}
+        style={{ gridTemplateColumns: gridTemplate, ...(renderMode === 'virtual' ? { height: resolvedItemSize, overflow: 'hidden' } : null) }}
         onMouseDown={(event) => event.preventDefault()}
         onClick={(event) => handleItemClick(record, event)}
       >
-        {showCheckboxes ? <span className={styles.optionCheck} aria-hidden="true"><CgCheckBox checked={selectedRecord} readOnly tabIndex={-1} aria-hidden="true" /></span> : null}
+        {showCheckboxes ? <span className={styles.optionCheck} aria-hidden="true" inert><CgCheckBox checked={selectedRecord} readOnly tabIndex={-1} aria-hidden="true" /></span> : null}
         {renderItem ? renderItem(itemContext) : visibleColumns.length > 0 ? visibleColumns.map((column: CgListBoxColumn<TItem>) => {
           const cellValue = column.getValue(record.item);
           const text = column.formatValue?.(cellValue, record.item) ?? displayValue(cellValue);
@@ -534,17 +617,17 @@ function CgListBoxInner<TItem>(
           placeholder={searchPlaceholder}
           searchAriaLabel={searchAriaLabel}
           aria-label={searchAriaLabel}
-          resultStatus={accessibleText(resultsCountMessage(visibleRecords.length))}
+          resultStatus={accessibleText(resultsCountMessage(displayedRecords.length))}
         />
       ) : null}
       {showSelectAll ? (
         <div className={styles.selectAll}>
           <CgCheckBox
             checked={selectAllState}
-            onCheckedChange={(next, event) => { if (next === true) selectAll(event as unknown as MouseEvent<HTMLElement>); else deselectAll(event as unknown as MouseEvent<HTMLElement>); }}
+            onCheckedChange={(next, event) => { if (next === true) void selectAll(event as unknown as MouseEvent<HTMLElement>); else deselectAll(event as unknown as MouseEvent<HTMLElement>); }}
             label={selectAllText}
             aria-label={selectAllAriaLabel}
-            disabled={field.disabled || selectableVisible.length === 0}
+            disabled={field.disabled || loading || selectableVisible.length === 0}
             readOnly={field.readOnly}
             size={size}
           />
@@ -578,20 +661,23 @@ function CgListBoxInner<TItem>(
           aria-busy={loading || undefined}
           onFocus={(event) => {
             if (!field.disabled && !activeRecord) {
-              const first = visibleRecords.find((record) => !record.disabled);
-              if (first) setActiveToken(first.token);
+              const first = displayedRecords.find((record) => !record.disabled && selectedTokens.has(record.token)) ?? displayedRecords.find((record) => !record.disabled);
+              if (first) { setActiveToken(first.token); scrollRecordIntoView(first); }
             }
             onFocus?.(event);
           }}
           onKeyDown={handleKeyDown}
         >
           {virtual.paddingBefore > 0 ? <div role="presentation" style={{ height: virtual.paddingBefore }} /> : null}
-          {!loading ? renderedRows.map(renderRow) : null}
+          {!loading ? renderMode === 'entire' && groupOwnership.groups.length > 0
+            ? groupOwnership.groups.map((group) => <div key={group.id} role="group" aria-label={group.label}>{rows.slice(group.start, group.end).map(renderRow)}</div>)
+            : renderedRows.map(renderRow) : null}
           {virtual.paddingAfter > 0 ? <div role="presentation" style={{ height: virtual.paddingAfter }} /> : null}
         </div>
       </div>
       {status !== null ? <div id={statusId} className={styles.state} role={loading ? 'status' : undefined}>{status}</div> : null}
-      <span id={`${statusId}-live`} className={styles.visuallyHidden} role="status" aria-live="polite" aria-atomic="true">{resultsCountMessage(visibleRecords.length)}. {selectedCountMessage(normalizedSelection.length)}.</span>
+      {renderMode === 'virtual' && groupOwnership.groups.map((group) => <span key={group.id} id={group.id} className={styles.visuallyHidden}>{group.label}</span>)}
+      <span id={`${statusId}-live`} className={styles.visuallyHidden} role="status" aria-live="polite" aria-atomic="true">{resultsCountMessage(displayedRecords.length)}. {selectedCountMessage(normalizedSelection.length)}.</span>
       <select
         ref={formProxyRef}
         className={styles.formProxy}

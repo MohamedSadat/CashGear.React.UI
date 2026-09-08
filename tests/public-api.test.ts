@@ -55,7 +55,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'CgGridLayoutItem',
   'CgGridViewConcurrencyError',
   'CgIcon',
-  'CgKeyComboBox',
+  'CgKeyTagBox', 'CgKeyComboBox',
   'CgLayoutBreakpoint',
   'CgListBox',
   'CgLoadingPanel',
