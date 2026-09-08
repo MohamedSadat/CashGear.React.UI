@@ -56,6 +56,7 @@ export const CgWindow = forwardRef<HTMLDivElement, CgWindowProps>(function CgWin
     onOpenChange,
     onBeforeOpen,
     onAfterOpen,
+    closePolicy,
     onBeforeClose,
     onAfterClose,
     onLifecycleError,
@@ -119,6 +120,7 @@ export const CgWindow = forwardRef<HTMLDivElement, CgWindowProps>(function CgWin
 
   const lifecycle = useOverlayLifecycle<{ reason: 'programmatic'; event?: Event }, CgWindowCloseDetails>({
     componentName: 'CgWindow',
+    closePolicy,
     open,
     defaultOpen,
     createOpenDetails: () => ({ reason: 'programmatic' }),

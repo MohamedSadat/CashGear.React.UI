@@ -164,3 +164,7 @@ export { cx } from './utils';
 export type { CgClassValue } from './utils';
 export * from './filter';
 export * from './components/PivotTable';
+
+export { CgEditorCommitProvider, useCgEditorCommit } from './components/EditorCommit';
+export type { CgEditorActions, CgEditorCommitApi } from './components/EditorCommit';
+export type { CgDialogClosePolicy } from './internal/dialogClosePolicy';

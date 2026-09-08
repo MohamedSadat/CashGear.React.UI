@@ -40,6 +40,7 @@ export const CgPopup = forwardRef<HTMLDivElement, CgPopupProps>(function CgPopup
     onOpenChange,
     onBeforeOpen,
     onAfterOpen,
+    closePolicy,
     onBeforeClose,
     onAfterClose,
     onLifecycleError,
@@ -105,6 +106,7 @@ export const CgPopup = forwardRef<HTMLDivElement, CgPopupProps>(function CgPopup
 
   const lifecycle = useOverlayLifecycle<{ reason: 'programmatic'; event?: Event }, CgPopupCloseDetails>({
     componentName: 'CgPopup',
+    closePolicy,
     open,
     defaultOpen,
     createOpenDetails: () => ({ reason: 'programmatic' }),

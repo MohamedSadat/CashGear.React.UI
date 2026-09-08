@@ -1,3 +1,4 @@
+import { CgEditorCommitProvider, useEditorCommitController } from '../EditorCommit/CgEditorCommit';
 /* eslint-disable @typescript-eslint/no-base-to-string, @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/require-await, react-hooks/exhaustive-deps -- Unknown values are formatted at descriptor boundaries; promise-shaped actions may settle synchronously; stable runtime refs intentionally read the latest render state. */
 import {
   Fragment,
@@ -9,7 +10,7 @@ import {
   useState,
 } from 'react';
 import type { ChangeEvent, CSSProperties, KeyboardEvent, MouseEvent, ReactNode } from 'react';
-import { useCgId, useControllableState, useDirection } from '../../hooks';
+import { useCgId, useControllableState, useDirection, useStableCallback } from '../../hooks';
 import { renderIcon } from '../../internal';
 import { cx } from '../../utils';
 import { CgContextMenu } from '../ContextMenu';
@@ -596,7 +597,9 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
     setEditSession({ sessionId: ++editSequence.current, kind: 'create', key: null, parentKey, draft, attempt: 1, saving: false }); return true;
   }, [hierarchy.byToken, props, rollbackOptimisticUpdate]);
 
-  const saveEdit = useCallback(async (): Promise<boolean> => {
+  const editorCommit = useEditorCommitController();
+  const preparingCommit = useRef(false);
+  const performSaveEdit = useCallback(async (): Promise<boolean> => {
     if (!editSession || editSession.saving) return false;
     if (editSession.kind === 'create' ? !props.onCreate : !props.onUpdate || editSession.key === null || !editSession.original) return false;
     mutationController.current?.abort(); const controller = new AbortController(); mutationController.current = controller;
@@ -662,6 +665,13 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
     return Object.freeze({ title, html, rowCount: current.rows.length });
   }, [columns, directionValue, hierarchyFieldId, props, snapshot]);
 
+  const persistEdit = useStableCallback(performSaveEdit);
+  const saveEdit = useCallback(async (): Promise<boolean> => {
+    if (preparingCommit.current) return false;
+    preparingCommit.current = true;
+    try { if (!await editorCommit.flush()) return false; return await persistEdit(); }
+    catch { return false; } finally { preparingCommit.current = false; }
+  }, [editorCommit, persistEdit]);
   const runtimeRef = useRef<Record<string, (...args: unknown[]) => unknown>>({});
   runtimeRef.current = {
     focus: async () => { const first = visible[0]; return first ? setFocus(first.internal.key, visibleColumns[0]?.fieldId ?? null, 'api', true) : false; },
@@ -693,7 +703,7 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
     addRoot: async (draft?: TItem) => beginCreate({ kind: 'none' }, draft), addChild: async (parentKey: TKey, draft?: TItem) => beginCreate({ kind: 'key', key: parentKey }, draft), editNode: async (key: TKey) => beginEdit(key),
     deleteNode: async (key: TKey) => { const token = tokenOrNull(key); const node = token ? hierarchy.byToken.get(token) : undefined; if (!node || props.disabled || props.readOnly || !props.allowDelete || !props.onDelete || props.canDelete?.(node.item) === false) return false; mutationController.current?.abort(); const controller = new AbortController(); mutationController.current = controller; const generation = generationRef.current; const result = await props.onDelete(Object.freeze({ item: node.item, key, parentKey: node.parent ? { kind: 'key', key: node.parent.key } : { kind: 'none' }, attempt: 1, generation, concurrencyToken: props.getConcurrencyToken?.(node.item), signal: controller.signal })); return !controller.signal.aborted && generation === generationRef.current && result.outcome === 'success'; },
     moveNode: async (key: TKey, parentKey: CgTreeListParentKey<TKey>, siblingPosition = 0) => { const token = tokenOrNull(key); const node = token ? hierarchy.byToken.get(token) : undefined; if (!node || props.disabled || props.readOnly || !props.allowMove || !props.onMove || props.canMove?.(node.item) === false) return false; if (parentKey.kind === 'key') { const parentToken = treeListKeyToken(parentKey.key); if (parentToken === token || hierarchyDescendants(node).some((child) => child.token === parentToken)) return false; } mutationController.current?.abort(); const controller = new AbortController(); mutationController.current = controller; const generation = generationRef.current; const result = await props.onMove(Object.freeze({ item: node.item, key, oldParentKey: node.parent ? { kind: 'key', key: node.parent.key } : { kind: 'none' }, proposedParentKey: parentKey, proposedSiblingPosition: Math.max(0, siblingPosition), clientValidationConclusive: hierarchy.nodes.every((entry) => !entry.hasUnloadedChildren && entry.projectionComplete), attempt: 1, generation, concurrencyToken: props.getConcurrencyToken?.(node.item), signal: controller.signal })); return !controller.signal.aborted && generation === generationRef.current && result.outcome === 'success'; },
-    saveEdit, cancelEdit: async () => { mutationController.current?.abort(); rollbackOptimisticUpdate(); setEditSession(null); return true; }, retryConflict: async () => { if (!editSession || editSession.result?.outcome !== 'conflict') return false; setEditSession({ ...editSession, attempt: editSession.attempt + 1, result: undefined }); await new Promise((resolve) => setTimeout(resolve, 0)); return runtimeRef.current.saveEdit?.() as Promise<boolean>; }, reloadConflict: async () => { if (!editSession) return false; mutationController.current?.abort(); rollbackOptimisticUpdate(); setEditSession(null); return true; },
+    saveEdit, cancelEdit: async () => { editorCommit.resetDrafts(); mutationController.current?.abort(); rollbackOptimisticUpdate(); setEditSession(null); return true; }, retryConflict: async () => { if (!editSession || editSession.result?.outcome !== 'conflict') return false; setEditSession({ ...editSession, attempt: editSession.attempt + 1, result: undefined }); await new Promise((resolve) => setTimeout(resolve, 0)); return runtimeRef.current.saveEdit?.() as Promise<boolean>; }, reloadConflict: async () => { if (!editSession) return false; mutationController.current?.abort(); rollbackOptimisticUpdate(); setEditSession(null); return true; },
     applyFilter: async (nextFilter: typeof filter, mode?: CgTreeListFilterMode) => { const nextMode = mode ?? filterMode; setFilter(nextFilter); props.onFilterChange?.(nextFilter); if (mode) { setFilterMode(mode); props.onFilterModeChange?.(mode); } const nextState = createTreeListState(columns, { ...viewState, filter: nextFilter, filterMode: nextMode }); setViewState(nextState); props.onStateChange?.(nextState, Object.freeze({ operation: 'filter', reason: 'api' })); return true; },
     groupBy: async (fieldId: string) => { if (!columns.some((column) => column.fieldId === fieldId)) return false; const next = createTreeListState(columns, { ...viewState, groups: [...viewState.groups.filter((group) => group.fieldId !== fieldId), { fieldId, direction: 'ascending' }] }); setViewState(next); props.onStateChange?.(next, Object.freeze({ operation: 'group', reason: 'api' })); return true; },
     setColumnVisibility: async (fieldId: string, value: boolean) => { if (fieldId === hierarchyFieldId && !value) return false; const target = columns.find((column) => column.fieldId === fieldId); if (!target || target.hideable === false) return false; const next = createTreeListState(columns, { ...viewState, columns: viewState.columns.map((column) => column.fieldId === fieldId ? { ...column, visible: value } : column) }); setViewState(next); props.onStateChange?.(next, Object.freeze({ operation: 'column-visibility', reason: 'api' })); return true; },
@@ -848,7 +858,7 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
 
   const nativeRootAttributes = Object.fromEntries(Object.entries(nativeProps).filter(([name]) => name.startsWith('data-') || name.startsWith('aria-') || ['title', 'hidden', 'tabIndex', 'lang', 'translate', 'accessKey', 'draggable', 'contentEditable', 'spellCheck', 'onFocus', 'onBlur', 'onPointerDown', 'onPointerUp', 'onPointerMove', 'onMouseEnter', 'onMouseLeave'].includes(name)));
 
-  return <div {...nativeRootAttributes} id={rootId} ref={rootRef} className={cx(styles.root, styles[size], className)} style={{ ...style, height }} dir={directionValue} data-cg-tree-list data-size={size}>
+  return <CgEditorCommitProvider controller={editorCommit}><div {...nativeRootAttributes} id={rootId} ref={rootRef} className={cx(styles.root, styles[size], className)} style={{ ...style, height }} dir={directionValue} data-cg-tree-list data-size={size}>
     {props.showSearch ? <div className={styles.toolbar}><input type="search" value={searchText} placeholder={mergedLabels.searchPlaceholder} aria-label={mergedLabels.searchPlaceholder} disabled={props.disabled} onChange={(event: ChangeEvent<HTMLInputElement>) => { setSearchText(event.currentTarget.value); props.onSearchTextChange?.(event.currentTarget.value); }} /></div> : null}
     {providerError ? <div className={styles.error} role="alert">{providerError} <button type="button" onClick={() => { void loadProviderRoots(viewState.rootPage.pageIndex); }}>{mergedLabels.retry}</button></div> : null}
     <div ref={scrollerRef} className={styles.scroller} onScroll={(event) => { setScrollTop(event.currentTarget.scrollTop); setScrollLeft(event.currentTarget.scrollLeft); }} onKeyDown={cellKeyDown} onContextMenu={(event) => { if (!(event.target as HTMLElement).closest('[data-row-token]')) showContextMenu(event, 'empty-area'); }}>
@@ -880,5 +890,5 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
     {editSession?.kind === 'update' && props.editMode !== 'popup' ? <div className={styles.inlineEditBar} role="group" aria-label={mergedLabels.edit}>{editErrors.length ? <span className={styles.errors} role="alert">{editErrors.join(' ')}</span> : null}<button type="button" onClick={() => { void actions.cancelEdit(); }}>{mergedLabels.cancel}</button><button type="button" disabled={editSession.saving} onClick={() => { void saveEdit(); }}>{mergedLabels.save}</button></div> : null}
     {popupEditor}
     {props.customizeContextMenu ? <CgContextMenu<CgTreeListContext<TItem, TKey>> items={[] as ReadonlyArray<CgContextMenuItem<CgTreeListContext<TItem, TKey>>>} customizeMenu={props.customizeContextMenu} onItemActivate={props.onContextMenuItemActivate} commandFailure={props.onContextMenuCommandFailure} actionsRef={menuActionsRef} direction={directionValue} /> : null}
-  </div>;
+  </div></CgEditorCommitProvider>;
 }

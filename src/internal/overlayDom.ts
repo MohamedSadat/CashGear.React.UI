@@ -14,9 +14,17 @@ const FOCUSABLE = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
+function canFocus(element: HTMLElement): boolean {
+  if (element.matches(':disabled') || element.closest('[hidden],[inert],[aria-hidden="true"]')) return false;
+  for (let current: HTMLElement | null = element; current; current = current.parentElement) {
+    const style = getComputedStyle(current);
+    if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') return false;
+  }
+  return true;
+}
 function visibleFocusable(root: HTMLElement): HTMLElement[] {
   return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((element) => (
-    !element.hidden
+    canFocus(element) && !element.hidden
     && !element.closest('[hidden],[inert],[aria-hidden="true"]')
     && getComputedStyle(element).visibility !== 'hidden'
     && getComputedStyle(element).display !== 'none'
@@ -25,7 +33,7 @@ function visibleFocusable(root: HTMLElement): HTMLElement[] {
 
 export function focusOverlayInitial(surface: HTMLElement | null): void {
   if (!surface) return;
-  const explicit = surface.querySelector<HTMLElement>('[data-cg-autofocus]:not(:disabled)');
+  const explicit = Array.from(surface.querySelectorAll<HTMLElement>('[data-cg-autofocus]')).find(canFocus);
   const body = surface.querySelector<HTMLElement>('[data-cg-overlay-body]');
   const first = explicit ?? (body ? visibleFocusable(body)[0] : undefined) ?? surface;
   first.focus({ preventScroll: true });

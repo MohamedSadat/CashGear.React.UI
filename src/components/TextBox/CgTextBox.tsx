@@ -1,4 +1,6 @@
-import { forwardRef, useEffect, useRef, useState } from 'react';
+import { useEditorRegistration } from '../EditorCommit/CgEditorCommit';
+import { createEditorPublication } from '../../internal/editorPublication';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, CompositionEvent } from 'react';
 import { useControllableState, useDebouncedCallback, useFormReset, useMergedRefs, useStableCallback } from '../../hooks';
 import { EditorButton, InputShell, renderIcon, useFieldControl } from '../../internal';
@@ -10,6 +12,8 @@ import type { CgTextBoxProps, CgTextChangeReason } from './CgTextBox.types';
 
 export const CgTextBox = forwardRef<HTMLInputElement, CgTextBoxProps>(function CgTextBox(
   {
+    actionsRef,
+    onCommitError,
     value,
     defaultValue = '',
     onValueChange,
@@ -55,47 +59,77 @@ export const CgTextBox = forwardRef<HTMLInputElement, CgTextBoxProps>(function C
   const pendingExternalRef = useRef<string | undefined>(undefined);
   const inputRef = useRef<HTMLInputElement>(null);
   const ref = useMergedRefs(inputRef, forwardedRef);
+  const publication = useMemo(() => createEditorPublication<string>(), []);
+  const draftRef = useRef(committed);
+  const publishedRef = useRef(committed);
+  const echoRef = useRef<string | undefined>(undefined);
   const emit = useStableCallback((next: string, reason: CgTextChangeReason, event?: ChangeEvent<HTMLInputElement>) => {
     setCommitted(next);
-    onValueChange?.(next, { reason, event });
+    publishedRef.current = next;
+    const revision = publication.revision;
+    const pending = publication.publish(next, (item) => { echoRef.current = item; return onValueChange?.(item, { reason, event }); });
+    void pending.catch((error: unknown) => { if (revision === publication.revision) { if (publishedRef.current === next) publishedRef.current = committed; onCommitError?.(error); } });
+    return pending;
   });
-  const debounced = useDebouncedCallback((next: string) => emit(next, 'debounce'), debounceMs);
+  const debounced = useDebouncedCallback((next: string) => { void emit(next, 'debounce'); }, debounceMs);
   const controlledRef = useRef(value);
 
   useEffect(() => {
     if (value === undefined || controlledRef.current === value) return;
     controlledRef.current = value;
+    if (value === echoRef.current) { echoRef.current = undefined; return; }
+    publication.reset();
+    publishedRef.current = value;
     debounced.cancel();
     if (composingRef.current) {
       pendingExternalRef.current = value;
       return;
     }
+    draftRef.current = value;
     setDraft(value);
-  }, [debounced, value]);
+  }, [debounced, publication, value]);
 
+  const resetDraft = useStableCallback(() => {
+    publication.reset(); echoRef.current = undefined; debounced.cancel(); pendingExternalRef.current = undefined;
+    const next = value ?? committed; draftRef.current = next; publishedRef.current = next; setDraft(next);
+  });
+  const flush = useStableCallback(async () => {
+    debounced.cancel();
+    if (composingRef.current) return false;
+    if (field.disabled || field.readOnly) return true;
+    const next = inputRef.current?.value ?? draftRef.current;
+    if (next !== publishedRef.current) await emit(next, 'flush');
+    return await publication.wait();
+  });
+  useImperativeHandle(actionsRef, () => ({ flush, resetDraft }), [flush, resetDraft]);
+  useEditorRegistration({ flush, resetDraft });
+  useEffect(() => () => publication.reset(), [publication]);
   useFormReset(inputRef, () => {
+    publication.reset();
     debounced.cancel();
     pendingExternalRef.current = undefined;
     const next = value ?? defaultValue;
+    draftRef.current = next;
     setDraft(next);
-    if (value === undefined) emit(next, 'reset');
+    if (value === undefined) void emit(next, 'reset');
   });
 
   const commitFromInput = (next: string, event: ChangeEvent<HTMLInputElement>) => {
-    if (commitMode === 'input') emit(next, 'input', event);
+    if (commitMode === 'input') void emit(next, 'input', event);
     else if (commitMode === 'debounced') debounced.schedule(next);
   };
   const clear = () => {
     debounced.cancel();
+    draftRef.current = '';
     setDraft('');
-    emit('', 'clear');
+    void emit('', 'clear');
     inputRef.current?.focus();
   };
   const showClear = clearButton === 'always' || (clearButton === 'auto' && draft.length > 0);
   const startButtons = buttons.filter((button) => (button.placement ?? 'end') === 'start');
   const endButtons = buttons.filter((button) => (button.placement ?? 'end') === 'end');
   const renderButtons = (items: ReadonlyArray<CgEditorButtonDescriptor<string>>) =>
-    items.map((button) => <EditorButton key={button.key} descriptor={button} value={draft} disabled={field.disabled || field.readOnly} />);
+    items.map((button) => <EditorButton key={button.key} descriptor={{ ...button, onPress: async (context) => { if (await flush()) await button.onPress?.({ ...context, value: draftRef.current }); } }} value={draft} disabled={field.disabled || field.readOnly} />);
 
   const start = <>{renderButtons(startButtons)}{leadingIcon ? renderIcon(leadingIcon) : null}{prefix ? <span aria-hidden="true">{prefix}</span> : null}</>;
   const end = <>{suffix ? <span aria-hidden="true">{suffix}</span> : null}{trailingIcon ? renderIcon(trailingIcon) : null}{showClear ? <EditorButton descriptor={{ key: 'clear', icon: 'clear', ariaLabel: clearAriaLabel, disabled: field.readOnly, onPress: clear }} value={draft} disabled={field.disabled} /> : null}{type === 'password' && passwordReveal ? <EditorButton descriptor={{ key: 'reveal', icon: revealed ? 'eye-off' : 'eye', ariaLabel: revealed ? 'Hide password' : revealAriaLabel, onPress: () => setRevealed((current) => !current) }} value={draft} disabled={field.disabled} /> : null}{renderButtons(endButtons)}</>;
@@ -129,12 +163,14 @@ export const CgTextBox = forwardRef<HTMLInputElement, CgTextBoxProps>(function C
         aria-errormessage={field.errorMessageId}
         onChange={(event) => {
           const next = event.target.value;
+          draftRef.current = next;
           setDraft(next);
           onChange?.(event);
           if (!composingRef.current) commitFromInput(next, event);
         }}
         onBlur={(event) => {
-          if (commitMode === 'blur') emit(draft, 'blur');
+          if (composingRef.current) { onBlur?.(event); return; }
+          if (commitMode === 'blur') void emit(draftRef.current, 'blur');
           else if (commitMode === 'debounced') debounced.flush();
           onBlur?.(event);
         }}
@@ -145,13 +181,16 @@ export const CgTextBox = forwardRef<HTMLInputElement, CgTextBoxProps>(function C
         onCompositionEnd={(event: CompositionEvent<HTMLInputElement>) => {
           composingRef.current = false;
           if (pendingExternalRef.current !== undefined) {
+            draftRef.current = pendingExternalRef.current;
             setDraft(pendingExternalRef.current);
             pendingExternalRef.current = undefined;
             onCompositionEnd?.(event);
             return;
           }
           const next = event.currentTarget.value;
-          if (commitMode === 'input') emit(next, 'input');
+          draftRef.current = next;
+          setDraft(next);
+          if (commitMode === 'input') void emit(next, 'input');
           else if (commitMode === 'debounced') debounced.schedule(next);
           onCompositionEnd?.(event);
         }}

@@ -957,3 +957,7 @@ Final verification on 2026-09-06 passed strict TypeScript and ESLint, all 683 Vi
 The final Phase 25 browser matrix passed all nine real-engine interaction/Axe cases in Chromium and all nine in WebKit. It covers lazy rendering of 48 pages, navigation, search, rotation, incorrect/correct password flow, default-inert and opt-in link/form annotations, host cancellation, authorized providers, typed error templates, and light/dark/RTL/narrow accessibility. All six new `phase-25-pdf-*` Windows Chromium baselines passed comparison and were visually inspected. No pre-existing baseline was changed.
 
 Poppler 26.07 independently reported the expected 48-page handbook, four-page AcroForm/link invoice, and two-page encrypted statement; page-one renders were visually inspected. One fail-fast Firefox attempt reproduced the established host-only 30-second launch timeout before page creation with `RenderCompositorSWGL failed mapping default framebuffer`; no Firefox component assertion ran.
+
+## Phase 26 — Editor commits and protected dialogs
+
+See [implementation acceptance record](parity-implementation-status.md) and [commit scope contracts](../src/components/EditorCommit/README.md). Adds CgEditorCommitProvider/useCgEditorCommit, TextBox and numeric flush/reset actions, Grid/TreeList save integration, and optional Popup/Window busy/dirty/discard policies. Controlled visibility and unmount remain authoritative. Reference: `79cf0c2bfb0b885641c842a03d88392bdbf2c2c4`; runtime dependencies unchanged.

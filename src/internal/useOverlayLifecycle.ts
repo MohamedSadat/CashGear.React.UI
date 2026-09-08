@@ -1,3 +1,5 @@
+import { evaluateDialogClosePolicy } from './dialogClosePolicy';
+import type { CgDialogClosePolicy } from './dialogClosePolicy';
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { SyntheticEvent } from 'react';
 import { useControllableState, useStableCallback } from '../hooks';
@@ -5,6 +7,7 @@ import type { CgOverlayCancelableResult, CgOverlayLifecyclePhase } from '../type
 
 interface LifecycleDetails { reason: string; event?: Event | SyntheticEvent; }
 interface OverlayLifecycleOptions<TOpen extends LifecycleDetails, TClose extends LifecycleDetails> {
+  closePolicy?: CgDialogClosePolicy;
   componentName: string;
   open: boolean | undefined;
   defaultOpen: boolean;
@@ -34,7 +37,14 @@ export function useOverlayLifecycle<TOpen extends LifecycleDetails, TClose exten
   const pendingDetailsRef = useRef<TOpen | TClose | undefined>(undefined);
   const previousOpenRef = useRef(false);
 
-  useLayoutEffect(() => { openRef.current = actualOpen; }, [actualOpen]);
+  const controlledOpenRef = useRef(options.open);
+  useLayoutEffect(() => {
+    openRef.current = actualOpen;
+    if (controlledOpenRef.current !== options.open) {
+      controlledOpenRef.current = options.open;
+      transitionRef.current?.abort(); generationRef.current++;
+    }
+  }, [actualOpen, options.open]);
 
   const reportError = useStableCallback((error: unknown, phase: CgOverlayLifecyclePhase) => {
     try { options.onLifecycleError?.(error, phase); } catch { /* Error reporting is terminal. */ }
@@ -71,10 +81,13 @@ export function useOverlayLifecycle<TOpen extends LifecycleDetails, TClose exten
     return options.open === undefined;
   });
 
-  const requestClose = useStableCallback(async (details: TClose): Promise<boolean> => {
+  const closePendingRef = useRef<Promise<boolean> | undefined>(undefined);
+  const performClose = useStableCallback(async (details: TClose): Promise<boolean> => {
     const transition = begin();
     if (!openRef.current) return true;
     try {
+      if (options.closePolicy && !await evaluateDialogClosePolicy(options.closePolicy, transition.controller.signal)) return false;
+      if (!isCurrent(transition)) return false;
       const result = options.onBeforeClose?.({ ...details, signal: transition.controller.signal });
       const accepted = isPromiseLike(result) ? await result : result;
       if (!isCurrent(transition) || accepted === false) return false;
@@ -87,6 +100,14 @@ export function useOverlayLifecycle<TOpen extends LifecycleDetails, TClose exten
     setActualOpen(false);
     options.onOpenChange?.(false, details);
     return options.open === undefined;
+  });
+
+  const requestClose = useStableCallback((details: TClose): Promise<boolean> => {
+    if (options.closePolicy && closePendingRef.current && !transitionRef.current?.signal.aborted) return closePendingRef.current;
+    const pending = performClose(details);
+    closePendingRef.current = pending;
+    void pending.finally(() => { if (closePendingRef.current === pending) closePendingRef.current = undefined; });
+    return pending;
   });
 
   useEffect(() => {
@@ -106,11 +127,11 @@ export function useOverlayLifecycle<TOpen extends LifecycleDetails, TClose exten
     }
   }, [actualOpen, options, reportError]);
 
-  useEffect(() => () => {
+  useEffect(() => { mountedRef.current = true; return () => {
     mountedRef.current = false;
     transitionRef.current?.abort();
     generationRef.current += 1;
-  }, []);
+  }; }, []);
 
   return { open: actualOpen, openRef, requestOpen, requestClose } as const;
 }

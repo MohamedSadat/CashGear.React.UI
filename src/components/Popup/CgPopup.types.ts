@@ -1,3 +1,4 @@
+import type { CgDialogClosePolicy } from '../../internal/dialogClosePolicy';
 import type { CSSProperties, HTMLAttributes, ReactNode, Ref, SyntheticEvent } from 'react';
 import type {
   CgOverlayCancelableResult,
@@ -44,6 +45,7 @@ export interface CgPopupActions {
 type NativePopupProps = Omit<HTMLAttributes<HTMLDivElement>, 'children' | 'role' | 'onDragStart' | 'onDragEnd'>;
 
 export interface CgPopupProps extends NativePopupProps {
+  closePolicy?: CgDialogClosePolicy;
   open?: boolean;
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean, details: CgPopupOpenChangeDetails) => void;

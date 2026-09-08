@@ -1,4 +1,6 @@
-import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEditorRegistration } from '../EditorCommit/CgEditorCommit';
+import { createEditorPublication } from '../../internal/editorPublication';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, InputHTMLAttributes, KeyboardEvent } from 'react';
 import { useControllableState, useFormReset, useMergedRefs, useStableCallback } from '../../hooks';
 import { EditorButton, InputShell, useFieldControl } from '../../internal';
@@ -22,7 +24,7 @@ interface CgNumericEditCoreProps extends CgNumericEditProps {
 }
 
 export const CgNumericEditCore = forwardRef<HTMLInputElement, CgNumericEditCoreProps>(function CgNumericEditCore(
-  { value, defaultValue = null, onValueChange, onChange, onInvalidValue, locale, formatStyle = 'decimal', currency, precision, useGrouping = true, min, max, step, allowNegative = true, prefix, suffix, buttons = [], size = 'medium', validationState = 'none', fullWidth = false, id, required, disabled, readOnly, className, style, 'data-testid': testId, onBlur, onFocus, onKeyDown, 'aria-describedby': ariaDescribedBy, 'aria-label': ariaLabel, 'aria-labelledby': ariaLabelledBy, classifyDraft, inputMode = 'decimal', suppressDuplicateCommit = false, updateValueOnInput = false, ...nativeProps },
+  { actionsRef, onCommitError, onCompositionStart, onCompositionEnd, value, defaultValue = null, onValueChange, onChange, onInvalidValue, locale, formatStyle = 'decimal', currency, precision, useGrouping = true, min, max, step, allowNegative = true, prefix, suffix, buttons = [], size = 'medium', validationState = 'none', fullWidth = false, id, required, disabled, readOnly, className, style, 'data-testid': testId, onBlur, onFocus, onKeyDown, 'aria-describedby': ariaDescribedBy, 'aria-label': ariaLabel, 'aria-labelledby': ariaLabelledBy, classifyDraft, inputMode = 'decimal', suppressDuplicateCommit = false, updateValueOnInput = false, ...nativeProps },
   forwardedRef,
 ) {
   assertFinite('value', value);
@@ -45,16 +47,28 @@ export const CgNumericEditCore = forwardRef<HTMLInputElement, CgNumericEditCoreP
   const controlledRef = useRef(value);
   const publishedRef = useRef(committed);
   const editingRef = useRef(false);
+  const dirtyRef = useRef(false);
+  const composingRef = useRef(false);
+  const publication = useMemo(() => createEditorPublication<number | null>(), []);
+  const publish = useStableCallback((next: number | null, details: Parameters<NonNullable<CgNumericEditProps['onValueChange']>>[1]) => {
+    const revision = publication.revision;
+    const pending = publication.publish(next, (item) => onValueChange?.(item, details));
+    void pending.catch((error: unknown) => { if (revision === publication.revision) { dirtyRef.current = true; onCommitError?.(error); } });
+    return pending;
+  });
   const classify = useCallback((text: string): CgNumericDraftResult => {
     if (classifyDraft) return classifyDraft(text, formatter);
     const parsed = parseLocalizedNumber(text, formatter, formatStyle);
     return parsed === undefined ? { kind: 'invalid' } : { kind: 'value', value: parsed };
   }, [classifyDraft, formatStyle, formatter]);
   const commit = useStableCallback((reason: CgNumericChangeReason, event?: ChangeEvent<HTMLInputElement> | KeyboardEvent<HTMLInputElement>) => {
-    const parsed = classify(draft);
+    if (composingRef.current) return false;
+    if (!dirtyRef.current) return true;
+    const text = inputRef.current?.value ?? draft;
+    const parsed = classify(text);
     if (parsed.kind !== 'value' || (!allowNegative && parsed.value !== null && parsed.value < 0)) {
       setDraftInvalid(true);
-      onInvalidValue?.(draft);
+      onInvalidValue?.(text);
       return false;
     }
     const next = parsed.value === null ? null : normalizeNumericValue(parsed.value, min, max, precision);
@@ -63,9 +77,20 @@ export const CgNumericEditCore = forwardRef<HTMLInputElement, CgNumericEditCoreP
     const duplicate = suppressDuplicateCommit && Object.is(publishedRef.current, next);
     publishedRef.current = next;
     setDraft(format(next));
-    if (!duplicate) onValueChange?.(next, { reason, event });
+    dirtyRef.current = false;
+    if (!duplicate) void publish(next, { reason, event });
     return true;
   });
+  const resetDraft = useStableCallback(() => { publication.reset(); dirtyRef.current = false; setDraftInvalid(false); setDraft(format(value !== undefined ? value : committed)); });
+  const flush = useStableCallback(async () => {
+    if (composingRef.current) return false;
+    if (field.disabled || field.readOnly) return true;
+    if (!commit('flush')) return false;
+    return await publication.wait();
+  });
+  useImperativeHandle(actionsRef, () => ({ flush, resetDraft }), [flush, resetDraft]);
+  useEditorRegistration({ flush, resetDraft });
+  useEffect(() => () => publication.reset(), [publication]);
   const formatterRef = useRef(formatter);
   useEffect(() => {
     const formattingChanged = formatterRef.current !== formatter;
@@ -73,17 +98,19 @@ export const CgNumericEditCore = forwardRef<HTMLInputElement, CgNumericEditCoreP
     formatterRef.current = formatter;
     if (!formattingChanged && !controlledChanged) return;
     if (value !== undefined) controlledRef.current = value;
+    if (controlledChanged && !Object.is(value, publishedRef.current)) { publication.reset(); dirtyRef.current = false; }
     if (controlledChanged) publishedRef.current = value ?? null;
     if (updateValueOnInput && editingRef.current && !formattingChanged) return;
     setDraft(format(value !== undefined ? value : committed));
     setDraftInvalid(false);
-  }, [committed, format, formatter, updateValueOnInput, value]);
+  }, [committed, format, formatter, publication, updateValueOnInput, value]);
   useFormReset(inputRef, () => {
+    publication.reset(); dirtyRef.current = false;
     const next = value !== undefined ? value : defaultValue;
     setDraftInvalid(false);
     setDraft(format(next));
     publishedRef.current = next;
-    if (value === undefined) { setCommitted(next); onValueChange?.(next, { reason: 'reset' }); }
+    if (value === undefined) { setCommitted(next); void publish(next, { reason: 'reset' }); }
   });
   const startButtons = buttons.filter((button) => (button.placement ?? 'end') === 'start');
   const endButtons = buttons.filter((button) => (button.placement ?? 'end') === 'end');
@@ -110,10 +137,11 @@ export const CgNumericEditCore = forwardRef<HTMLInputElement, CgNumericEditCoreP
         onChange={(event) => {
           const text = event.target.value;
           editingRef.current = true;
+          dirtyRef.current = true;
           setDraftInvalid(false);
           setDraft(text);
           onChange?.(event);
-          if (!updateValueOnInput) return;
+          if (!updateValueOnInput || composingRef.current) return;
           const parsed = classify(text);
           if (parsed.kind === 'incomplete') return;
           if (parsed.kind === 'invalid' || (!allowNegative && parsed.value !== null && parsed.value < 0)) {
@@ -125,8 +153,10 @@ export const CgNumericEditCore = forwardRef<HTMLInputElement, CgNumericEditCoreP
           if (Object.is(publishedRef.current, next)) return;
           publishedRef.current = next;
           setCommitted(next);
-          onValueChange?.(next, { reason: 'input', event });
+          void publish(next, { reason: 'input', event });
         }}
+        onCompositionStart={(event) => { composingRef.current = true; onCompositionStart?.(event); }}
+        onCompositionEnd={(event) => { composingRef.current = false; onCompositionEnd?.(event); }}
         onFocus={(event) => { editingRef.current = true; onFocus?.(event); }}
         onBlur={(event) => { commit('blur', event); editingRef.current = false; onBlur?.(event); }}
         onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); commit('enter', event); } onKeyDown?.(event); }}

@@ -173,7 +173,9 @@ function onPointerDown(event: PointerEvent) {
 }
 
 async function dismissOutsideInOrder(event: PointerEvent, ids: string[]) {
+  const initialIdentities = new Set(overlays.map((entry) => entry.identity));
   for (const id of ids) {
+    if (overlays.some((entry) => !initialIdentities.has(entry.identity))) return;
     const result = overlays.find((entry) => entry.id === id)?.onOutside?.(event);
     const accepted = result && typeof result === 'object' && 'then' in result ? await result : result;
     if (accepted === false) return;

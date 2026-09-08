@@ -1,15 +1,19 @@
+import type { Ref } from 'react';
+import type { CgEditorActions } from '../EditorCommit';
 import type { ChangeEvent, InputHTMLAttributes, ReactNode } from 'react';
 import type { CgBaseProps, CgClearButtonDisplayMode, CgEditorButtonDescriptor, CgIconSource, CgSizeMode, CgTextCommitMode, CgValidationState } from '../../types';
 
 type NativeTextBoxProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'className' | 'style' | 'size' | 'value' | 'defaultValue' | 'onChange' | 'type' | 'prefix'>;
 export type CgTextBoxType = 'text' | 'password' | 'email' | 'tel' | 'url' | 'search';
-export type CgTextChangeReason = 'input' | 'blur' | 'debounce' | 'clear' | 'reset';
+export type CgTextChangeReason = 'input' | 'blur' | 'debounce' | 'clear' | 'reset' | 'flush';
 export interface CgTextValueChange { reason: CgTextChangeReason; event?: ChangeEvent<HTMLInputElement>; }
 
 export interface CgTextBoxProps extends NativeTextBoxProps, CgBaseProps {
+  actionsRef?: Ref<CgEditorActions>;
+  onCommitError?: (error: unknown) => void;
   value?: string;
   defaultValue?: string;
-  onValueChange?: (value: string, details: CgTextValueChange) => void;
+  onValueChange?: (value: string, details: CgTextValueChange) => void | PromiseLike<void>;
   onChange?: (event: ChangeEvent<HTMLInputElement>) => void;
   commitMode?: CgTextCommitMode;
   debounceMs?: number;

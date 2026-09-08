@@ -170,16 +170,19 @@ export function useSurfacePosition({
       surface.style.visibility = 'visible';
     };
     update();
-    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(update);
+    let frame: number | undefined;
+    const schedule = () => { frame ??= requestAnimationFrame(() => { frame = undefined; update(); }); };
+    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(schedule);
     observer?.observe(surface);
-    window.addEventListener('resize', update);
-    window.visualViewport?.addEventListener('resize', update);
-    window.visualViewport?.addEventListener('scroll', update);
+    window.addEventListener('resize', schedule);
+    window.visualViewport?.addEventListener('resize', schedule);
+    window.visualViewport?.addEventListener('scroll', schedule);
     return () => {
+      if (frame !== undefined) cancelAnimationFrame(frame);
       observer?.disconnect();
-      window.removeEventListener('resize', update);
-      window.visualViewport?.removeEventListener('resize', update);
-      window.visualViewport?.removeEventListener('scroll', update);
+      window.removeEventListener('resize', schedule);
+      window.visualViewport?.removeEventListener('resize', schedule);
+      window.visualViewport?.removeEventListener('scroll', schedule);
     };
   }, [horizontalAlignment, open, position, revision, surfaceRef, verticalAlignment]);
 }
@@ -226,11 +229,11 @@ export function useSurfaceGestures(options: SurfaceGesturesOptions): void {
       const startSize = { width: startRect.width, height: startRect.height };
       const pointer = { x: event.clientX, y: event.clientY };
       const computed = getComputedStyle(surface);
-      const minimumWidth = Math.max(120, computedLimit(computed.minWidth, 0));
-      const minimumHeight = Math.max(44, computedLimit(computed.minHeight, 0));
+      const bounds = viewportRectangle();
+      const minimumWidth = Math.min(bounds.right - bounds.left - 2 * VIEWPORT_MARGIN, Math.max(120, computedLimit(computed.minWidth, 0)));
+      const minimumHeight = Math.min(bounds.bottom - bounds.top - 2 * VIEWPORT_MARGIN, Math.max(44, computedLimit(computed.minHeight, 0)));
       const maximumCssWidth = computedLimit(computed.maxWidth, Number.POSITIVE_INFINITY);
       const maximumCssHeight = computedLimit(computed.maxHeight, Number.POSITIVE_INFINITY);
-      const bounds = viewportRectangle();
       const controller = new AbortController();
       finishRef.current?.();
       let ended = false;
@@ -238,7 +241,9 @@ export function useSurfaceGestures(options: SurfaceGesturesOptions): void {
       if (dragging) onDragStart({ start, event });
       else onResizeStart({ startSize, event });
 
-      const move = (moveEvent: PointerEvent) => {
+      let frame: number | undefined;
+      let pendingMove: PointerEvent | undefined;
+      const applyMove = (moveEvent: PointerEvent) => {
         if (moveEvent.pointerId !== event.pointerId) return;
         const dx = moveEvent.clientX - pointer.x;
         const dy = moveEvent.clientY - pointer.y;
@@ -269,7 +274,10 @@ export function useSurfaceGestures(options: SurfaceGesturesOptions): void {
         if (west) surface.style.left = `${start.x + startSize.width - width}px`;
         if (north) surface.style.top = `${start.y + startSize.height - height}px`;
       };
+      const flushMove = () => { if (frame !== undefined) cancelAnimationFrame(frame); frame = undefined; const event = pendingMove; pendingMove = undefined; if (event) applyMove(event); };
+      const move = (moveEvent: PointerEvent) => { if (moveEvent.pointerId !== event.pointerId) return; pendingMove = moveEvent; frame ??= requestAnimationFrame(flushMove); };
       const release = () => {
+        if (frame !== undefined) cancelAnimationFrame(frame); frame = undefined; pendingMove = undefined;
         controller.abort();
         try {
           if (surface.hasPointerCapture(event.pointerId)) surface.releasePointerCapture(event.pointerId);
@@ -277,6 +285,7 @@ export function useSurfaceGestures(options: SurfaceGesturesOptions): void {
       };
       const end = (endEvent: PointerEvent) => {
         if (ended || endEvent.pointerId !== event.pointerId) return;
+        flushMove();
         ended = true;
         release();
         const rect = surface.getBoundingClientRect();
