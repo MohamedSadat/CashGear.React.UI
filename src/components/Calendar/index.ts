@@ -4,6 +4,7 @@ export type {
   CgCalendarCommonProps,
   CgCalendarDayRenderContext,
   CgCalendarLabels,
+  CgCalendarMultipleProps,
   CgCalendarProps,
   CgCalendarRangeProps,
   CgCalendarSelectionMode,

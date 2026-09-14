@@ -2,7 +2,7 @@ import type { HTMLAttributes, KeyboardEvent, ReactNode, SyntheticEvent } from 'r
 import type { CgBaseProps, CgDensity, CgDirection } from '../../types';
 import type { CgDateRangeValue, CgDateValue, CgDayOfWeek } from '../../types/date';
 
-export type CgCalendarSelectionMode = 'single' | 'range';
+export type CgCalendarSelectionMode = 'single' | 'range' | 'multiple';
 export type CgCalendarView = 'day' | 'month' | 'year';
 export type CgCalendarChangeReason = 'selection' | 'today' | 'clear';
 
@@ -92,4 +92,11 @@ export interface CgCalendarRangeProps extends CgCalendarCommonProps {
   onValueChange?: (value: CgDateRangeValue, details: CgCalendarValueChangeDetails<CgDateRangeValue>) => void;
 }
 
-export type CgCalendarProps = CgCalendarSingleProps | CgCalendarRangeProps;
+export interface CgCalendarMultipleProps extends CgCalendarCommonProps {
+  selectionMode: 'multiple';
+  value?: readonly CgDateValue[];
+  defaultValue?: readonly CgDateValue[];
+  onValueChange?: (value: readonly CgDateValue[], details: CgCalendarValueChangeDetails<readonly CgDateValue[]>) => void;
+}
+
+export type CgCalendarProps = CgCalendarSingleProps | CgCalendarRangeProps | CgCalendarMultipleProps;

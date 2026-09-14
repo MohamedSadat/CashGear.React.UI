@@ -34,6 +34,7 @@ import type {
   CgCalendarChangeReason,
   CgCalendarDayRenderContext,
   CgCalendarLabels,
+  CgCalendarMultipleProps,
   CgCalendarProps,
   CgCalendarRangeProps,
   CgCalendarSingleProps,
@@ -53,7 +54,13 @@ const ARABIC_LABELS: CgCalendarLabels = {
   previewRange: 'معاينة النطاق', unavailable: 'غير متاح', showing: 'عرض',
 };
 
-type CalendarValue = CgDateValue | CgDateRangeValue;
+type CalendarValue = CgDateValue | CgDateRangeValue | readonly CgDateValue[];
+
+function multipleDates(value: CalendarValue | undefined): readonly CgDateValue[] {
+  if (value == null) return Object.freeze([]);
+  if (!Array.isArray(value) || value.some(date => typeof date !== 'string' || !parseCanonicalDate(date))) throw new Error('CgCalendar multiple values must be canonical YYYY-MM-DD dates.');
+  return Object.freeze([...new Set(value as CgDateValue[])].sort());
+}
 
 function parseProp(name: string, value: CgDateValue | undefined): CivilDate | null {
   if (value === undefined) return null;
@@ -87,6 +94,7 @@ function rangeDates(value: CgDateRangeValue): { start: CivilDate | null; end: Ci
 }
 
 function selectedDate(value: CalendarValue, range: boolean): CivilDate | null {
+  if (Array.isArray(value)) return value.length ? parseCanonicalDate(value[0] as string) : null;
   if (range) return rangeDates(value as CgDateRangeValue).start;
   return typeof value === 'string' ? parseCanonicalDate(value) : null;
 }
@@ -111,8 +119,11 @@ export const CgCalendar = forwardRef<HTMLDivElement, CgCalendarProps>(function C
   const maximum = parseProp('maxDate', maxDate);
   if (minimum && maximum && compareCivilDates(minimum, maximum) > 0) throw new RangeError('CgCalendar minDate must not be later than maxDate.');
   const today = todayValue === undefined ? todayCivilDate() : parseProp('today', todayValue)!;
-  const initialValue: CalendarValue = _defaultValue ?? null;
-  const [actualValue, setActualValue] = useControllableState<CalendarValue>(_value, initialValue, 'CgCalendar');
+  const initialValue: CalendarValue = _defaultValue ?? (selectionMode === 'multiple' ? [] : null);
+  const [stateValue, setActualValue] = useControllableState<CalendarValue>(_value, initialValue, 'CgCalendar');
+  const actualValue = useMemo(() => selectionMode === 'multiple' ? multipleDates(stateValue) : stateValue, [selectionMode, stateValue]);
+  const multipleSelection = new Set(selectionMode === 'multiple' ? actualValue as readonly CgDateValue[] : []);
+  const selectionAnchor = useRef<CivilDate | null>(null);
   const initialAnchor = selectedDate(actualValue, selectionMode === 'range') ?? today;
   const requestedVisible = parseProp('visibleDate', visibleDate);
   const requestedDefaultVisible = parseProp('defaultVisibleDate', defaultVisibleDate);
@@ -157,7 +168,11 @@ export const CgCalendar = forwardRef<HTMLDivElement, CgCalendarProps>(function C
   const emit = (next: CalendarValue, reason: CgCalendarChangeReason, event?: Event | SyntheticEvent) => {
     const previousValue = actualValue;
     setActualValue(next);
-    if (selectionMode === 'range') {
+    if (selectionMode === 'multiple') {
+      const callback = _onValueChange as CgCalendarMultipleProps['onValueChange'];
+      const dates = multipleDates(next);
+      callback?.(dates, { value: dates, previousValue: previousValue as readonly CgDateValue[], reason, event });
+    } else if (selectionMode === 'range') {
       const callback = _onValueChange as CgCalendarRangeProps['onValueChange'];
       callback?.(next as CgDateRangeValue, { value: next as CgDateRangeValue, previousValue: previousValue as CgDateRangeValue, reason, event });
     } else {
@@ -177,6 +192,29 @@ export const CgCalendar = forwardRef<HTMLDivElement, CgCalendarProps>(function C
     if (disabled || readOnly || unavailable(date, minimum, maximum, isDateDisabled)) return;
     if (selectionMode === 'single') {
       emit(toCanonicalDate(date), reason, event);
+      return;
+    }
+    if (selectionMode === 'multiple') {
+      const modifiers = event as MouseEvent | KeyboardEvent | undefined;
+      const control = modifiers?.ctrlKey || modifiers?.metaKey;
+      const next = new Set<CgDateValue>(control ? multipleSelection : []);
+      if (modifiers?.shiftKey && selectionAnchor.current) {
+        const start = compareCivilDates(selectionAnchor.current, date) <= 0 ? selectionAnchor.current : date;
+        const end = compareCivilDates(selectionAnchor.current, date) <= 0 ? date : selectionAnchor.current;
+        let current = start;
+        while (compareCivilDates(current, end) <= 0) {
+          if (!unavailable(current, minimum, maximum, isDateDisabled)) next.add(toCanonicalDate(current));
+          const following = addDays(current, 1);
+          if (sameCivilDate(current, following)) break;
+          current = following;
+        }
+      } else {
+        const canonical = toCanonicalDate(date);
+        if (!control || !next.delete(canonical)) next.add(canonical);
+      }
+      if (!modifiers?.shiftKey) selectionAnchor.current = date;
+      const normalized = Object.freeze([...next].sort());
+      if (normalized.length !== multipleSelection.size || normalized.some(value => !multipleSelection.has(value))) emit(normalized, reason, event);
       return;
     }
     if (!pendingRangeStart) {
@@ -200,6 +238,7 @@ export const CgCalendar = forwardRef<HTMLDivElement, CgCalendarProps>(function C
     const lastMonth = addMonths(baseMonth, calendarCount - 1);
     if (compareCivilDates(targetMonth, baseMonth) < 0) changeVisible(targetMonth);
     else if (compareCivilDates(targetMonth, lastMonth) > 0) changeVisible(addMonths(targetMonth, -(calendarCount - 1)));
+    return next;
   };
 
   const handleKeys = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -230,7 +269,8 @@ export const CgCalendar = forwardRef<HTMLDivElement, CgCalendarProps>(function C
         case 'PageDown': target = event.shiftKey ? addYears(target, 1) : addMonths(target, 1); break;
         default: onKeyDown?.(event); return;
       }
-      moveFocus(target, compareCivilDates(target, focusedDate) < 0 ? -1 : 1);
+      const next = moveFocus(target, compareCivilDates(target, focusedDate) < 0 ? -1 : 1);
+      if (selectionMode === 'multiple' && event.shiftKey) choose(next, 'selection', event);
     } else if (view === 'month') {
       switch (event.key) {
         case 'ArrowLeft': target = addMonths(target, -horizontal); break;
@@ -275,7 +315,7 @@ export const CgCalendar = forwardRef<HTMLDivElement, CgCalendarProps>(function C
   const heading = view === 'day'
     ? calendarCount === 1 ? formatMonthHeading(baseMonth, resolvedLocale) : `${formatMonthHeading(baseMonth, resolvedLocale)} – ${formatMonthHeading(addMonths(baseMonth, 1), resolvedLocale)}`
     : view === 'month' ? String(baseMonth.year) : `${decadeGridStart(baseMonth.year)}–${Math.min(9999, decadeGridStart(baseMonth.year) + 11)}`;
-  const canClear = allowClear && actualValue !== null && !disabled && !readOnly;
+  const canClear = allowClear && (selectionMode === 'multiple' ? multipleSelection.size > 0 : actualValue !== null) && !disabled && !readOnly;
 
   return (
     <div
@@ -317,7 +357,7 @@ export const CgCalendar = forwardRef<HTMLDivElement, CgCalendarProps>(function C
           const panelHeading = `${calendarId}-month-${panelIndex}`;
           return <section key={toCanonicalDate(month)} className={styles.month} data-calendar-panel={panelIndex}>
             <h3 id={panelHeading} className={cx(styles.monthHeading, calendarCount === 1 && styles.srOnly)}>{formatMonthHeading(month, resolvedLocale)}</h3>
-            <div className={styles.grid} role="grid" aria-labelledby={panelHeading} aria-multiselectable={selectionMode === 'range' || undefined}>
+            <div className={styles.grid} role="grid" aria-labelledby={panelHeading} aria-multiselectable={selectionMode !== 'single' || undefined}>
               <div className={styles.week} role="row">{weekdays.map((weekday) => <div key={weekday.long} className={styles.weekday} role="columnheader" aria-label={weekday.long}>{weekday.short}</div>)}</div>
               {Array.from({ length: 6 }, (_, row) => <div key={row} className={styles.week} role="row">
                 {cells.slice(row * 7, row * 7 + 7).map((cell) => {
@@ -328,7 +368,7 @@ export const CgCalendar = forwardRef<HTMLDivElement, CgCalendarProps>(function C
                   const inRange = Boolean(visualStart && visualEnd && compareCivilDates(cell.date, visualStart) >= 0 && compareCivilDates(cell.date, visualEnd) <= 0);
                   const isStart = sameCivilDate(cell.date, visualStart);
                   const isEnd = sameCivilDate(cell.date, visualEnd);
-                  const isSelected = selectionMode === 'single' ? sameCivilDate(cell.date, singleValue) : inRange && !preview;
+                  const isSelected = selectionMode === 'multiple' ? multipleSelection.has(canonical) : selectionMode === 'single' ? sameCivilDate(cell.date, singleValue) : inRange && !preview;
                   const context: CgCalendarDayRenderContext = { date: canonical, isCurrentMonth: cell.isCurrentMonth, isToday, isSelected, isFocused, isDisabled: blocked, isRangeStart: isStart, isRangeEnd: isEnd, isInRange: inRange, isRangePreview: inRange && preview };
                   const states = [isToday ? text.today : '', isSelected ? text.selected : '', isStart ? text.rangeStart : '', isEnd ? text.rangeEnd : '', inRange && !isStart && !isEnd ? preview ? text.previewRange : text.inRange : '', blocked ? text.unavailable : ''].filter(Boolean);
                   const hideDuplicate = calendarCount === 2 && !cell.isCurrentMonth;
@@ -342,7 +382,7 @@ export const CgCalendar = forwardRef<HTMLDivElement, CgCalendarProps>(function C
                       data-date={canonical}
                       data-outside={!cell.isCurrentMonth || undefined}
                       data-today={isToday || undefined}
-                      data-selected={selectionMode === 'single' && isSelected || undefined}
+                      data-selected={selectionMode !== 'range' && isSelected || undefined}
                       data-range-start={isStart || undefined}
                       data-range-end={isEnd || undefined}
                       data-in-range={inRange || undefined}
@@ -379,7 +419,7 @@ export const CgCalendar = forwardRef<HTMLDivElement, CgCalendarProps>(function C
 
       {showTodayButton || showClearButton ? <div className={styles.footer}>
         {showTodayButton ? <button type="button" disabled={disabled || readOnly || unavailable(today, minimum, maximum, isDateDisabled)} onClick={(event) => { moveFocus(today, 1); choose(today, 'today', event); }}>{text.today}</button> : null}
-        {showClearButton ? <button type="button" disabled={!canClear} onClick={(event) => { setPendingRangeStart(null); setHoveredDate(null); emit(null, 'clear', event); }}>{text.clear}</button> : null}
+        {showClearButton ? <button type="button" disabled={!canClear} onClick={(event) => { selectionAnchor.current = null; setPendingRangeStart(null); setHoveredDate(null); emit(selectionMode === 'multiple' ? Object.freeze([]) : null, 'clear', event); }}>{text.clear}</button> : null}
       </div> : null}
     </div>
   );

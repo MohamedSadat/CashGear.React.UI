@@ -90,3 +90,10 @@ Pivot adds opaque query ownership, context-safe retained results, source/contrib
 Verification: typecheck, full ESLint, cycle analysis (337 modules), production and Storybook builds passed. The full unit suite passed 721 tests in 74 files with two workers; the final affected Pivot/TreeList run passed 73 tests. Four Phase 30 Chromium/WebKit interaction/Axe cases passed on the rebuilt bundle. Three light/dark/RTL-narrow Chromium baselines were visually inspected and passed a separate unchanged comparison. Package verification passed with 203 runtime exports and 2,237 packed files. One Firefox attempt reproduced the existing 30-second pre-page SWGL framebuffer failure; no Firefox assertion ran.
 
 Phases 31–33 and final cross-phase integration remain pending. No package was published and no consuming or Blazor repository was modified.
+
+## Phase 31 acceptance
+
+Calendar now supports controlled/uncontrolled multiple dates, stable sorted snapshots, modifier toggles, anchored keyboard/pointer ranges, restrictions and clear. The standalone DateRangePresetSelect adds ordered/localized presets, atomic ranges, boundary clamping, native forms/reset, field validation and read-only submission. DateRangePicker reuses pure calculations while retaining its list and defaults. Root exports include the new component/key and the Phase 30 TreeList ownership/virtualization types.
+
+Verification: 17 affected unit/public API tests passed with two workers; typecheck, full lint, cycle analysis (341 modules), production and Storybook builds and package verification passed (204 runtime exports). Four Chromium/WebKit interaction/Axe scenarios passed. Three light/dark/RTL-narrow screenshots were inspected. Final integration remains pending.
+Firefox was attempted once for Phase 31: the existing SWGL framebuffer failure prevented page creation after the 30-second launch timeout. No Firefox component coverage is claimed.

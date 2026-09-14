@@ -1,3 +1,4 @@
+import { resolveDateRangePreset } from '../../internal/date/dateRangePresets';
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent, KeyboardEvent, SyntheticEvent } from 'react';
 import { useCgId, useControllableState, useDirection, useFormReset, useMergedRefs, useStableCallback } from '../../hooks';
@@ -290,7 +291,7 @@ function CgDateRangePickerInner(props: CgDateRangePickerProps, forwardedRef: Rea
   }, [committed, effectiveError, required, text.required]);
 
   const builtIns = useMemo<ReadonlyArray<CgDateRangePreset>>(() => {
-    const create = (key: string, label: string, start: CivilDate, end: CivilDate): CgDateRangePreset => ({ key, label, getRange: () => ({ start: toCanonicalDate(start), end: toCanonicalDate(end) }) });
+    const create = (key: string, label: string, start: CivilDate, end: CivilDate): CgDateRangePreset => ({ key, label, getRange: () => { const shared = ({ 'current-month': 'currentMonth', 'prior-month': 'lastMonth', 'current-year': 'yearToDate', 'prior-year': 'lastYear' } as const)[key as 'current-month' | 'prior-month' | 'current-year' | 'prior-year']; return shared ? resolveDateRangePreset(shared, toCanonicalDate(today)) : { start: toCanonicalDate(start), end: toCanonicalDate(end) }; } });
     const thisWeekStart = startOfWeek(today, effectiveFirstDayIndex);
     const previousWeekEnd = addDays(thisWeekStart, -1);
     const previousMonthEnd = addDays(startOfMonth(today), -1);

@@ -31,7 +31,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'CgConfirmationProvider',
   'CgContextMenu',
   'CgDateEdit',
-  'CgDateRangePicker',
+  'CgDateRangePresetSelect', 'CgDateRangePicker',
   'CgDrawer',
   'CgDropDownBox',
   'CgDropDownButton',
