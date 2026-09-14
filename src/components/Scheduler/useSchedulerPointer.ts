@@ -2,20 +2,20 @@ import { useEffect, useRef } from 'react';
 import type { PointerEvent, RefObject } from 'react';
 import { useStableCallback } from '../../hooks';
 
-export interface PointerCell { start: number; end: number; date: string; allDay: boolean }
+export interface PointerCell { start: number; end: number; date: string; allDay: boolean; resourceKey?: string }
 interface Gesture { pointerId: number; x: number; y: number; currentX: number; currentY: number; moved: boolean; origin: PointerCell; target: PointerCell; element: HTMLElement; kind: string }
-function readCell(element: Element | null, x?: number): PointerCell | null {
+function readCell(element: Element | null, x?: number, y?: number): PointerCell | null {
   const cell = element?.closest<HTMLElement>('[data-scheduler-cell]');
   if (!cell) return null;
   let start = Number(cell.dataset.start); let end = Number(cell.dataset.end);
-  if (cell.dataset.axis === 'horizontal' && x !== undefined) {
+  if ((cell.dataset.axis === 'horizontal' || cell.dataset.snap === 'never') && x !== undefined && cell.dataset.snap !== 'always' && cell.dataset.allDay !== 'true') {
     const rect = cell.getBoundingClientRect(); const reversed = cell.dataset.direction === 'rtl';
-    const fraction = Math.max(0, Math.min(0.999999, (reversed ? rect.right - x : x - rect.left) / rect.width));
-    const interval = Number(cell.dataset.interval) * 60_000;
+    const fraction = Math.max(0, Math.min(0.999999, cell.dataset.axis !== 'horizontal' && y !== undefined ? (y - rect.top) / rect.height : (reversed ? rect.right - x : x - rect.left) / rect.width));
+    const interval = cell.dataset.snap === 'never' ? 60_000 : Number(cell.dataset.interval) * 60_000;
     start += Math.floor(fraction * (end - start) / interval) * interval;
     end = Math.min(end, start + interval);
   }
-  return { start, end, date: cell.dataset.date!, allDay: cell.dataset.allDay === 'true' };
+  return { start, end, date: cell.dataset.date!, allDay: cell.dataset.allDay === 'true', resourceKey: cell.dataset.resourceKey };
 }
 export function useSchedulerPointer(root: RefObject<HTMLDivElement | null>, scroll: RefObject<HTMLDivElement | null>, onPreview: (origin: PointerCell, target: PointerCell, kind: string) => void, onCommit: (origin: PointerCell, target: PointerCell, kind: string) => void, onCancel: () => void) {
   const gesture = useRef<Gesture | null>(null);
@@ -40,7 +40,7 @@ export function useSchedulerPointer(root: RefObject<HTMLDivElement | null>, scro
   const locate = useStableCallback((g: Gesture) => {
     const elements = document.elementsFromPoint(g.currentX, g.currentY);
     const hit = elements.find((element) => root.current?.contains(element) && element.matches('[data-scheduler-cell]'));
-    const cell = readCell(hit ?? null, g.currentX);
+    const cell = readCell(hit ?? null, g.currentX, g.currentY);
     if (cell && cell.allDay === g.origin.allDay) { g.target = cell; preview(g.origin, cell, g.kind); }
   });
   const tick = useStableCallback(function frame() {
@@ -60,7 +60,7 @@ export function useSchedulerPointer(root: RefObject<HTMLDivElement | null>, scro
       if (event.button !== 0 || gesture.current) return;
       suppressClick.current = false;
       const underneath = document.elementsFromPoint?.(event.clientX, event.clientY).find((element) => root.current?.contains(element) && element.matches('[data-scheduler-cell]'));
-      const cell = readCell(underneath ?? null, event.clientX) ?? origin ?? readCell(event.target as Element, event.clientX);
+      const cell = readCell(underneath ?? null, event.clientX, event.clientY) ?? origin ?? readCell(event.target as Element, event.clientX, event.clientY);
       if (!cell) return;
       // Capture on the stable viewport: overlap reflow can move an appointment's DOM node.
       const element = scroll.current ?? event.currentTarget;

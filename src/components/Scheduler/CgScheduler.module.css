@@ -1,7 +1,7 @@
 .root { display: flex; flex-direction: column; min-inline-size: 0; border: 1px solid var(--cg-border); border-radius: var(--cg-radius-md); background: var(--cg-scheduler-bg, var(--cg-surface)); color: var(--cg-scheduler-text, var(--cg-text)); font: var(--cg-font-size-sm)/1.4 var(--cg-font-family); overflow: hidden; }
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; border-block-end: 1px solid var(--cg-border); }
 .heading { flex: 1; min-inline-size: 180px; text-align: center; }
-.toolbar select, .fields input, .fields textarea { font: inherit; padding: 8px; border: 1px solid var(--cg-border-strong); border-radius: var(--cg-radius-sm); color: var(--cg-text); background: var(--cg-surface); }
+.toolbar select, .fields input, .fields textarea, .fields select { font: inherit; padding: 8px; border: 1px solid var(--cg-border-strong); border-radius: var(--cg-radius-sm); color: var(--cg-text); background: var(--cg-surface); }
 .scroll { flex: 1; min-block-size: 0; overflow: auto; position: relative; overscroll-behavior: contain; }
 .headers { display: grid; position: sticky; top: 0; z-index: 4; background: var(--cg-surface-subtle); min-inline-size: max-content; }
 .headers > div { padding: 10px 6px; text-align: center; border-inline-end: 1px solid var(--cg-border); border-block-end: 1px solid var(--cg-border); font-weight: 600; }
@@ -49,4 +49,9 @@
 .fields textarea { min-block-size: 80px; resize: vertical; }
 .actions { display: flex; gap: 8px; justify-content: flex-end; }
 .moreList { display: grid; gap: 8px; }
+.resourceNavigator { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 12px; border: 1px solid var(--cg-border); }
+.resourceNavigator label { display: flex; align-items: center; gap: 4px; }
+.resourceHeading { background: var(--cg-surface-subtle); padding: 8px; border-block-end: 1px solid var(--cg-border); font-weight: 600; }
+.fields fieldset { border: 1px solid var(--cg-border); padding: 12px; display: grid; gap: 8px; min-inline-size: 0; }
+.fields fieldset label:has(input[type='checkbox']) { display: flex; align-items: center; gap: 6px; }
 @media (forced-colors: active) { .appointment { border-color: ButtonText; background: Canvas; color: CanvasText; } .cell[aria-selected='true'], .appointment[aria-pressed='true'] { outline: 2px solid Highlight; } .now, .timelineNow { background: Highlight; } }

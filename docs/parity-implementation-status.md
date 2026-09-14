@@ -104,3 +104,9 @@ Recurrence is opt-in, immutable and bounded, with wall-clock DST patterns, exclu
 
 Verification: 23 affected unit tests passed with two workers; typecheck, full lint, cycle analysis (343 modules), production/Storybook builds and package verification passed (204 runtime exports). All 20 Scheduler Chromium/WebKit interaction/Axe scenarios passed. The combined runner stalled after the last WebKit test during teardown and was interrupted; all three inspected light/dark/RTL-narrow visual baselines subsequently passed in a separate clean run. Phases 32B, 32C, 33 and final integration remain pending.
 The Phase 32A Firefox launch attempt reproduced the 30-second SWGL framebuffer failure before page creation; no Firefox component coverage is claimed.
+
+## Phase 32B acceptance
+
+Scheduler now supports resource/date grouping, visible-resource ownership, cross-resource drag permissions, optional location/labels/statuses/custom fields, advanced Timeline scales, timezone/workday/layout controls, specialized rendering, and cancellable form/tooltip lifecycle. Popup owns sizing/movement/focus lifecycle; persistence remains host-owned. Month retains the source date layout, filtered by visible resources.
+
+Verification: 29 affected unit tests passed with two workers. Typecheck, full lint, cycle analysis (347 modules), production/Storybook builds and package verification passed (204 runtime exports). Six Chromium/WebKit interaction/Axe scenarios cover tooltip lifecycle, metadata save, resource filtering and pointer reassignment. Three new light/dark/RTL-narrow baselines were visually inspected. A vendor-copy collision between concurrent library/Storybook builds was resolved by building sequentially. Firefox reproduced the 30-second pre-page SWGL framebuffer failure; no Firefox component coverage is claimed. Phases 32C/33 and final integration remain pending.
