@@ -276,6 +276,8 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
   const [liveMessage, setLiveMessage] = useState('');
   const [internalInvalid, setInternalInvalid] = useState(false);
   const [resolverRevision, setResolverRevision] = useState(0);
+  const selectionGeneration = useRef(0);
+  const selectionProposal = useRef<{ generation: number; next: TValue | null } | null>(null);
   const mountedRef = useRef(true);
   const rowsRef = useRef(rows);
   const disabledRef = useRef(rowDisabled);
@@ -334,6 +336,10 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
     rowsRef.current = rows;
     disabledRef.current = rowDisabled;
     valueRef.current = committedValue;
+    if (!Object.is(controlledValueRef.current, value) && selectionProposal.current) {
+      const next = selectionProposal.current.next;
+      if (!(isEmptyValue(value) && isEmptyValue(next)) && (isEmptyValue(value) || isEmptyValue(next) || !isValueEqual(value as TValue, next as TValue))) { selectionGeneration.current++; selectionProposal.current = null; }
+    }
     controlledValueRef.current = value;
     selectedRef.current = actualSelectedItem;
     sortRef.current = sort;
@@ -528,12 +534,16 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
     setActiveIndex(-1);
   });
 
-  const emitValue = useStableCallback((
+  const emitValue = useStableCallback(async (
     nextValue: TValue | null,
     nextItem: TItem | null,
     reason: 'select' | 'clear' | 'reset',
     event?: Event | SyntheticEvent,
+    generation: number = ++selectionGeneration.current,
   ) => {
+    const current = () => mountedRef.current && generation === selectionGeneration.current;
+    if (!current()) return;
+    selectionProposal.current = { generation, next: nextValue };
     const previousValue = valueRef.current;
     const previousItem = selectedRef.current;
     const details: CgLookUpGridValueChangeDetails<TItem, TValue> = {
@@ -551,34 +561,31 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
       if (controlledSelectedItem === undefined) setInternalSelectedItem(nextItem);
       setResolvedItem(nextItem);
       cacheRef.current = nextItem;
-      onValueChange?.(nextValue, details);
-      onSelectedItemChange?.(nextItem, details);
-      if (reason === 'select' && nextItem !== null) onItemSelect?.(nextItem, { ...details, item: nextItem } satisfies CgLookUpGridItemSelectDetails<TItem, TValue>);
-      if (reason === 'clear') onClear?.(details);
+      const callbacks = [() => onValueChange?.(nextValue, details), () => onSelectedItemChange?.(nextItem, details), () => reason === 'select' && nextItem !== null ? onItemSelect?.(nextItem, { ...details, item: nextItem } satisfies CgLookUpGridItemSelectDetails<TItem, TValue>) : undefined, () => reason === 'clear' ? onClear?.(details) : undefined];
+      for (const callback of callbacks) { if (!current()) return; const pending = callback(); if (pending && typeof pending.then === 'function') await pending; }
+      if (!current()) return;
       if (value !== undefined) {
-        queueMicrotask(() => {
-          if (!mountedRef.current) return;
-          const authoritative = controlledValueRef.current ?? null;
-          const accepted = isEmptyValue(authoritative) === isEmptyValue(nextValue) && (
-            isEmptyValue(authoritative) || isValueEqual(authoritative as TValue, nextValue as TValue)
-          );
-          if (accepted) return;
-          valueRef.current = authoritative;
-          const authoritativeItem = rowsRef.current.find((item) => valueMatches(item, authoritative))
-            ?? (cacheRef.current && valueMatches(cacheRef.current, authoritative) ? cacheRef.current : null);
-          cacheRef.current = authoritativeItem;
-          setResolvedItem(authoritativeItem);
-          if (controlledSelectedItem === undefined) setInternalSelectedItem(authoritativeItem);
-          setDraft(authoritativeItem ? textSelectorStable(authoritativeItem) : isEmptyValue(authoritative) ? '' : String(authoritative));
-        });
+        await Promise.resolve();
+        if (!current()) return;
+        const authoritative = controlledValueRef.current ?? null;
+        valueRef.current = authoritative;
+        const authoritativeItem = rowsRef.current.find(item => valueMatches(item, authoritative)) ?? (nextItem && valueMatches(nextItem, authoritative) ? nextItem : previousItem && valueMatches(previousItem, authoritative) ? previousItem : null);
+        cacheRef.current = authoritativeItem; setResolvedItem(authoritativeItem);
+        if (controlledSelectedItem === undefined) setInternalSelectedItem(authoritativeItem);
+        setDraft(authoritativeItem ? textSelectorStable(authoritativeItem) : isEmptyValue(authoritative) ? '' : String(authoritative));
       }
+      selectionProposal.current = null;
     } catch (callbackError) {
-      setCommittedValue(previousValue);
-      valueRef.current = previousValue;
-      if (controlledSelectedItem === undefined) setInternalSelectedItem(previousItem);
-      setResolvedItem(previousItem);
-      cacheRef.current = previousItem;
-      setDraft(previousItem === null ? (isEmptyValue(previousValue) ? '' : String(previousValue)) : textSelectorStable(previousItem));
+      if (!current()) return;
+      selectionProposal.current = null;
+      const rollbackValue = value === undefined ? previousValue : controlledValueRef.current ?? null;
+      const rollbackItem = previousItem && valueMatches(previousItem, rollbackValue) ? previousItem : rowsRef.current.find(item => valueMatches(item, rollbackValue)) ?? null;
+      setCommittedValue(rollbackValue);
+      valueRef.current = rollbackValue;
+      if (controlledSelectedItem === undefined) setInternalSelectedItem(rollbackItem);
+      setResolvedItem(rollbackItem);
+      cacheRef.current = rollbackItem;
+      setDraft(rollbackItem === null ? (isEmptyValue(rollbackValue) ? '' : String(rollbackValue)) : textSelectorStable(rollbackItem));
       console.error('CgLookUpGrid change callback failed; the proposed selection was rolled back.', callbackError);
     }
   });
@@ -586,22 +593,26 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
   const selectRow = useStableCallback(async (index: number, event?: MouseEvent | KeyboardEvent, restoreFocus = true) => {
     const item = rowsRef.current[index];
     if (!item || disabledRef.current[index] || field.disabled || field.readOnly) return;
+    const generation = ++selectionGeneration.current;
     await requestClose('select', event, false);
+    if (!mountedRef.current || generation !== selectionGeneration.current) return;
     const nextValue = valueSelectorStable(item);
     cacheRef.current = item;
     setDraft(textSelectorStable(item));
-    emitValue(nextValue, item, 'select', event);
-    if (restoreFocus) queueMicrotask(() => inputRef.current?.focus({ preventScroll: true }));
+    await emitValue(nextValue, item, 'select', event, generation);
+    if (restoreFocus && mountedRef.current && generation === selectionGeneration.current) queueMicrotask(() => inputRef.current?.focus({ preventScroll: true }));
   });
 
   const clear = useStableCallback(async (event?: Event | SyntheticEvent, reason: 'clear' | 'reset' = 'clear') => {
     if (reason === 'clear' && (field.disabled || field.readOnly || !clearable)) return;
+    const generation = ++selectionGeneration.current;
     if (openRef.current) await requestClose('programmatic', event, false);
+    if (!mountedRef.current || generation !== selectionGeneration.current) return;
     resolverControllerRef.current?.abort();
     resolverAttemptsRef.current = [];
     cacheRef.current = null;
     setDraft('');
-    emitValue(null, null, reason, event);
+    await emitValue(null, null, reason, event, generation);
   });
 
   const setColumnFilter = useStableCallback(async (fieldId: string, nextValue?: string, reason: 'input' | 'action' = 'action', event?: Event | SyntheticEvent) => {
@@ -824,15 +835,17 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
     }
   }, [cancelQuery, committedText, isOpen, runQuery, scheduleQuery]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (previousDataRef.current === data) return;
     previousDataRef.current = data;
+    selectionGeneration.current++;
     if (openRef.current) void runQuery(false);
   }, [data, runQuery]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (Object.is(previousDataVersionRef.current, dataVersion)) return;
     previousDataVersionRef.current = dataVersion;
+    selectionGeneration.current++;
     resolverControllerRef.current?.abort();
     resolverAttemptsRef.current = [];
     cacheRef.current = null;
@@ -848,11 +861,12 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
     if (openRef.current) void runQuery(false);
   }, [ignoreDiacritics, locale, runQuery]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const previous = previousContextRef.current;
     const next = queryContext as TContext;
     if (queryContextEqualStable(previous, next)) return;
     previousContextRef.current = next;
+    selectionGeneration.current++;
     resolverControllerRef.current?.abort();
     resolverAttemptsRef.current = [];
     cacheRef.current = null;
@@ -909,18 +923,19 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
     if (value === undefined) {
       const next = defaultValue;
       const item = data?.find((candidate): candidate is TItem => candidate !== null && candidate !== undefined && !isEmptyValue(next) && isValueEqual(valueSelectorStable(candidate), next as TValue)) ?? null;
-      emitValue(next, item, 'reset');
+      void emitValue(next, item, 'reset');
     }
     if (openRef.current) void requestClose('reset');
   });
   useFormReset(formProxyRef, resetFromForm);
 
-  useEffect(() => () => {
+  useEffect(() => { mountedRef.current = true; return () => {
     mountedRef.current = false;
+    selectionGeneration.current++;
     cancelQuery();
     resolverControllerRef.current?.abort();
     resolverGenerationRef.current += 1;
-  }, [cancelQuery]);
+  }; }, [cancelQuery]);
 
   const moveActive = (delta: number) => {
     if (rowsRef.current.length === 0) return;

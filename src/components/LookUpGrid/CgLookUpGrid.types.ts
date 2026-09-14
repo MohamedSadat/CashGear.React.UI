@@ -173,11 +173,11 @@ interface CgLookUpGridCommonProps<TItem, TValue, TContext>
   textSelector: (item: TItem) => string;
   value?: TValue | null;
   defaultValue?: TValue | null;
-  onValueChange?: (value: TValue | null, details: CgLookUpGridValueChangeDetails<TItem, TValue>) => void;
+  onValueChange?: ((value: TValue | null, details: CgLookUpGridValueChangeDetails<TItem, TValue>) => void) | ((value: TValue | null, details: CgLookUpGridValueChangeDetails<TItem, TValue>) => PromiseLike<void>);
   selectedItem?: TItem | null;
-  onSelectedItemChange?: (item: TItem | null, details: CgLookUpGridValueChangeDetails<TItem, TValue>) => void;
-  onItemSelect?: (item: TItem, details: CgLookUpGridItemSelectDetails<TItem, TValue>) => void;
-  onClear?: (details: CgLookUpGridValueChangeDetails<TItem, TValue>) => void;
+  onSelectedItemChange?: ((item: TItem | null, details: CgLookUpGridValueChangeDetails<TItem, TValue>) => void) | ((item: TItem | null, details: CgLookUpGridValueChangeDetails<TItem, TValue>) => PromiseLike<void>);
+  onItemSelect?: ((item: TItem, details: CgLookUpGridItemSelectDetails<TItem, TValue>) => void) | ((item: TItem, details: CgLookUpGridItemSelectDetails<TItem, TValue>) => PromiseLike<void>);
+  onClear?: ((details: CgLookUpGridValueChangeDetails<TItem, TValue>) => void) | ((details: CgLookUpGridValueChangeDetails<TItem, TValue>) => PromiseLike<void>);
   isValueEqual?: (left: TValue, right: TValue) => boolean;
   itemResolver?: CgLookUpGridItemResolver<TItem, TValue, TContext>;
 

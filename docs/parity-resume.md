@@ -1,6 +1,6 @@
 # Current continuation — complete Phases 30–33
 
-The user authorized all remaining phases on 2026-09-14. Phases 30, 31, 32A, 32B and 32C are accepted; continue with Phase 33 in a separate verified commit, followed by full integration. Preserve React defaults and keep Blazor/consumer repositories read-only. Reference Blazor aea3e622; the detailed accepted plan is in the current task. Phase 30 acceptance is in parity-implementation-status.md. No scheduled continuation is configured.
+The user authorized all remaining phases on 2026-09-14. Phases 30, 31, 32A, 32B, 32C and 33 are accepted; continue with full integration, final source reconciliation and documentation. Preserve React defaults and keep Blazor/consumer repositories read-only. Reference Blazor aea3e622; the detailed accepted plan is in the current task. Phase 30 acceptance is in parity-implementation-status.md. No scheduled continuation is configured.
 
 The older Phase 29 checkpoint below is historical, not an instruction to stop.
 

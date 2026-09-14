@@ -31,3 +31,13 @@ The existing `remoteExport(request, options, context)` callback now receives imm
 See [the in-memory host adapter](../../stories/examples/gridRemoteExport.ts) and [Phase 29 consumer stories](../../stories/Phase29.stories.tsx). These use the existing provider/export callbacks. Applications can replace them with their typed HTTP adapters without changing the Grid API.
 
 `createGridXlsx` also accepts optional `CgGridXlsxSettings` with cancellation, row limits, summary rows and direction. Existing three-argument calls remain valid.
+
+## JSON and widths (Phase 33)
+
+`exportToJson(options)` returns a separate `CgGridJsonExportResult` (text, UTF-8 bytes, fileName, application/json, rowCount). `writeJson(destination, options)` returns rowCount, byteLength and fieldIds; it honors backpressure and cancellation and never closes or aborts the caller-owned stream. Discard partial output after any failure. Standard JSON conversion preserves decimal strings, omits undefined object properties and converts non-finite numbers to null; circular references, bigint, functions and symbols fail with the record index. Only committed records and visible, authorized, export-enabled data field IDs are serialized; presentation and summary rows are omitted.
+
+Both formats preserve fullFiltered/currentPage/selectedRecords scopes, including selected local records hidden by filters. Both opt-in maxRows and maxCells limits count data records/cells, excluding headers and summaries. Remote JSON uses remoteJsonExport and a separate result type; adapters own authorization and must report rowCount. The existing remoteExport callback and XLSX result remain compatible. JSON appears in context menus for local data or a JSON adapter.
+
+Column exportWidth is in pixels. XLSX resolves explicit exportWidth, current displayed width, saved userWidth/measuredWidth, then configured numeric/pixel width; unresolved widths keep spreadsheet defaults. Download URLs remain alive for 60 seconds. React checkbox selection is the equivalent of newer Blazor checkbox-driven multiple selection; existing React multiple selection retains its modifier/click behavior.
+
+Blazor 238cbc3f disposal guards map to React effect cleanup, request generations, AbortSignal and null DOM refs; exports also reject retained action references after unmount. No JS module import/disposal bridge is needed.

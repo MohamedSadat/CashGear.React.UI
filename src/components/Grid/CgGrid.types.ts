@@ -164,6 +164,7 @@ interface CgGridColumnCommon<TItem, TValue = unknown> {
   readonly searchable?: boolean;
   readonly groupable?: boolean;
   readonly exportEnabled?: boolean;
+  readonly exportWidth?: number;
   readonly initialGroupIndex?: number;
   readonly renderHeader?: (context: CgGridHeaderRenderContext<TItem>) => ReactNode;
   readonly renderCell?: (context: CgGridCellRenderContext<TItem, TValue>) => ReactNode;
@@ -276,11 +277,13 @@ export interface CgGridVirtualizationStatus {
 export type CgGridExportScope = 'fullFiltered' | 'currentPage' | 'selectedRecords';
 export interface CgGridRemoteExportContext {
   readonly signal: AbortSignal; readonly scope: CgGridExportScope; readonly selectedKeys: ReadonlyArray<string>;
-  readonly authorizedFieldIds: ReadonlyArray<string>; readonly maxRows?: number;
+  readonly authorizedFieldIds: ReadonlyArray<string>; readonly maxRows?: number; readonly maxCells?: number;
 }
 export interface CgGridExportResult { readonly rowCount?: number; readonly fileName: string; readonly mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'; readonly bytes: Uint8Array }
-export interface CgGridExportOptions { readonly fileName?: string; readonly download?: boolean; readonly scope?: CgGridExportScope; readonly signal?: AbortSignal; readonly maxRows?: number }
+export interface CgGridExportOptions { readonly fileName?: string; readonly download?: boolean; readonly scope?: CgGridExportScope; readonly signal?: AbortSignal; readonly maxRows?: number; readonly maxCells?: number }
 
+export interface CgGridJsonExportResult { readonly rowCount: number; readonly fileName: string; readonly mimeType: 'application/json'; readonly text: string; readonly bytes: Uint8Array }
+export interface CgGridJsonWriteResult { readonly rowCount: number; readonly byteLength: number; readonly fieldIds: ReadonlyArray<string> }
 export type CgGridContextMenuArea = 'row' | 'cell' | 'header' | 'footer' | 'groupRow' | 'groupFooter' | 'groupPanel' | 'emptyArea';
 export type CgGridContextMenuSelectionBehavior = 'preserve' | 'focus' | 'selectIfNeeded' | 'replace';
 export interface CgGridContext<TItem> { readonly area: CgGridContextMenuArea; readonly item?: TItem; readonly rowKey?: string; readonly column?: CgGridColumnDescriptor<TItem>; readonly value?: unknown; readonly groupKey?: string; readonly actions: CgGridActions<TItem> }
@@ -301,6 +304,8 @@ export interface CgGridActions<TItem> {
   getEditState(): CgGridEditState<TItem>; commitEdits(): Promise<boolean>; cancelEdits(): Promise<boolean>; rollbackRow(key: CgGridKey): Promise<boolean>; retryConflict(key?: CgGridKey): Promise<boolean>; reloadAuthoritative(): Promise<boolean>; hasPendingEdits(): boolean; requestNavigation(reason?: CgGridEditNavigationReason): Promise<boolean>;
   expandDetail(key: CgGridKey): Promise<boolean>; collapseDetail(): Promise<boolean>;
   autoFitColumn(fieldId: string): Promise<void>; exportToXlsx(options?: CgGridExportOptions): Promise<CgGridExportResult>;
+  exportToJson(options?: CgGridExportOptions): Promise<CgGridJsonExportResult>;
+  writeJson(destination: WritableStream<Uint8Array>, options?: CgGridExportOptions): Promise<CgGridJsonWriteResult>;
   setColumnVisible(fieldId: string, visible: boolean): Promise<void>; freezeColumn(fieldId: string, frozen?: boolean): Promise<void>; moveColumn(fieldId: string, displayIndex: number): Promise<void>; resizeColumn(fieldId: string, width: number): Promise<void>;
   getFilterCriteria(): CgFilterNode | null; applyFilterCriteria(criteria: CgGridFilterNode | null): Promise<boolean>; requestFilterBuilder(): Promise<boolean>; setFilterEnabled(enabled: boolean): Promise<void>;
   clearFilters(): Promise<void>; clearSorting(): Promise<void>; groupBy(fieldId: string, direction?: CgGridSortDirection): Promise<void>; ungroup(fieldId: string): Promise<void>; clearGrouping(): Promise<void>;
@@ -364,6 +369,7 @@ interface CgGridCommonProps<TItem> extends NativeGridProps {
   onContextMenuCommandFailure?: (details: CgContextMenuCommandFailureDetails<CgGridContext<TItem>>) => void | PromiseLike<void>;
   onDataError?: (details: CgGridDataErrorDetails) => void;
   remoteExport?: (request: CgGridDataRequest, options: CgGridExportOptions, context: CgGridRemoteExportContext) => PromiseLike<CgGridExportResult>;
+  remoteJsonExport?: (request: CgGridDataRequest, options: CgGridExportOptions, context: CgGridRemoteExportContext) => PromiseLike<CgGridJsonExportResult>;
   toolbar?: ReactNode | ((actions: CgGridActions<TItem>) => ReactNode);
   renderLoading?: () => ReactNode; renderEmpty?: () => ReactNode; renderError?: (details: CgGridDataErrorDetails) => ReactNode;
   stickyHeader?: boolean; stripedRows?: boolean; height?: CSSProperties['height']; size?: CgSizeMode; direction?: CgDirection; labels?: Partial<CgGridLabels>; actionsRef?: Ref<CgGridActions<TItem>>;
