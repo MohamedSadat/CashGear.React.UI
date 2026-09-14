@@ -26,7 +26,8 @@ const tree: ReadonlyArray<CgAccordionItemDescriptor> = [
 function ControlledExample() {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set(['customer']));
   const [selected, setSelected] = useState<string | null>('customer');
-  return <CgAccordion items={panels} expandedKeys={expanded} onExpandedKeysChange={setExpanded} selectedKey={selected} onSelectedKeyChange={setSelected} />;
+  // The query container needs a definite inline size inside StoryFrame's wrapping flex row.
+  return <CgAccordion style={{ width: 640, maxWidth: '100%' }} items={panels} expandedKeys={expanded} onExpandedKeysChange={setExpanded} selectedKey={selected} onSelectedKeyChange={setSelected} />;
 }
 
 export const ControlledDisclosure: Story = { render: () => <StoryFrame source={source} difference={difference}><ControlledExample /></StoryFrame> };

@@ -27,6 +27,7 @@ export default defineConfig({
     { name: 'chromium-semantic', testMatch: semantic, use: { ...devices['Desktop Chrome'] } },
     { name: 'firefox-semantic', testMatch: semantic, use: { ...devices['Desktop Firefox'], launchOptions: { timeout: 30_000, firefoxUserPrefs: { 'gfx.webrender.force-disabled': true } } } },
     { name: 'webkit-semantic', testMatch: semantic, use: { ...devices['Desktop Safari'] } },
+    { name: 'webkit-visual', testMatch: visual, snapshotPathTemplate: '{testDir}/__snapshots__/webkit/{testFilePath}/{arg}{ext}', use: { ...devices['Desktop Safari'] } },
     { name: 'chromium-visual', testMatch: visual, use: { ...devices['Desktop Chrome'] } },
   ],
 });

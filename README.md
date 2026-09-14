@@ -1,10 +1,12 @@
 # `@cashgear/ui`
 
-`CgScheduler` adds Day, Work Week, Week, Month, and Timeline scheduling with CRUD, drag/resize, timezone-aware dates, and cancellable range loading. See [Scheduler usage and contracts](src/components/Scheduler/README.md).
+`CgScheduler` adds Day, Work Week, Week, Month, and Timeline scheduling with CRUD, drag/resize, timezone-aware recurrence and occurrence exceptions, resources, reminders, iCalendar, typed actions, and cancellable range loading. See [Scheduler usage and contracts](src/components/Scheduler/README.md).
 
 `CgPdfViewer` adds lazy browser PDF rendering with URL, data, or authorized-provider sources, navigation, search, zoom, rotation, thumbnails, outlines, password handling, and opt-in annotations. See [PDF Viewer usage and security](src/components/PdfViewer/README.md).
 
-CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–25 mirror the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, TimeEdit, Calendar, DateRangePicker, FileUploader, PDF Viewer, RangeSelector, Chart, Tooltip, StatusBadge, Splitter, Drawer, Toast and Confirmation providers, MessageBox alerts, overlays, MaskedInput, command surfaces, GridLayout, responsive FormLayout, TreeView, the focused `CgLookUpGrid`, and the advanced Filter/Grid/Pager surface without Bootstrap or DevExpress.
+CashGear's React 19 component library: accessible, typed, themeable controls for dense business applications. Phases 1–33 cover the foundational controls, object- and scalar-key ComboBox surfaces, ListBox, TagBox, arbitrary-content DropDownBox, DateEdit, TimeEdit, Calendar, DateRangePicker, FileUploader, PDF Viewer, RangeSelector, Chart, Tooltip, StatusBadge, Splitter, Drawer, Toast and Confirmation providers, MessageBox alerts, overlays, MaskedInput, command surfaces, GridLayout, responsive FormLayout, TreeView, TreeList, PivotTable, the focused `CgLookUpGrid`, and the advanced Filter/Grid/Pager surface without Bootstrap or DevExpress.
+
+Calendar supports single, range and multiple dates. The standalone `CgDateRangePresetSelect` shares boundary-safe calculations with DateRangePicker. Grid adds cancellable JSON/UTF-8 streaming exports and XLSX widths; LookUpGrid supports asynchronous selection callbacks. Existing selection, numeric and export defaults remain compatible. See [current parity classification and acceptance](docs/cgcomplib-react-parity.md).
 
 ## Install and import
 
@@ -250,7 +252,7 @@ Arrow keys, Home/End, Enter, Escape, Tab, outside clicks, and empty-query Backsp
 
 Each selected key is submitted through an internal native multi-select, never through the editable query. External `form` association, native reset, required validation, disabled exclusion, invalid-focus transfer, custom option/tag rendering, dark/compact density, and RTL are supported. Duplicate option keys and invalid source/timing/limit combinations throw clear errors.
 
-The React contract intentionally stores selected objects rather than Razor scalar keys. Custom key comparers, scalar-key adapters, and `ResolveValuesAsync` hydration remain deferred because selected objects carry their tag labels.
+CgTagBox keeps its selected-object contract. CgKeyTagBox supplies scalar-key selection, custom key comparers and abortable resolver hydration when the host stores keys.
 
 ## DropDownBox
 
@@ -367,7 +369,7 @@ Formats use `H`/`HH`, `h`/`hh`, `m`/`mm`, optional `s`/`ss`, and `t`/`tt`; twelv
 
 ## Calendar and DateRangePicker
 
-`CgCalendar` supports controlled or uncontrolled single dates and ranges, one or two month panels, range preview, day templates, deterministic `today`, date restrictions, Today/Clear controls, localized announcements, roving grid focus, day/month/year panels, and complete keyboard navigation. Only a completed second endpoint emits a range, and pointer-selected endpoints are normalized chronologically.
+`CgCalendar` supports controlled or uncontrolled single dates, ranges and readonly multiple-date arrays, one or two month panels, range preview, day templates, deterministic `today`, date restrictions, Today/Clear controls, localized announcements, roving grid focus, day/month/year panels, and complete keyboard navigation. Only a completed second endpoint emits a range, and pointer-selected endpoints are normalized chronologically.
 
 `CgDateRangePicker` composes that calendar with the editor and overlay primitives. Its canonical empty value is `null`; partial, all-null-object, reversed, malformed, disabled, and constrained caller values remain observable invalid state.
 
@@ -609,7 +611,7 @@ Cell and batch editing use spreadsheet-style type-to-edit by default; set `editi
 
 Custom summaries use stable aggregate keys and ordered input field IDs. Built-ins stay synchronous; trusted local custom delegates run through an abortable async path over complete filtered total/group scopes, and remote requests contain only serializable IDs, keys, fields, scope, and query state. Availability, loading, safe error codes, and completeness are explicit.
 
-The React adaptation deliberately does not expose Razor child registration, expressions, SQL/EF/Dapper translation, generic HTTP adapters, server persistence, or Blazor lifecycle concepts. Row/column virtualization, automatic column discovery, and unrelated deferred controls remain out of scope.
+The React adaptation deliberately does not expose Razor child registration, expressions, SQL/EF/Dapper translation, generic HTTP adapters, server persistence, or Blazor lifecycle concepts. Row/column virtualization and committed export scopes are implemented in Phase 29. Automatic column discovery is intentionally replaced by explicit typed columns.
 
 ## LookUpGrid
 
@@ -800,7 +802,7 @@ All hierarchy construction and traversal is iterative. Flat duplicates throw; ne
 
 Lazy and provider work uses per-operation abort controllers plus generations, so collapse, reload, removal, replacement, and unmount cannot attach stale results. Editing and add/delete/move handlers receive immutable contexts and remain host-owned; client permissions are presentation only. Providers must enforce tenant/company/user authorization, whitelisted fields and queries, count protection, membership, cycles, and versions.
 
-Root `CgPager`, per-parent loading, fixed-height row and fixed-edge column virtualization, versioned view state, `CgContextMenu`, `CgPopup`, local/authorized summaries, XLSX outlines, hierarchy print layout, and an optional host PDF adapter are integrated. Complete-tree output requires an authorized snapshot provider when loaded data is incomplete. QuestPDF is deliberately not a browser dependency, pointer drag-and-drop is deferred, and variable-height virtualization is outside Phase 21. See [`src/components/TreeList/README.md`](src/components/TreeList/README.md) for the full contract and trust boundary.
+Root `CgPager`, per-parent loading, fixed-height row and fixed-edge column virtualization, versioned view state, `CgContextMenu`, `CgPopup`, local/authorized summaries, XLSX outlines, hierarchy print layout, and an optional host PDF adapter are integrated. Complete-tree output requires an authorized snapshot provider when loaded data is incomplete. QuestPDF is deliberately not a browser dependency, pointer drag-and-drop and variable-height virtualization remain deferred in both libraries. See [`src/components/TreeList/README.md`](src/components/TreeList/README.md) for the full contract and trust boundary.
 
 ## RangeSelector
 
@@ -895,21 +897,21 @@ Eligibility uses the trimmed query length, but `onSearch` receives the original 
 Components:
 
 - `CgIcon`, `CgButton`, `CgButtonGroup`, `CgField`
-- `CgTextBox`, `CgMemo`, `CgRichTextEditor`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgKeyComboBox`, `CgLookUpGrid`, `CgListBox`, `CgTagBox`, `CgDropDownBox`, `CgDateEdit`, `CgTimeEdit`, `CgCalendar`, `CgDateRangePicker`, `CgFileUploader`
+- `CgTextBox`, `CgMemo`, `CgRichTextEditor`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgKeyComboBox`, `CgLookUpGrid`, `CgListBox`, `CgTagBox`, `CgKeyTagBox`, `CgDropDownBox`, `CgDateEdit`, `CgTimeEdit`, `CgCalendar`, `CgDateRangePicker`, `CgDateRangePresetSelect`, `CgFileUploader`
 - `CgFlyout`, `CgPopup`, `CgWindow`, `CgMessageBox`, `CgMaskedInput`
 - `CgSplitter`, `CgDrawer`
 - `CgChart`, `CgMap`, `CgPdfViewer`, `CgRangeSelector`, `CgTooltip`, `CgStatusBadge`
 - `CgMenu`, `CgContextMenu`, `CgDropDownButton`, `CgSplitButton`, `CgToolbar`
-- `CgLayoutBreakpoint`, `CgGridLayout`, `CgGridLayoutItem`, `CgTabs`, `CgStepper`, `CgAccordion`, `CgTreeView`, `CgTreeList`, `CgFilterBuilder`, `CgPager`, `CgGrid`
+- `CgLayoutBreakpoint`, `CgGridLayout`, `CgGridLayoutItem`, `CgTabs`, `CgStepper`, `CgAccordion`, `CgTreeView`, `CgTreeList`, `CgPivotTable`, `CgScheduler`, `CgFilterBuilder`, `CgPager`, `CgGrid`
 - `CgFormLayout`, `CgFormLayoutItem`, `CgFormLayoutGroup`, `CgFormLayoutTabs`
 - `CgRadio`, `CgRadioGroup`
-- `CgNumericEdit`, `CgSpinEdit`, `CgSearchBox`
+- `CgNumericEdit`, `CgDecimalEdit`, `CgSpinEdit`, `CgSearchBox`
 - `CgLoadingPanel`, `CgWaitIndicator`, `CgProgressBar`
-- `CgToastProvider`, `CgConfirmationProvider`
+- `CgToastProvider`, `CgConfirmationProvider`, `CgEditorCommitProvider`
 
-Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, canonical `CgDateValue`/`CgDateRangeValue`/`CgTimeValue`, the Filter Core AST/registry/persistence contracts, the DateEdit/TimeEdit/Calendar/DateRangePicker contracts, the FileUploader item/transport/event/render/action contracts, the PDF source/state/event/render/action contracts, the Chart descriptor/axis/selection/action/localization contracts, the GridLayout descriptors, the TreeList binding/column/node/provider/mutation/output/state/render/action contracts, the Splitter versioned-state/descriptor/detail contracts, the Drawer lifecycle/render/action contracts, WaitIndicator, MessageBox, Toast and Confirmation APIs, the shared overlay contracts, and each descriptor component's props, actions, lifecycle details, and render/state contexts. Private PDF controller/model modules, chart model/layout/browser modules, endpoint-session tokens, menu, adaptive-layout, TreeView normalization/check/filter engines, and TreeList hierarchy/projection internals are not exported. There is intentionally no universal component-state interface.
+Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, canonical `CgDateValue`/`CgDateRangeValue`/`CgTimeValue`, the Filter Core AST/registry/persistence contracts, the DateEdit/TimeEdit/Calendar/DateRangePicker contracts and CgDateRangePresetKey, Scheduler recurrence/resource/reminder/action/iCalendar contracts, the FileUploader item/transport/event/render/action contracts, the PDF source/state/event/render/action contracts, the Chart descriptor/axis/selection/action/localization contracts, the GridLayout descriptors, the TreeList binding/column/node/provider/mutation/output/state/render/action contracts, the Splitter versioned-state/descriptor/detail contracts, the Drawer lifecycle/render/action contracts, WaitIndicator, MessageBox, Toast and Confirmation APIs, the shared overlay contracts, and each descriptor component's props, actions, lifecycle details, and render/state contexts. Private PDF controller/model modules, chart model/layout/browser modules, endpoint-session tokens, menu, adaptive-layout, TreeView normalization/check/filter engines, and TreeList hierarchy/projection internals are not exported. There is intentionally no universal component-state interface.
 
-The public hooks are `useControllableState`, `useCgId`, `useCgContextMenuTarget`, `useCgToast`, and `useCgConfirmation`; `cx` is the public class-name utility. All other primitives and hooks are private implementation details.
+The public hooks are `useControllableState`, `useCgId`, `useCgContextMenuTarget`, `useCgToast`, `useCgConfirmation`, `useCgLayoutBreakpoint`, and `useCgEditorCommit`; `cx` is the public class-name utility. All other primitives and hooks are private implementation details.
 
 ## Development
 
@@ -921,8 +923,8 @@ Use Node `^22.22.2 || ^24.15.0 || >=26.0.0`; this matches the locked jsdom requi
 | `npm run build-storybook` | Create the static Storybook build |
 | `npm run test:browser` | Build Storybook and run all Playwright browser projects |
 | `npm run test:browser:semantic` | Run semantic and Axe checks in Chromium, Firefox, and WebKit |
-| `npm run test:browser:visual` | Compare canonical Chromium screenshots |
-| `npm run test:browser:update` | Regenerate Chromium screenshots on the current platform |
+| `npm run test:browser:visual` | Compare Chromium and WebKit screenshots |
+| `npm run test:browser:update` | Regenerate Chromium and WebKit screenshots on the current platform |
 | `npm run typecheck` | Strict TypeScript check for source, tests, and Storybook |
 | `npm run lint` | Type-aware ESLint and React Hooks rules |
 | `npm run test` | Semantic Vitest/Testing Library suite |
@@ -933,7 +935,9 @@ Use Node `^22.22.2 || ^24.15.0 || >=26.0.0`; this matches the locked jsdom requi
 
 Install browser binaries once with `npx playwright install chromium firefox webkit`. Storybook's global toolbar switches light/dark, comfortable/compact, and LTR/RTL. Every component has its own story module with applicable controlled/uncontrolled, disabled, read-only, required/invalid, size, long/empty, loading, keyboard, and Arabic RTL scenarios. Each module records its Razor source and known difference. Storybook retains its accessibility panel; Playwright also runs Axe against canonical stories and fails serious or critical findings.
 
-Chromium screenshots in `tests/browser/__snapshots__` are canonical Windows/Node 24.19 baselines. Playwright snapshots are platform-specific; regenerate them on the same operating system used for comparison. Browser tests serve the prebuilt Storybook through a lifecycle-managed Vite preview server. No CI workflow is installed; browser gates run locally through `npm run verify`.
+Windows Chromium baselines live in `tests/browser/__snapshots__`; WebKit has a separate `webkit` subdirectory. Playwright snapshots are platform-specific; regenerate them on the same operating system used for comparison. Browser tests serve the prebuilt Storybook through a lifecycle-managed Vite preview server. No CI workflow is installed; browser gates run locally through `npm run verify`.
+
+Current acceptance (2026-09-14): scoped parity through Phases 30–33 is complete against Blazor `aea3e622`. Verification covers 755 unit tests with two workers, the full 402-case Chromium/WebKit semantic/Axe suite plus 34 post-fix checks, and all 630 visual cases across the full sweep and reviewed baseline rechecks. Typecheck, lint, cycles, builds and package verification passed. Firefox remains environment-blocked before page creation; no Firefox coverage is claimed for this pass. See the [acceptance record](docs/parity-implementation-status.md) for the exact results, baseline changes and transient navigation failures. The phase notes below are historical.
 
 The Phase 10 Node 24.19 verification completed with 205 Vitest tests, 68 semantic/Axe cases per engine, 108 Chromium visual tests comparing 116 Windows snapshots, and package verification of exactly 33 runtime exports across 648 packed files. Firefox's headless software renderer still cannot start on this host; all 68 cases were covered headed, with one legacy TagBox browser-context teardown flake passing immediately in isolation. See the parity ledger for the exact gate breakdown.
 
@@ -959,4 +963,4 @@ Phase 25 verification on 2026-09-06 passed strict typecheck and lint, 69 Vitest 
 
 The library is ESM-only. Vite preserves modules for tree-shaking, keeps React external, emits declarations and declaration maps, and produces `dist/cashgear-ui.css`, exported only as `@cashgear/ui/styles.css`. Leaflet and the rich-text engine are emitted as lazy chunks. The PDF.js browser distribution is emitted unchanged under `dist/vendor/pdfjs` for host deployment. Their licenses, notices, images, pins, and integrity manifests ship with the package. `npm run verify:package` verifies exact hashes and copied bytes, rejects bare runtime vendor imports, and runs `npm pack --dry-run` so the publish allow-list is checked before release.
 
-See [the parity ledger](docs/cgcomplib-react-parity.md) for the original and current Razor snapshots, source/test/story paths, intentional differences, exact verification results, and deferred advanced components.
+See [the parity ledger](docs/cgcomplib-react-parity.md) for the original and current Razor snapshots, source/test/story paths, intentional differences, exact verification results, and capabilities deferred in both libraries.

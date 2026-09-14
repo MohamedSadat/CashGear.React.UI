@@ -380,6 +380,8 @@ test('phase-12-tree-context-menu visual', async ({ page }) => {
 test('DropDownBox custom and nested content', async ({ page }) => {
   await openStory(page, 'phase-6-dropdownbox--custom-display-header-footer-and-buttons');
   await page.getByRole('combobox', { name: 'Custom display and commands' }).click();
+  // Wait for popup focus to activate the selected row before capture.
+  await expect(page.getByRole('option', { selected: true })).toHaveAttribute('data-active', 'true');
   await expect(page).toHaveScreenshot('drop-down-box-custom.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
 
   await openStory(page, 'phase-6-dropdownbox--nested-popup');
@@ -546,7 +548,10 @@ for (const [name, story, globals, nested] of [
 }
 
 test('Phase 10 ContextMenu loading visual', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-09-14T12:00:00Z') });
+  await page.clock.pauseAt(new Date('2026-09-14T12:01:00Z'));
   await openStory(page, 'phase-10-contextmenu--loading');
+  await page.clock.runFor(300);
   await expect(page.getByRole('status')).toBeVisible();
   await expect(page).toHaveScreenshot('phase-10-context-loading.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
 });

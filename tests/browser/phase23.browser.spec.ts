@@ -32,6 +32,15 @@ test('Phase 23 Map loads local tiles, activates markers, fits bounds, and suppor
   await expect(map.locator('.leaflet-tile')).not.toHaveCount(0);
   const hq = map.locator('[data-cg-map-marker="hq"]');
   await expect(hq).toHaveAttribute('role', 'button');
+  // The HQ coordinate equals the controlled center, including after a host resize.
+  const centerOffset = () => hq.evaluate(element => {
+    const marker = element.getBoundingClientRect();
+    const canvas = element.closest('.leaflet-container')!.getBoundingClientRect();
+    return Math.abs(marker.left + 12 - (canvas.left + canvas.width / 2));
+  });
+  await expect.poll(centerOffset).toBeLessThan(2);
+  await map.evaluate(element => { element.style.width = '500px'; });
+  await expect.poll(centerOffset).toBeLessThan(2);
   await hq.click();
   await expect(page.getByLabel('Selected map marker')).toHaveText('CashGear HQ');
   await expect(map.getByText('CashGear headquarters')).toBeVisible();

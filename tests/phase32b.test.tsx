@@ -8,6 +8,15 @@ const resources: readonly CgSchedulerResource[] = [{ id: 1, caption: 'Room A' },
 const item = { id: 1, title: 'Planning', start: '2026-09-07T09:00:00Z', end: '2026-09-07T10:00:00Z', resources: [1] };
 const base = { items: [item], idSelector: (value: typeof item) => value.id, titleSelector: (value: typeof item) => value.title, startSelector: (value: typeof item) => value.start, endSelector: (value: typeof item) => value.end, resourceIdsSelector: (value: typeof item) => value.resources, resources, defaultSelectedDate: '2026-09-07', defaultCurrentView: 'day' as const, visibleDayStart: '08:00', visibleDayEnd: '12:00' };
 describe('Scheduler resources and customization', () => {
+  it('decorates weekday headers and positions unsnapped timed Month spans fractionally', () => {
+    const view = render(<CgScheduler {...base} defaultCurrentView="month" snapToCellsMode="never" cellDecoration={context => context.cellType === 'dayOfWeekHeader' ? { attributes: { 'data-weekday': context.date } } : undefined} />);
+    expect(view.container.querySelectorAll('[data-weekday]')).toHaveLength(7);
+    const appointment = screen.getByRole('button', { name: /Planning/ }).parentElement!;
+    expect(Number.parseFloat(appointment.style.width)).toBeCloseTo(100 / (24 * 7), 8);
+    view.rerender(<CgScheduler {...base} defaultCurrentView="month" snapToCellsMode="always" />);
+    const snapped = screen.getByRole('button', { name: /Planning/ }).parentElement!.style.width;
+    expect(snapped).toContain('calc('); expect(Number.parseFloat(snapped.slice(5))).toBeCloseTo(100 / 7, 3);
+  });
   it('keeps slot selection and new appointments in the selected resource', async () => {
     const create = vi.fn((_request: CgSchedulerOperationRequest<typeof item>) => ({ success: true as const }));
     render(<CgScheduler {...base} groupType="resource" onAppointmentCreating={create} />);

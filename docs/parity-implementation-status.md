@@ -1,32 +1,35 @@
 # Parity implementation acceptance record
 
-React starting revision: `7791c80d652cdb0c26a57ac6c9846fadcf380842`.
-Read-only Blazor reference: `79cf0c2bfb0b885641c842a03d88392bdbf2c2c4`.
+Current pass: React starts at `9663863`; read-only Blazor is pinned to `aea3e6222adce68b10ff120d7bee1e43358287d0`. Earlier phase entries retain their historical evidence.
+
+Phases 26–29 began at React `7791c80d652cdb0c26a57ac6c9846fadcf380842` against Blazor `79cf0c2bfb0b885641c842a03d88392bdbf2c2c4`.
 
 This record tracks implementation separately from acceptance. An implemented API is not considered verified until its tests and integration gates are recorded.
 
 | Phase | Capability | Implementation | Acceptance |
 | --- | --- | --- | --- |
-| 26 | Commit scopes, editor flush/reset, protected dialogs, overlay hardening | Implemented | Focused and integration checks passed; see below |
-| 27 | Numeric policies, exact decimal editor | Implemented | Focused checks passed; final cross-phase integration pending |
-| 28 | ListBox transactions, TagBox context, key adapter | Implemented | Phase checks passed; final cross-phase integration pending |
-| 29 | Grid virtualization, export scopes | Implemented | Phase acceptance below; final cross-phase integration pending |
-| 30 | PivotTable and TreeList hardening | Implemented | Phase acceptance below; final cross-phase integration pending |
-| 31 | Calendar multiple selection, preset selector | Pending | Pending |
-| 32 | Scheduler recurrence, resources, reminders, templates, iCalendar | Pending | Pending |
-| 33 | Grid JSON/width exports and async LookUpGrid selection | Pending | Pending |
+| 26 | Commit scopes, editor flush/reset, protected dialogs, overlay hardening | Implemented | Verified; final integration accepted below |
+| 27 | Numeric policies, exact decimal editor | Implemented | Verified; final integration accepted below |
+| 28 | ListBox transactions, TagBox context, key adapter | Implemented | Verified; final integration accepted below |
+| 29 | Grid virtualization, export scopes | Implemented | Verified; final integration accepted below |
+| 30 | PivotTable and TreeList hardening | Implemented | Verified; final integration accepted below |
+| 31 | Calendar multiple selection, preset selector | Implemented | Verified; final integration accepted below |
+| 32 | Scheduler recurrence, resources, reminders, templates, iCalendar | Implemented in 32A/32B/32C | Verified; final integration accepted below |
+| 33 | Grid JSON/width exports and async LookUpGrid selection | Implemented | Verified; final integration accepted below |
 
 ## Recent reference commits
 
 | Commit | Areas to reconcile | Status |
 | --- | --- | --- |
-| `fb523d4c` | TreeList, TagBox, PivotTable | TagBox query/selection ownership implemented in Phase 28; TreeList/Pivot remain Phase 30 |
-| `130d8628` | SpinEdit and editor commit integration | Numeric/commit equivalents implemented in Phases 26–27; final reconciliation audit pending |
-| `fbf3fcb9` | Overlays, ListBox, TextBox and related integration | Editor/overlay equivalents implemented in Phase 26; ListBox hardening implemented in Phase 28; final reconciliation audit pending |
+| `fb523d4c` | TreeList, TagBox, PivotTable | TagBox ownership in Phase 28; TreeList/Pivot ownership, validation, filtering and export reliability in Phase 30 |
+| `130d8628` | SpinEdit and editor commit integration | Numeric/commit equivalents implemented in Phases 26–27; reconciled against pinned source |
+| `fbf3fcb9` | Overlays, ListBox, TextBox and related integration | Editor/overlay equivalents in Phase 26; ListBox hardening in Phase 28; reconciled against pinned source |
 
 ## Boundaries
 
 Existing React APIs and controlled-state authority are preserved. Parent-driven close and unmount are authoritative; guarded close actions run the optional busy/dirty/discard policy. Backend authorization and persistence remain host-owned. TreeList pointer drag/drop and variable-height virtualization, and ListBox remote paging, are deferred in both libraries and are not counted as missing parity.
+
+The following phase notes are chronological records. Later acceptance supersedes their historical pending work and pause instructions. The current outcome is recorded under Final integration.
 
 ## Phase 26 acceptance
 
@@ -126,3 +129,28 @@ Verification: 81 affected Grid/LookUpGrid tests passed with two workers, includi
 Reference reconciliation: b732d80a JSON/async lookup maps to these APIs; efd85c96 widths and checkbox-driven multiple map to width resolution and React checkbox mode; 238cbc3f disposal fixes map to existing React effect cleanup, request generations and null DOM refs, supplemented by unmounted export guards. The separately uncommitted Blazor Grid JS cleanup delays URL revocation by 60 seconds; React now mirrors it without editing the source repository.
 
 The Phase 33 Firefox attempt reproduced the existing 30-second SWGL framebuffer timeout before page creation. No Firefox assertions ran.
+
+## Final integration — accepted (2026-09-14)
+
+All six requested phase commits are accepted. Final source reconciliation added Month weekday-header decoration and precise timed placement when snapping is disabled, with a regression test. Existing default Month layout remains unchanged. The new geometry assertions use numeric tolerances for browser CSS serialization.
+
+Completed gates: 755 unit tests in 79 files passed with two workers; all 402 Chromium/WebKit semantic and accessibility scenarios passed (201 per engine). Typecheck, full lint with a final clean focused check, cycle analysis (351 source modules), production/Storybook builds and package verification passed (204 runtime exports; 2,309 packed files). The post-fix full unit run again passed all 755 tests, and 34 affected Chromium/WebKit interaction/Axe checks passed. Visual acceptance is complete with the full-sweep and focused results below. The final Firefox attempt reproduced the 30-second pre-page SWGL framebuffer launch failure; no Firefox assertion ran.
+
+The visual integration sweep exposed a stylesheet-order dependency between Grid and Pager. Grid now scopes its existing compact footer rule so alignment and spacing remain stable across lazy chunk order. It also reproduced a Map resize defect in both engines: the marker at the controlled center drifted 139 pixels after a host resize. Leaflet size invalidation now preserves the center; the added browser assertion passes in both engines and existing Map baselines remain valid. The Accordion disclosure story now has a definite width inside its flex host. ContextMenu loading and Calendar dates use controlled clocks; DropDownBox capture waits for the selected active row. The old Pivot drill pager baseline was inspected and reconciled. The Pivot drill screenshot now targets the dialog directly to avoid full-page capture resizing the vh-sized Storybook host. Eighteen repeated Map, DropDownBox and Pivot visual comparisons passed without updates. Final post-fix gates are recorded below.
+
+Recorded host: Windows, Node 22.20.0 and npm 10.9.3.
+
+
+| Final gate | Recorded result |
+| --- | --- |
+| Full unit suite | 755 tests in 79 files passed with two workers, including the final source audit changes. |
+| Full Chromium/WebKit semantic and Axe suite | 402 passed, 201 per engine; all 34 post-fix Grid/Accordion/Map and related interaction/Axe checks also passed. |
+| Full visual sweep | All 630 cases ran, 315 per engine: 625 passed and five captures required inspected baseline updates. Four were Phase 33 footer spacing/alignment captures; one old Phase 24.1 RTL baseline incorrectly showed LTR. |
+| Visual rechecks | The RTL baseline comparison passed 12 repeated checks. Phase 33's repeated comparison passed 16/18, with two Storybook navigation timeouts before capture; the subsequent serial six-case Chromium/WebKit comparison passed unchanged. All five full-sweep mismatches are resolved. Eighteen earlier Pivot/Map/DropDownBox stability checks also passed. |
+| Baseline inspection | Added and inspected 323 Windows WebKit images, including full-size light/dark/RTL coverage for every new phase. Reviewed all changed Chromium captures and all corrected WebKit footer captures. Separate engine baseline directories are now part of the visual scripts. |
+| Typecheck, lint, cycles | Passed, including final fixture checks; 351 source modules have no relative-import cycles. |
+| Production and Storybook builds | Passed sequentially; the final package check rebuilt the current production source. |
+| Package verification | Passed: 204 runtime exports and 2,309 packed files. |
+| Firefox | One final attempt reproduced the 30-second RenderCompositorSWGL framebuffer launch failure before page creation. Environment-blocked; no component, Axe or visual coverage claimed. |
+
+The accepted scope is complete. Every audited capability is implemented and verified, intentionally adapted, or deferred in both libraries in the current parity ledger. Existing React selection, numeric and export defaults remain intact. The Blazor reference and its separately recorded Grid download-cleanup working-tree change remain read-only. No runtime dependency, consuming-application/backend change, package publication or remote push was made.

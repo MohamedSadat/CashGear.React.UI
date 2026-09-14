@@ -1,41 +1,22 @@
-# Current continuation — complete Phases 30–33
+# CashGear parity completion checkpoint
 
-The user authorized all remaining phases on 2026-09-14. Phases 30, 31, 32A, 32B, 32C and 33 are accepted; continue with full integration, final source reconciliation and documentation. Preserve React defaults and keep Blazor/consumer repositories read-only. Reference Blazor aea3e622; the detailed accepted plan is in the current task. Phase 30 acceptance is in parity-implementation-status.md. No scheduled continuation is configured.
+The approved Phases 30–33 scope and final integration audit are complete. No in-scope implementation work remains. The phase commits below are followed by the final integration/acceptance commit.
 
-The older Phase 29 checkpoint below is historical, not an instruction to stop.
+| Phase | Commit | Scope |
+| --- | --- | --- |
+| 30 | d9050f9 | Pivot/TreeList reliability |
+| 31 | 01d2de2 | Calendar multiple dates and preset selector |
+| 32A | 578f394 | Scheduler recurrence/occurrence editing |
+| 32B | ff6ea94 | Scheduler resources/customization |
+| 32C | 2d37b29 | Scheduler reminders/actions/iCalendar |
+| 33 | ce81ea4 | Grid JSON/streams/widths and async LookUpGrid |
 
-# Resume CashGear parity after Phase 29
+React started at 9663863. Blazor is read-only at aea3e6222adce68b10ff120d7bee1e43358287d0 in D:/LiveProjects/CGWebApp. Its one pre-existing uncommitted UI change is Grid/CgGrid.razor.js delayed download cleanup; React mirrors the 60-second delay separately. No consumer/backend edits, package publishing or runtime dependencies are authorized by this scope.
 
-The user resumed on 2026-09-09. Phase 29 is complete and work is paused at the requested phase boundary. Start Phase 30 only when the user resumes. No scheduled continuation was created.
+Preserve existing React selection modes, numeric semantics, controlled authority and export defaults. TreeList pointer drag/drop, variable-height virtualization and ListBox remote paging remain deferred in both libraries.
 
-React starting revision: `7791c80d652cdb0c26a57ac6c9846fadcf380842`.
-Read-only Blazor reference: `79cf0c2bfb0b885641c842a03d88392bdbf2c2c4`, repository `D:/LiveProjects/CGWebApp`.
-Phase 26 commit: `699e59d`. Phase 27 commit: `e47c890`. Phase 28 commit: `30832cd`. The Phase 29 commit contains this updated checkpoint.
+Final acceptance: 755 unit tests with two workers; 402 full-suite Chromium/WebKit semantic/Axe cases plus 34 post-fix checks; all 630 visual scenarios covered by the full sweep and reviewed, passing baseline rechecks; type/lint/cycles, both builds and package verification passed (204 runtime exports, 2,309 files). See [acceptance](parity-implementation-status.md) for the five baseline reconciliations and transient navigation failures, and the [ledger](cgcomplib-react-parity.md) for capability classifications.
 
-Current implementation and verification are tracked in [the acceptance record](parity-implementation-status.md). Component contracts are documented under EditorCommit, DecimalEdit, and KeyTagBox. Keep existing React defaults, controlled ownership, saved-state compatibility, host-owned persistence and authorization. Blazor/backend repositories remain read-only. Do not publish or modify consuming applications.
+Firefox remains environment-blocked: the final attempt reproduced the known pre-page SWGL framebuffer launch timeout. No Firefox coverage is claimed. Any future Blazor revision requires a new scoped audit; do not restart the completed phase work.
 
-## Next: Phase 30
-
-Start with PivotTable and TreeList hardening. Inspect component/provider/export types and current tests before editing. Both already have commit integration from Phase 26 and exact decimal metadata from Phase 27.
-
-- Pivot: propagate dataVersion/queryContext to views, distinct values, drill-down and exports; invalidate pending/retained work on ownership changes. Add opt-in source/contribution budgets, evaluate measure selectors once, complete hidden/dependent filters and distinct pagination, null/timezone validation, and scoped incremental exports.
-- TreeList: forward version/context consistently; tighten root/child/detail/path ownership, overlapping page and total/key checks; finish validation/persistence locking, virtualization diagnostics/focus, and postorder weighted/partial descendant summaries.
-- Reconcile Phase 30 against Blazor fb523d4c and the accepted plan. Do not treat features deferred in both libraries as missing parity.
-
-Phase 29 adds private useGridVirtualization/exportRecords helpers, extended public Grid types, optional row/column modes, group footers, and export scopes/limits/cancellation. No stored-state migration or new runtime export was needed. The Grid README and Phase 29 story/tests describe host adapters and fallback semantics. Its commit contains this checkpoint; find the hash in Git history.
-
-## Remaining phases
-
-30: Pivot query ownership, budgets, dependent filters/distinct pagination, scoped incremental exports; TreeList provider ownership, commit validation, virtual diagnostics, and postorder weighted summaries.
-
-31: Calendar multiple selection and standalone date-range preset selector with shared date calculations.
-
-32: Advanced Scheduler recurrence, exceptions, resources, mounted reminders, timeline scales, render contexts, actions, and iCalendar. Reference recurrence expansion has a 500,000-candidate bound. Preserve wall-clock DST recurrence and exclusive all-day ends.
-
-Reconcile every applicable change from Blazor `fb523d4c`, `130d8628`, and `fbf3fcb9` in the matrix before final completion. Backend code, legacy Razor wrappers, and features deferred in both libraries remain outside scope.
-
-## Verification notes
-
-Each phase needs unit and public-type coverage, Storybook, Chromium/WebKit interactions/Axe, inspected new visual baselines, and a separate commit. Run full integration after all phases. The host has a known Firefox framebuffer launch failure; attempt once per acceptance pass and record it without claiming Firefox coverage.
-
-Playwright uses the static Storybook build and one shared port 6006; do not run separate browser invocations concurrently. Root runtime export additions must update both `tests/public-api.test.ts` and `scripts/verify-package.mjs`. Node is at `C:/Program Files/nodejs/node.exe`; Python was unavailable. Use reduced Vitest workers if concurrent heavy builds cause existing five-second tests to time out.
+Build library, Storybook and package checks sequentially to avoid vendor-copy contention. Playwright uses shared port 6006, so browser invocations must be sequential. Node is C:/Program Files/nodejs/node.exe. The ignored playwright-report directory holds current pass logs. No recurring continuation is configured.

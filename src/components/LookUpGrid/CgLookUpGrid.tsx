@@ -931,6 +931,8 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
 
   useEffect(() => { mountedRef.current = true; return () => {
     mountedRef.current = false;
+    // This counter must invalidate the latest transaction, not the generation at mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     selectionGeneration.current++;
     cancelQuery();
     resolverControllerRef.current?.abort();

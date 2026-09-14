@@ -1,4 +1,6 @@
-# CashGear Blazor UI → `@cashgear/ui` Phase 1–25 parity
+# CashGear Blazor UI → `@cashgear/ui` parity ledger
+
+Current reconciliation is pinned to Blazor `aea3e6222adce68b10ff120d7bee1e43358287d0`, with React starting at `9663863`. Phases 30–33 and final integration are accepted for the approved scope. The current capability classification and pinned-reference reconciliation near the end supersede historical gap/deferred entries below. See the [acceptance record](parity-implementation-status.md).
 
 ## Core Scheduler port
 
@@ -6,7 +8,7 @@ Reference: `CashGear.Blazor.UI/Components/Data/Scheduler` at `1e327060d65c8ae7e9
 
 React adaptations use generic selectors, offset-bearing ISO strings, IANA timezone names, controlled/uncontrolled state, immutable operation drafts, AbortSignal, native form fields inside CgPopup, and CSS modules/theme tokens. Date and layout engines preserve half-open intervals, exclusive all-day end dates, earlier repeated instants, gap advancement, and real-instant slots across DST. Runtime API adds `CgScheduler`; interfaces are type-only exports. No dependency was added.
 
-Recurrence, resources, reminders, iCalendar, advanced scale/form/tooltip customization, and imperative Blazor methods are explicitly deferred. See [Scheduler contracts](../src/components/Scheduler/README.md).
+Phases 32A–32C now implement recurrence, resources, reminders, iCalendar, advanced scale/form/tooltip customization, and typed actions; the core-port evidence below is historical. See [Scheduler contracts](../src/components/Scheduler/README.md).
 
 Validation on 2026-09-05 passed TypeScript, repository ESLint, all 562 Vitest tests in 57 files, cycle analysis across 289 source modules, production library/Storybook builds, and package verification (188 runtime exports; 1,375 packed files). The complete Chromium/WebKit semantic and Chromium visual regression run passed all 512 cases without baseline updates or retries. Six new scheduler baselines were separately generated and visually inspected; existing baselines were preserved.
 
@@ -14,7 +16,7 @@ After the final date precision, stable working-day state, partial Timeline scale
 
 Firefox was attempted with fail-fast enabled but could not launch: `RenderCompositorSWGL failed mapping default framebuffer` caused a 30-second timeout before page creation. No Firefox component assertions ran; this matches the existing documented host limitation.
 
-## Reference snapshot
+## Historical reference snapshot
 
 The implementation was compared against the **working tree**, not only the committed revision, at `D:\LiveProjects\CGWebApp`. The reference repository was read only.
 
@@ -496,9 +498,9 @@ Phase 13 is additive on top of the uncommitted Phase 11 and Phase 12 worktree. T
 - Context menus reuse Phase 10 `CgContextMenu`. XLSX generation is dependency-free, returns a typed byte result, and performs browser download only through an explicit SSR-safe helper.
 - Named views use an injected store. The bundled browser store is personal/localStorage-only; role/company security remains an application/server concern.
 
-Intentional deferrals remain inline/cell/batch editing, row/column virtualization, automatic column discovery, transactional inference, custom aggregates, generic HTTP adapters, TreeList, and DateRangePicker. New visual evidence uses `phase-13-grid-*` names and does not replace Phase 12 TreeView snapshots.
+The Phase 13 checkpoint deferred inline/cell/batch editing, virtualization, custom aggregates, TreeList and DateRangePicker; subsequent phases implemented them. Automatic column discovery, transactional inference and generic HTTP adapters remain intentionally adapted through explicit typed columns and host-owned callbacks. Phase 13 visual evidence uses `phase-13-grid-*` names.
 
-Phase 13 is a broad working implementation, but it is not yet a full-parity claim. Complete frozen-boundary enforcement still needs the Razor edge cases, and context-menu plumbing does not yet render a distinct group-footer surface. Those items remain tracked gaps rather than stubs presented as complete behavior.
+The old Phase 13 frozen-boundary and group-footer gaps are superseded: resolved columns keep frozen fields ahead of scrollable fields with measured sticky offsets, and group footers render their own `groupFooter` context-menu surface. Current behavior and acceptance are recorded in the classification below.
 
 ## Phase 14 — CgLookUpGrid
 
@@ -547,7 +549,7 @@ Phase 16 started from clean React revision `f8b7917351dc8bc44482913418319b86dd56
 - `CgToastProvider` owns six logical FIFO stacks and starts duration accounting only for visible items. Hover, focus, document hiding, and async actions retain exact remaining time; stable status/alert live regions exclude progress churn, duplicate actions are suppressed, and navigation clearing uses an explicit subscriber.
 - `CgConfirmationProvider` owns one popup and a FIFO request queue with idempotent settlement, AbortSignal cleanup, navigation cancellation, focus restoration, and deferred lifecycle rejection that tolerates Strict Mode effect replay.
 
-React adaptations remain deliberate: immutable descriptors and canonical strings replace mutable .NET date objects; `AbortSignal` replaces cancellation tokens; native proxies replace EditContext field plumbing; context-local providers replace scoped services; and router integration is passed as a callback. Multiple selection, alerts, prompts, and arbitrary dialogs remain deferred.
+React adaptations remain deliberate: immutable descriptors and canonical strings replace mutable .NET date objects; `AbortSignal` replaces cancellation tokens; native proxies replace EditContext field plumbing; context-local providers replace scoped services; and router integration is passed as a callback. Calendar multiple selection is completed in Phase 31 and alerts use MessageBox. Prompt/input collection and arbitrary dialog content are intentionally composed through Popup/Window.
 
 Final Phase 16 verification on 2026-08-29 passed strict TypeScript and ESLint, 40 Vitest files/367 tests, import-cycle analysis across 221 source modules, the 215-module production library build, the 282-module Storybook build, and package verification of 147 runtime exports across 1,042 packed files. Chromium passed all 96 semantic/Axe cases and all 172 visual tests against 180 Windows baselines. Exactly nine new `phase-16-*` baselines were added and inspected; six DateEdit baselines were deliberately refreshed after review of the shared-calendar extraction, with deterministic story dates and a compatibility skin retaining its established geometry and state treatments. WebKit passed all 96 semantic/Axe cases after its run exposed and verified a click-origin focus-return fix for Confirmation. The aggregate `npm run verify` re-passed its source/build gates and all Chromium cases, then reproduced the host-only Firefox launch timeout before page creation; an isolated launch captured `RenderCompositorSWGL failed mapping default framebuffer`. WebKit, Chromium visuals, the post-fix source suite, and package verification passed independently, so Firefox remains an environment-blocked gate rather than a component failure.
 
@@ -628,7 +630,7 @@ The Phase 21 Storybook group contains 20 deterministic cases: flat accounts, nes
 
 ## Implemented inventory
 
-“Mirrored” means the user-visible contract is carried across with React/native-DOM adaptations. “Partially mirrored” identifies a deliberate Phase 2 omission. “New React implementation” has no exact Razor component.
+“Mirrored” means the user-visible contract is carried across with React/native-DOM adaptations. “New React implementation” has no exact Razor component.
 
 | Component | Classification | Razor source/demo | React source | Automated tests | Story | Intentional differences |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -650,8 +652,8 @@ The Phase 21 Storybook group contains 20 deterministic cases: flat accounts, nes
 | `CgTreeList` | Mirrored with iterative immutable hierarchy engine | `CashGear.Blazor.UI@51d7689a7d407713fa18cb6268158b1a4f461fb3: Components/Data/TreeList/*`, tests/browser tests/demos | `src/components/TreeList/*` | `tests/tree-list.test.tsx`, Phase 21 browser semantic/Axe/interaction/visual coverage | `src/components/TreeList/CgTreeList.stories.tsx` | Typed flat/nested/provider union and primitive keys replace Razor registration/comparers. Shared Filter/Grid vocabulary is composed without public Grid inheritance. QuestPDF becomes a host PDF adapter; pointer DnD and variable-height virtualization are deferred. |
 | `CgTooltip` | Mirrored through the shared overlay engine | `CashGear.Blazor.UI@51d7689a7d407713fa18cb6268158b1a4f461fb3: Components/Feedback/Tooltip/*`, demos/tests | `src/components/Tooltip/*`, `src/internal/PositionedOverlay.tsx` | `tests/tooltip.test.tsx`, browser semantic/Axe/placement/visual coverage | `src/components/Tooltip/CgTooltip.stories.tsx` | A stable wrapper, lazy body portal, exact descendant ARIA token ownership, and click-only overlay registration replace Blazor element handles without adding disclosure or focus semantics. |
 | `CgStatusBadge` | Mirrored as resource-free presentation | `CashGear.Blazor.UI@51d7689a7d407713fa18cb6268158b1a4f461fb3: Components/Feedback/StatusBadge/*`, demos/tests | `src/components/StatusBadge/*` | `tests/status-badge.test.tsx`, browser semantic/Axe/visual coverage | `src/components/StatusBadge/CgStatusBadge.stories.tsx` | Role remains opt-in, icon/indicator content is decorative, and native one-shot dismissal observes async rejection without becoming a toast or allocating global resources. |
-| `CgListBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgListBox.*`, `CgListBoxTypes.cs`, `CgListBoxColumn.cs`, `CgListBoxAccessors.cs`; `CG.CompLib.Demo/Components/Pages/ListBoxDemo.razor` | `src/components/ListBox/*`, `src/internal/listBox.ts`, `src/internal/useVirtualWindow.ts` | `tests/list-box.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/ListBox/CgListBox.stories.tsx` | Object-array binding and stable keys replace Razor field accessors. Fixed-row virtualization is dependency-free; remote loading/paging and richer data-grid operations remain deferred. |
-| `CgTagBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgTagBox.*`; `CG.CompLib.Demo/Components/Pages/TagBoxDemo.razor` | `src/components/TagBox/*`, `src/internal/tagBox.ts`, `src/internal/PositionedOverlay.tsx` | `tests/tag-box.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/TagBox/CgTagBox.stories.tsx` | Object-array binding replaces Razor scalar keys. Custom comparers and `ResolveValuesAsync` hydration remain deferred because selected objects carry labels. |
+| `CgListBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgListBox.*`, `CgListBoxTypes.cs`, `CgListBoxColumn.cs`, `CgListBoxAccessors.cs`; `CG.CompLib.Demo/Components/Pages/ListBoxDemo.razor` | `src/components/ListBox/*`, `src/internal/listBox.ts`, `src/internal/useVirtualWindow.ts` | `tests/list-box.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/ListBox/CgListBox.stories.tsx` | Object-array binding and stable keys replace Razor field accessors. Fixed-row virtualization is dependency-free; remote paging is deferred in both libraries; richer data-grid operations use Grid/LookUpGrid composition. |
+| `CgTagBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgTagBox.*`; `CG.CompLib.Demo/Components/Pages/TagBoxDemo.razor` | `src/components/TagBox/*`, `src/internal/tagBox.ts`, `src/internal/PositionedOverlay.tsx` | `tests/tag-box.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/TagBox/CgTagBox.stories.tsx` | Object-array binding replaces Razor scalar keys. CgKeyTagBox supplies custom comparers and abortable key hydration in Phase 28. |
 | `CgDropDownBox` | Mirrored | `CG.CompLib/Comp/Inputs/CgDropDownBox.*`, `CgDropDownBoxTypes.cs`; `CG.CompLib.Demo/Components/Pages/DropDownBoxDemo.razor` | `src/components/DropDownBox/*`, `src/internal/PositionedOverlay.tsx`, `src/internal/overlayStack.ts` | `tests/drop-down-box.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/DropDownBox/CgDropDownBox.stories.tsx` | React render contexts host arbitrary content; a native select proxy and explicit object serializer replace Blazor `EditContext` integration. The body portal replaces the browser manual-popover top layer and deliberately adds no focus trap. |
 | `CgDateEdit` | Mirrored with canonical React value contract | `Components/Editors/CgDateEdit*`, shared Calendar/date utilities; `DateEditDemo.razor` | `src/components/DateEdit/*`, `src/components/Calendar/*`, `src/internal/date/*` | `tests/date-edit.test.tsx`, browser semantic/visual coverage | `src/components/DateEdit/CgDateEdit.stories.tsx` | React exposes only canonical `YYYY-MM-DD | null` civil dates and composes the shared public Calendar without exposing JavaScript `Date`. |
 | `CgCalendar` | Mirrored with canonical single/range contracts | `Components/Editors/Calendar/*`; `CgCalendarTests.cs` | `src/components/Calendar/*`, `src/internal/date/*` | `tests/calendar.test.tsx`, browser semantic/Axe/visual coverage | `src/components/Calendar/CgCalendar.stories.tsx` | Canonical civil strings and immutable ranges replace .NET date types; first-click range state stays private. |
@@ -671,7 +673,7 @@ The Phase 21 Storybook group contains 20 deterministic cases: flat accounts, nes
 | `CgTreeView` | Mirrored with immutable hierarchy descriptors | `CG.CompLib/Comp/TreeView/*`; `CgTreeViewTests.cs`, `CgTreeViewBrowserTests.cs`; `TreeViewDemo.razor*` | `src/components/TreeView/*`, private `src/internal/treeViewModel.ts`, `treeViewCheck.ts`, `treeViewFilter.ts` | `tests/tree-view.test.tsx`, browser semantic/Axe/visual coverage | `src/components/TreeView/CgTreeView.stories.tsx` | Nested or flat descriptors replace node registration. React owns stable-key state and safe filtering; menus compose the Phase 10 `CgContextMenu`. Lazy loading, virtualization, drag/drop, editing, and TreeList APIs are not included. |
 | `CgFilterBuilder` | Mirrored with a shared safe AST | Grid/filter reference contracts and tests | `src/filter/*`, `src/components/FilterBuilder/*` | `tests/filter-core.test.ts`, `tests/filter-builder.test.tsx`, browser semantic/visual coverage | `src/components/FilterBuilder/CgFilterBuilder.stories.tsx` | Explicit accessors, immutable descriptors, typed values, and Razor boundary codecs replace expressions/reflection. |
 | `CgPager` | Mirrored as a standalone controlled component | Grid pager reference contracts and tests | `src/components/Pager/*` | `tests/pager.test.tsx`, Grid integration and browser coverage | `src/components/Pager/CgPager.stories.tsx` | Zero-based state/one-based display and SSR-safe measurement replace ambient Grid ownership. |
-| `CgGrid` | Advanced parity with typed React descriptors | `CG.CompLib/Comp/Grid/*`; `CgGrid*Tests.cs`; `GridDemo.razor` | `src/components/Grid/*` | `tests/grid*.test.tsx`, browser semantic/visual coverage | `src/components/Grid/CgGrid.stories.tsx`, `CgGridAdvanced.stories.tsx` | Immutable descriptors/actions replace registration; providers receive sanitized requests plus `AbortSignal`; popup/inline/cell/atomic batch editing and custom aggregates are caller-persisted. Cell/batch modes support compatible-editor type-to-edit and optional Enter advancement across visible data rows. The remaining gaps are the explicit Phase 15 out-of-scope items. |
+| `CgGrid` | Advanced parity with typed React descriptors | `CG.CompLib/Comp/Grid/*`; `CgGrid*Tests.cs`; `GridDemo.razor` | `src/components/Grid/*` | `tests/grid*.test.tsx`, browser semantic/visual coverage | `src/components/Grid/CgGrid.stories.tsx`, `CgGridAdvanced.stories.tsx` | Immutable descriptors/actions replace registration; providers receive sanitized requests plus `AbortSignal`; popup/inline/cell/atomic batch editing and custom aggregates are caller-persisted. Cell/batch modes support compatible-editor type-to-edit and optional Enter advancement across visible data rows. Phases 26, 29 and 33 complete editor commits, virtualization, export scopes, JSON/streaming and XLSX widths. |
 | `CgFormLayout` family | Mirrored with real React composition | `CG.CompLib/Comp/FormLayout/*`; `FormLayoutDemo.razor*` | `src/components/FormLayout/*`, `src/internal/formLayout.ts`, private field caption context | `tests/form-layout.test.tsx`, browser semantic/visual coverage | `src/components/FormLayout/CgFormLayout.stories.tsx` | React context and CSS container queries replace declaration inspection and registration. Descriptor tabs replace tab-page markers; no compatibility alias is exported. |
 | `CgPopup` | Mirrored | `CG.CompLib/Comp/Overlays/CgPopup.*`, `CgOverlayBase.cs`, `CgOverlayContracts.cs`; `CG.CompLib.Demo/Components/Pages/PopupWindowDemo.razor` | `src/components/Popup/*`, `src/internal/OverlaySurface.tsx`, `src/internal/overlayStack.ts`, `src/internal/overlayDom.ts` | `tests/popup.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/Popup/CgPopup.stories.tsx` | A body-portalled backdrop/surface replaces native top-layer APIs. React owns focus isolation, exact scroll-style restoration, and full-region render contexts. |
 | `CgWindow` | Mirrored | `CG.CompLib/Comp/Overlays/CgWindow.*`, `CgOverlayBase.cs`, `CgOverlayContracts.cs`; `CG.CompLib.Demo/Components/Pages/PopupWindowDemo.razor` | `src/components/Window/*`, `src/internal/OverlaySurface.tsx`, `src/internal/overlayStack.ts`, `src/internal/overlayDom.ts` | `tests/window.test.tsx`, `tests/browser/components.browser.spec.ts`, `tests/browser/components.visual.spec.ts` | `src/components/Window/CgWindow.stories.tsx` | React modeless windows use a global paint order below modals, scoped Escape ownership, and DOM/ref/selector positioning actions instead of .NET/JS handles. |
@@ -761,7 +763,7 @@ The shared hook/primitives layer is covered in `tests/foundation.test.tsx`. The 
 - Manual input, calendar days, and Today share bounds/disabled enforcement and one cancellable change pipeline. New attempts abort older `onBeforeValueChange` work, stale completions cannot commit, unmount aborts pending work, and non-abort errors use the supplied observer or `console.error` fallback.
 - The hidden native multi-select proxy contains only the committed canonical value. It supplies nested/external form association, required/custom validity, disabled exclusion, reset, and invalid-focus transfer while display text is never submitted. Reset restores uncontrolled defaults, closes, aborts pending work, and emits no value change.
 - The private six-week calendar retains semantic day buttons inside gridcells, adjacent-month dates, locale headers/week starts, three-column month/year panels, custom day content, logical RTL navigation, and no focus trap. It reuses the SSR-safe positioned portal and live overlay stack for viewport/nested-scroll/zoom/anchor handling and topmost dismissal.
-- Exactly eight Phase 8 Windows Chromium baselines cover the default editor, open calendar, invalid input, restrictions, year panel, dark theme, Arabic RTL, and narrow layout. DateRangePicker remains explicitly deferred.
+- Exactly eight Phase 8 Windows Chromium baselines cover the default editor, open calendar, invalid input, restrictions, year panel, dark theme, Arabic RTL, and narrow layout. DateRangePicker was deferred at this checkpoint and is implemented in Phase 16.
 
 ## Phase 7 KeyComboBox behavior
 
@@ -837,24 +839,28 @@ Verified on 2026-08-31 on Windows with host Node 22.20.0/npm 10.9.3 and the lock
 | `npm run verify:package` | Passed: 168 runtime exports, 1,280 packed files, React externalization/declarations/styles/dry-run ESM import verified |
 | `npm run verify` | Re-passed typecheck, lint, 509 Vitest tests, cycles, both builds, and all 119 Chromium semantic/Axe cases. Its first Firefox case then reproduced the known pre-page SWGL launch failure and the replacement worker was stopped. The complete WebKit, Chromium visual, and package gates passed independently from the same final source as recorded above. |
 
-## Deferred inventory
+## Current capability classification
 
-These rows are evidence only. No public React API or implementation is included for these remaining planned controls.
+Pinned reference: read-only Blazor aea3e6222adce68b10ff120d7bee1e43358287d0. React implementation began at 9663863. Historical phase inventories below describe their acceptance dates; this section supersedes their old gap lists. Final integration acceptance is tracked in [the acceptance record](parity-implementation-status.md).
 
-| Planned component | Razor evidence | Status |
+| Audited capability | Classification | React implementation / evidence |
 | --- | --- | --- |
-| Calendar multiple selection | `Components/Editors/Calendar/*` | Intentionally deferred; the public Calendar supports single and range modes only |
-| Prompt and arbitrary dialog APIs | `CashGear.Blazor.UI/Components/CgMessageBox.razor` and `Components/Feedback/Confirmation/*` define the alert/confirmation boundary | Intentionally deferred; Phase 24 adds alert-only MessageBox surfaces, not prompts, input collection, or arbitrary action sets |
+| Foundational controls, forms, overlays, commands, filters, rich text, charts/maps, PDF and upload | Implemented and verified | Existing inventory and Phases 1–25 acceptance; final full-library regression gates |
+| Editor flush/reset, protected dialog closing and busy/dirty state | Implemented and verified | Phase 26; EditorCommit, TextBox, Popup/Window, Grid/TreeList |
+| Numeric policies and exact accounting entry | Implemented and verified; existing IEEE-754 defaults intentionally retained | Phase 27; DecimalEdit supplements NumericEdit/SpinEdit |
+| ListBox review/range/virtual focus and TagBox query ownership | Implemented and verified | Phase 28 suites; KeyTagBox supplies scalar keys, comparers and resolver hydration |
+| Grid windows, focus/fallback, committed scope exports and summary rows | Implemented and verified | Phase 29; row/column virtualization and export regression suites |
+| Pivot budgets, selector caching, dependent filters, paginated distinct values, ownership and scoped exports | Implemented and verified | Phase 30; synchronous helper retained, component exports incremental |
+| TreeList pages/paths/ownership, editor validation, virtual focus, weighted partial summaries | Implemented and verified | Phase 30; malformed-page and deep-hierarchy suites |
+| Calendar multiple selection and standalone preset selector | Implemented and verified | Phase 31; Calendar, DateRangePresetSelect and pure shared date calculations |
+| Scheduler recurrence, exceptions, resources/customization, reminders/actions/iCalendar | Implemented and verified | Phases 32A–32C; Scheduler contracts, unit/browser/visual fixtures |
+| Grid JSON/streams/limits/widths and asynchronous LookUpGrid selection | Implemented and verified | Separate JSON result/adapter types; generation-owned callbacks |
+| React selection modes, number semantics and export defaults | Intentionally adapted | Existing defaults retained; Grid checkbox mode matches newer Blazor checkbox-driven multiple; selected local exports include filtered-out selections; Pivot defaults all-expanded |
+| Host persistence, authorization, adapters and arbitrary DropDownBox content | Intentionally adapted | Typed selectors, immutable requests, AbortSignal and composition replace Razor/EF/JS interop; no backend or consuming-application changes |
+| TreeList pointer drag/drop, variable-height virtualization, ListBox remote paging | Deferred in both libraries | Excluded from the accepted scope; fixed-height windows and host commands remain available |
+| Prompt/input collection and arbitrary dialog sets | Intentionally adapted through composition | Existing MessageBox alert/Confirmation boundary retained; hosts compose Popup/Window for custom content |
 
-## Remaining gaps
-
-- RangeSelector now has an exact normalized decimal-string value model. NumericEdit and SpinEdit intentionally remain IEEE-754 editors; accounting entry fields that cannot tolerate floating-point rounding still need a future exact-decimal editor rather than borrowing RangeSelector semantics.
-- TagBox intentionally binds selected objects; scalar-key adapters, custom key comparers, and selected-key hydration remain deferred.
-- DropDownBox intentionally leaves remote data ownership, hosted Grid/DateRangePicker implementations, browser top-layer popovers, and focus trapping to callers or later component phases. The standalone TreeView can be composed by callers but is not coupled into DropDownBox.
-- ListBox remote loading/paging, drag/drop, sorting, column resizing, editing, nested groups, summaries, and export are intentionally outside Phase 4.
-- Browser gates are local; this phase intentionally adds no GitHub Actions workflow. Chromium snapshots must be compared and regenerated on the same platform.
-- TreeList pointer drag-and-drop and variable-height row virtualization remain deferred. Phase 21 uses accessible keyboard reparent/reorder operations, fixed-height rows, and host-authorized persistence instead.
-- Start each deferred advanced control with a fresh Razor working-tree audit because several reference components are currently uncommitted.
+Browser baselines are platform-specific. Firefox's recorded framebuffer launch limitation is an environment verification block, not component coverage.
 
 ## Phase 22 — PivotTable
 
@@ -974,8 +980,23 @@ ListBox adds guarded selection actions, displayed-order ranges, mounted active d
 
 Grid adds opt-in fixed row/column windows with focus retention, frozen geometry, status/fallback diagnostics, and optional group footers. Exports retain the full-filtered default and add current-page/hidden-selection scopes, hard row limits, independent cancellation, committed-record summaries, and an extended typed remote adapter. Inherited RTL detection is corrected while explicit direction and existing saved-state version 11 remain intact. See the [Grid contracts](../src/components/Grid/README.md), [acceptance record](parity-implementation-status.md), and [resume checkpoint](parity-resume.md).
 
-Implementation is paused after Phase 29. Phases 30–32 and final cross-phase integration remain outstanding.
+The Phase 29 pause was superseded by the user authorization to complete Phases 30–33.
 
 ## Phase 30 — PivotTable and TreeList reliability
 
-Implemented and phase-verified against Blazor aea3e622. See the acceptance record and component contracts for query ownership, processing limits, export scopes, validated hierarchy loading, save locking, virtual focus, and weighted descendant summaries. Phases 31–33 and final integration remain pending.
+Implemented and verified against Blazor aea3e622. See the acceptance record and component contracts for query ownership, processing limits, export scopes, validated hierarchy loading, save locking, virtual focus, and weighted descendant summaries. Phases 31–32C are now accepted; Phase 33 and final integration acceptance follow.
+
+## Pinned-source reconciliation for final integration
+
+| Source revision / scope | Applicable behavior | React disposition |
+| --- | --- | --- |
+| fb523d4c: Pivot, TreeList, TagBox | Pivot budget/selector/filter/query/export reliability; hierarchy page validation, editor flush, weighted summaries/virtual focus; TagBox version/context/IME/query fixes | Implemented in Phases 28 and 30 using typed selectors and generation-owned requests. Existing synchronous Pivot exports and all-expanded default remain compatible. |
+| 130d8628: numeric entry and editor commits | Numeric text policies, expression parsing, flush/reset scope, Grid flush before validation/navigation/save, labels/field validation | Implemented in Phases 26/27; React exact-decimal entry is additive. Existing Grid batch/inline/cell regression suites cover commit and draft ownership. |
+| fbf3fcb9: TextBox, ListBox, overlays | Editor browser drafts, list filtering/selection/active row, protected close, outside interaction and overlay cleanup | Implemented in Phases 26/28 using shared React commit/overlay primitives; arbitrary host content remains composition. |
+| efd85c96: Grid | Export width precedence/XML; checkbox-driven multiple selection | Widths implemented in Phase 33; React checkbox mode supplies source behavior while existing multiple mode is intentionally preserved. Application login/profile/backend changes are outside this UI-library scope. |
+| 238cbc3f: Grid lifecycle | Suppress post-disposal render/save/focus/import work | React has no asynchronous Blazor JS-module import bridge. Existing effect/AbortSignal/request guards cover loads, saves and focus; Phase 33 rejects export calls through retained unmounted actions. |
+| b732d80a: Grid and LookUpGrid | JSON snapshots/limits/streams/context menu and settled async selection reconciliation | Implemented in Phase 33; remoteJsonExport/result types are separate, destination ownership stays with the caller, hidden local selections remain exportable. |
+| aea3e622 pinned tree | Calendar multiple/presets; Scheduler recurrence/resources/reminders/actions/iCalendar and remaining library capabilities | Phases 31–32C plus final Month weekday-decoration/unsnapped-placement audit. Legacy wrappers and consuming-application code are intentionally not ported. |
+| Uncommitted Grid/CgGrid.razor.js | Download object URL delayed revocation | Independently recorded and mirrored as 60-second React cleanup; source file remains unchanged. |
+
+No runtime dependency, persistence service, external calendar sync/import, package publication, or consuming-application change is included.

@@ -70,7 +70,7 @@ export function createMapEngine(element: HTMLElement, callbacks: MapEngineCallba
   const resize = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(() => {
     cancelAnimationFrame(frame);
     frame = requestAnimationFrame(() => {
-      if (!disposed && element.clientWidth && element.clientHeight) map.invalidateSize({ pan: false, debounceMoveend: true });
+      if (!disposed && element.clientWidth && element.clientHeight) map.invalidateSize({ pan: true, animate: false, debounceMoveend: true });
     });
   });
   resize?.observe(element);

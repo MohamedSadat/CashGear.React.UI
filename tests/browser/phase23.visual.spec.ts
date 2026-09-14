@@ -17,6 +17,11 @@ for (const [name, story, globals, narrow, waitFor] of [
     if (narrow) await page.setViewportSize({ width: 390, height: 780 });
     await openStory(page, story, globals);
     await expect(page.locator(waitFor).first()).toBeVisible();
+    if (name === 'phase-23-map-primary') {
+      const markers = page.locator('.leaflet-marker-icon');
+      await expect(markers).toHaveCount(2);
+      for (const marker of await markers.all()) await expect(marker).toBeInViewport({ ratio: 1 });
+    }
     if (name.includes('map-error')) await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
     await expect(page).toHaveScreenshot(`${name}.png`, { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });

@@ -13,6 +13,7 @@ for (const [name, storyName, globals, narrow, openPicker] of [
     if (narrow) await page.setViewportSize({ width: 390, height: 780 });
     if (openPicker) await page.setViewportSize({ width: 1280, height: 1100 });
     await openStory(page, story(storyName), globals);
+    if (narrow) await expect(page.locator('[data-cg-theme]').first()).toHaveAttribute('dir', 'rtl');
     await expect(page.getByRole('grid')).toBeVisible();
     if (openPicker) {
       await page.getByRole('button', { name: 'Table Style' }).click();

@@ -13,6 +13,9 @@ for(const kind of ['fields','filter','drill']){
     if(kind==='fields')await page.getByRole('button',{name:'Field list',exact:true}).click();
     else if(kind==='filter'){await page.getByLabel('Region Filters',{exact:true}).click();await expect(page.getByRole('checkbox',{name:'Cairo',exact:true})).toBeVisible();}
     else{await page.getByRole('gridcell',{name:'2,004.00',exact:true}).first().dblclick();await expect(page.getByRole('dialog').getByRole('grid')).toBeVisible();}
-    await expect(page.getByRole('dialog')).toBeVisible();await expect(page).toHaveScreenshot(`pivot-${kind}.png`,{animations:'disabled',caret:'hide',fullPage:true,maxDiffPixelRatio:0.001});
+    await expect(page.getByRole('dialog')).toBeVisible();
+    // Capture the dialog directly: full-page capture resizes Storybook's vh-sized host.
+    if(kind==='drill') await expect(page.getByRole('dialog')).toHaveScreenshot('pivot-drill.png',{animations:'disabled',caret:'hide',maxDiffPixelRatio:0.001});
+    else await expect(page).toHaveScreenshot(`pivot-${kind}.png`,{animations:'disabled',caret:'hide',fullPage:true,maxDiffPixelRatio:0.001});
   });
 }
