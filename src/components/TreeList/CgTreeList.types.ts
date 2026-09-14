@@ -148,7 +148,9 @@ export interface CgTreeListProviderNode<TItem, TKey extends CgTreeListKey> {
   readonly projectionComplete?: boolean;
 }
 
-export interface CgTreeListProviderRequest<TKey extends CgTreeListKey> {
+export interface CgTreeListQueryOwnership { readonly dataVersion?: unknown; readonly queryContext?: unknown }
+
+export interface CgTreeListProviderRequest<TKey extends CgTreeListKey> extends CgTreeListQueryOwnership {
   readonly mode: CgTreeListProviderRequestMode;
   readonly requestId: string;
   readonly queryId: string;
@@ -182,7 +184,7 @@ export interface CgTreeListProviderResult<TItem, TKey extends CgTreeListKey> {
 export type CgTreeListDataProvider<TItem, TKey extends CgTreeListKey> =
   (request: CgTreeListProviderRequest<TKey>) => PromiseLike<CgTreeListProviderResult<TItem, TKey>>;
 
-export interface CgTreeListLoadChildrenContext<TItem, TKey extends CgTreeListKey> {
+export interface CgTreeListLoadChildrenContext<TItem, TKey extends CgTreeListKey> extends CgTreeListQueryOwnership {
   readonly parentItem: TItem;
   readonly parentKey: TKey;
   readonly parentLevel: number;
@@ -247,7 +249,7 @@ export interface CgTreeListMutationResult<TItem = unknown> {
   readonly safeMessage?: string;
 }
 
-interface CgTreeListMutationContextBase<TItem, TKey extends CgTreeListKey> {
+interface CgTreeListMutationContextBase<TItem, TKey extends CgTreeListKey> extends CgTreeListQueryOwnership {
   readonly item: TItem;
   readonly key: TKey;
   readonly attempt: number;
@@ -255,22 +257,22 @@ interface CgTreeListMutationContextBase<TItem, TKey extends CgTreeListKey> {
   readonly concurrencyToken?: string;
   readonly signal: AbortSignal;
 }
-export interface CgTreeListCreateContext<TItem, TKey extends CgTreeListKey> { readonly draft: TItem; readonly parentKey: CgTreeListParentKey<TKey>; readonly siblingPosition: number; readonly attempt: number; readonly generation: number; readonly clientValidationConclusive: boolean; readonly signal: AbortSignal }
+export interface CgTreeListCreateContext<TItem, TKey extends CgTreeListKey> extends CgTreeListQueryOwnership { readonly draft: TItem; readonly parentKey: CgTreeListParentKey<TKey>; readonly siblingPosition: number; readonly attempt: number; readonly generation: number; readonly clientValidationConclusive: boolean; readonly signal: AbortSignal }
 export interface CgTreeListUpdateContext<TItem, TKey extends CgTreeListKey> extends CgTreeListMutationContextBase<TItem, TKey> { readonly draft: TItem; readonly changedFieldIds: ReadonlyArray<string> }
 export interface CgTreeListDeleteContext<TItem, TKey extends CgTreeListKey> extends CgTreeListMutationContextBase<TItem, TKey> { readonly parentKey: CgTreeListParentKey<TKey> }
 export interface CgTreeListMoveContext<TItem, TKey extends CgTreeListKey> extends CgTreeListMutationContextBase<TItem, TKey> { readonly oldParentKey: CgTreeListParentKey<TKey>; readonly proposedParentKey: CgTreeListParentKey<TKey>; readonly proposedSiblingPosition: number; readonly clientValidationConclusive: boolean }
 
-export interface CgTreeListDetailLoadContext<TItem, TKey extends CgTreeListKey> { readonly item: TItem; readonly key: TKey; readonly attempt: number; readonly generation: number; readonly signal: AbortSignal }
+export interface CgTreeListDetailLoadContext<TItem, TKey extends CgTreeListKey> extends CgTreeListQueryOwnership { readonly item: TItem; readonly key: TKey; readonly attempt: number; readonly generation: number; readonly signal: AbortSignal }
 export interface CgTreeListDetailResult { readonly detail?: unknown; readonly safeErrorCode?: string; readonly safeMessage?: string }
 export interface CgTreeListDetailRenderContext<TItem, TKey extends CgTreeListKey> { readonly item: TItem; readonly key: TKey; readonly detail: unknown; readonly loading: boolean; readonly errorCode?: string; readonly retry: () => Promise<boolean>; readonly collapse: () => Promise<boolean> }
 
 export interface CgTreeListSummary<TItem = unknown> extends CgGridSummaryDescriptor<TItem> { readonly scope: CgTreeListSummaryScope; readonly nodeKey?: CgTreeListKey }
-export interface CgTreeListSummaryProviderRequest<TKey extends CgTreeListKey> { readonly queryId: string; readonly generation: number; readonly items: ReadonlyArray<{ readonly nodeKey: TKey; readonly summaryId: string; readonly scope: 'complete-subtree' }>; readonly signal: AbortSignal }
+export interface CgTreeListSummaryProviderRequest<TKey extends CgTreeListKey> extends CgTreeListQueryOwnership { readonly queryId: string; readonly generation: number; readonly items: ReadonlyArray<{ readonly nodeKey: TKey; readonly summaryId: string; readonly scope: 'complete-subtree' }>; readonly signal: AbortSignal }
 export interface CgTreeListSummaryProviderResult<TKey extends CgTreeListKey> { readonly values: ReadonlyArray<{ readonly nodeKey: TKey; readonly summaryId: string; readonly value: unknown; readonly completeness: CgGridAggregateCompleteness; readonly safeErrorCode?: string }> }
 
 export interface CgTreeListSnapshotRow<TItem, TKey extends CgTreeListKey> { readonly item: TItem; readonly key: TKey; readonly parentKey: CgTreeListParentKey<TKey>; readonly level: number; readonly summaryValues?: Readonly<Record<string, CgGridAggregateValue>>; readonly detailText?: string }
 export interface CgTreeListSnapshot<TItem, TKey extends CgTreeListKey> { readonly rows: ReadonlyArray<CgTreeListSnapshotRow<TItem, TKey>>; readonly complete: boolean; readonly totalSummaries: Readonly<Record<string, CgGridAggregateValue>> }
-export interface CgTreeListSnapshotRequest { readonly scope: CgTreeListOutputScope; readonly columnIds: ReadonlyArray<string>; readonly includeSummaries: boolean; readonly includeDetails: boolean; readonly signal: AbortSignal }
+export interface CgTreeListSnapshotRequest extends CgTreeListQueryOwnership { readonly scope: CgTreeListOutputScope; readonly columnIds: ReadonlyArray<string>; readonly includeSummaries: boolean; readonly includeDetails: boolean; readonly signal: AbortSignal }
 
 export interface CgTreeListExportOptions { readonly scope?: CgTreeListOutputScope; readonly fileName?: string; readonly download?: boolean; readonly columnIds?: ReadonlyArray<string>; readonly includeSummaries?: boolean; readonly maximumRows?: number; readonly rightToLeft?: boolean; readonly signal?: AbortSignal }
 export interface CgTreeListExportResult { readonly fileName: string; readonly mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'; readonly bytes: Uint8Array; readonly rowCount: number }
@@ -298,7 +300,10 @@ export interface CgTreeListContext<TItem, TKey extends CgTreeListKey> {
 
 export interface CgTreeListLabels { searchPlaceholder: string; empty: string; loading: string; retry: string; expand: string; collapse: string; loadMore: string; edit: string; save: string; cancel: string; delete: string; addRoot: string; addChild: string; columns: string; noMatches: string; detail: string }
 
+export interface CgTreeListVirtualizationStatus { readonly rows: boolean; readonly columns: boolean; readonly reasons: ReadonlyArray<string> }
+
 export interface CgTreeListActions<TItem, TKey extends CgTreeListKey> {
+  getVirtualizationStatus(): CgTreeListVirtualizationStatus;
   focus(): Promise<boolean>;
   focusNode(key: TKey, fieldId?: string): Promise<boolean>;
   scrollToNode(key: TKey): Promise<boolean>;
@@ -348,7 +353,8 @@ export interface CgTreeListActions<TItem, TKey extends CgTreeListKey> {
 
 type NativeTreeListProps = Omit<HTMLAttributes<HTMLDivElement>, 'children' | 'onChange' | 'onError' | 'onSelect'>;
 
-interface CgTreeListCommonProps<TItem, TKey extends CgTreeListKey> extends NativeTreeListProps {
+interface CgTreeListCommonProps<TItem, TKey extends CgTreeListKey> extends NativeTreeListProps, CgTreeListQueryOwnership {
+  readonly onVirtualizationChange?: (status: CgTreeListVirtualizationStatus) => void;
   readonly columns: ReadonlyArray<CgTreeListColumn<TItem, TKey>>;
   readonly hasChildren?: (item: TItem) => boolean;
   readonly loadChildren?: (context: CgTreeListLoadChildrenContext<TItem, TKey>) => PromiseLike<CgTreeListLoadChildrenResult<TItem>>;

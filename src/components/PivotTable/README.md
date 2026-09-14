@@ -71,3 +71,10 @@ Local export recomputes the complete logical result. Provider-backed pivots requ
 Typed React descriptors replace Razor children and .NET reflection. Custom aggregation and provider transport remain host-owned; no SQL adapters, distributed execution service, ClosedXML, or server authorization is bundled. Canonical strings replace CLR Decimal/DateOnly/DateTime. Native field-setting selects retain technical summary/sort identifiers even with translated surrounding labels. PivotTable is read-only analysis: it does not edit source records, and variable-height rows are unsupported.
 
 Storybook: `Phase 22/PivotTable`. Regression coverage: `pivot.test.ts`, `CgPivotTable.test.tsx`, `tests/browser/pivot.browser.spec.ts`, and `tests/browser/pivot.visual.spec.ts`.
+# Phase 30 query ownership and exports
+
+`dataVersion` and `queryContext` are opaque identity tokens. Changing either invalidates view, distinct-value, drill-down, and export work; changing context also clears retained results. They are forwarded on the captured `pivotQuery`/`query` and are never serialized or frozen by the library. Hosts should keep their identities stable until invalidation is intended.
+
+Optional `maximumSourceRows` and `maximumAggregateOperations` bound source processing and cell contributions. Omitted limits preserve the previous behavior. Limit failures use the existing diagnostics and error callbacks. Measure selectors are evaluated once per record per query, including calculated operands reused in totals.
+
+`exportCsv` and `exportXlsx` accept `scope: 'currentLayout' | 'allExpanded'`; the default remains `allExpanded`. Component exports yield during serialization and observe cancellation. The existing `createPivotExport` helper stays synchronous and supports the same scope. Provider exports receive the captured scope and query tokens.

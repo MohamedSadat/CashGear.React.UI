@@ -102,13 +102,13 @@ export function normalizePivotLayout<T>(fields: ReadonlyArray<CgPivotField<T>>, 
         rowTotalPlacement: source.rowTotalPlacement === 'near' ? 'near' : 'far', columnTotalPlacement: source.columnTotalPlacement === 'near' ? 'near' : 'far',
     });
 }
-export function createPivotQuery<T>(fields: ReadonlyArray<CgPivotField<T>>, layout: CgPivotLayout, options: Partial<Pick<CgPivotQuery, 'purpose' | 'maxRows' | 'maxColumns' | 'maxCells' | 'locale' | 'timeZone'>> = {}): CgPivotQuery {
+export function createPivotQuery<T>(fields: ReadonlyArray<CgPivotField<T>>, layout: CgPivotLayout, options: Partial<Omit<CgPivotQuery, 'version' | 'fields' | 'showRowGrandTotals' | 'showColumnGrandTotals'>> = {}): CgPivotQuery {
     layout = normalizePivotLayout(fields, layout);
     const query: CgPivotQuery = {
         version: 1, purpose: options.purpose ?? 'view', fields: layout.fields.map(s => {
             const f = fields.find(f => f.key === s.key)!;
             return { key: s.key, area: s.area, areaIndex: s.areaIndex, summaryType: s.summaryType, sortOrder: s.sortOrder, sortMode: s.sortMode, sortByMeasureKey: s.sortByMeasureKey, nullPlacement: s.nullPlacement, filter: normalizePivotFilter(s.filter), valueType: f.valueType, groupInterval: f.groupInterval ?? 'none', customAggregateKey: f.customAggregateKey ?? f.customAggregate?.key ?? f.calculated?.key };
-        }).filter(f => layout.fields.find(s => s.key === f.key)?.visible && f.area !== 'hidden'), showRowGrandTotals: layout.showRowGrandTotals, showColumnGrandTotals: layout.showColumnGrandTotals,
+        }).filter(f => (layout.fields.find(s => s.key === f.key)?.visible && f.area !== 'hidden') || f.filter).map(f => layout.fields.find(s => s.key === f.key)?.visible ? f : { ...f, area: 'hidden' as const }), showRowGrandTotals: layout.showRowGrandTotals, showColumnGrandTotals: layout.showColumnGrandTotals,
         maxRows: options.maxRows ?? 10000, maxColumns: options.maxColumns ?? 2000, maxCells: options.maxCells ?? 2000000, locale: options.locale ?? 'en-US', timeZone: options.timeZone
     };
     checkLimit('rows', 0, query.maxRows);
@@ -117,7 +117,11 @@ export function createPivotQuery<T>(fields: ReadonlyArray<CgPivotField<T>>, layo
     new Intl.Collator(query.locale);
     if (query.timeZone)
         new Intl.DateTimeFormat(query.locale, { timeZone: query.timeZone });
-    return freeze(query);
+    if (options.maximumSourceRows !== undefined) checkLimit('sourceRows', 0, options.maximumSourceRows);
+    if (options.maximumAggregateOperations !== undefined) checkLimit('aggregateOperations', 0, options.maximumAggregateOperations);
+    // Context/version tokens belong to the host: never serialize or recursively freeze them.
+    return Object.freeze({ ...freeze(query), dataVersion: options.dataVersion, queryContext: options.queryContext,
+        maximumSourceRows: options.maximumSourceRows, maximumAggregateOperations: options.maximumAggregateOperations });
 }
 function isArray(value: unknown): boolean { return Array.isArray(value); }
 export function validatePivotResult(result: CgPivotResult, query: CgPivotQuery): void {

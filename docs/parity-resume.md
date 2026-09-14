@@ -1,3 +1,9 @@
+# Current continuation — complete Phases 30–33
+
+The user authorized all remaining phases on 2026-09-14. Phase 30 is accepted; continue with Phase 31, then 32A/32B/32C and Phase 33, each in separate verified commits, followed by full integration. Preserve React defaults and keep Blazor/consumer repositories read-only. Reference Blazor aea3e622; the detailed accepted plan is in the current task. Phase 30 acceptance is in parity-implementation-status.md. No scheduled continuation is configured.
+
+The older Phase 29 checkpoint below is historical, not an instruction to stop.
+
 # Resume CashGear parity after Phase 29
 
 The user resumed on 2026-09-09. Phase 29 is complete and work is paused at the requested phase boundary. Start Phase 30 only when the user resumes. No scheduled continuation was created.

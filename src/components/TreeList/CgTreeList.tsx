@@ -1,11 +1,15 @@
-import { CgDecimalEdit } from '../DecimalEdit';
-import { normalizeDecimalString } from '../../internal/decimalValue';
+import { renderAutomaticGridEditor, validateAutomaticGridEditors } from '../Grid/editing';
+import type { CgGridColumnDescriptor } from '../Grid';
+import { validateTreeListPage } from './providerValidation';
+import { descendantSummaries } from './summaries';
+import type { GridRawDrafts } from '../Grid/editing';
 import { CgEditorCommitProvider, useEditorCommitController } from '../EditorCommit/CgEditorCommit';
 /* eslint-disable @typescript-eslint/no-base-to-string, @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/require-await, react-hooks/exhaustive-deps -- Unknown values are formatted at descriptor boundaries; promise-shaped actions may settle synchronously; stable runtime refs intentionally read the latest render state. */
 import {
   Fragment,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -217,6 +221,8 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
   const editSequence = useRef(0);
   const activeOptimisticUpdate = useRef<{ readonly token: string; readonly operationId: number } | null>(null);
 
+  const ownership = useMemo(() => Object.freeze({ dataVersion: props.dataVersion, queryContext: props.queryContext }), [props.dataVersion, props.queryContext]);
+  const auxiliaryControllers = useRef(new Set<AbortController>());
   const isProvider = 'dataProvider' in props;
   const dataProvider = isProvider ? props.dataProvider : undefined;
   const expandedTokens = useMemo(() => new Set([...expandedKeys].map(treeListKeyToken)), [expandedKeys]);
@@ -287,7 +293,7 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
   const rowsForRendering = useMemo(() => projection.visible.filter((entry) => !hiddenByCollapsedGroup.has(entry.internal.token) || groupRepresentatives.get(groupKeyFor(entry) ?? '') === entry.internal.token), [groupKeyFor, groupRepresentatives, hiddenByCollapsedGroup, projection.visible]);
 
   const providerRequest = useCallback((mode: CgTreeListProviderRequestMode, options: { parentKey?: CgTreeListParentKey<TKey>; targetKey?: TKey; skip?: number; take?: number; signal: AbortSignal }): CgTreeListProviderRequest<TKey> => Object.freeze({
-    mode,
+    ...ownership, mode,
     requestId: `${rootId}-${++requestSequence.current}`,
     queryId,
     generation: generationRef.current,
@@ -303,11 +309,16 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
     groups: immutableArray(viewState.groups),
     summaries: immutableArray((props.summaries ?? []).map((summary) => Object.freeze({ id: summary.id, type: summary.type, fieldId: summary.fieldId, aggregateKey: summary.aggregateKey, inputFieldIds: summary.inputFieldIds, visible: summary.visible !== false, scope: 'total' as const }))),
     signal: options.signal,
-  }), [columns, filter, filterMode, maximumProviderTake, props.summaries, queryId, rootId, rootPageSize, searchText, sorts, viewState.groups]);
+  }), [ownership, columns, filter, filterMode, maximumProviderTake, props.summaries, queryId, rootId, rootPageSize, searchText, sorts, viewState.groups]);
 
   const loadProviderRoots = useCallback(async (pageIndex: number): Promise<boolean> => {
     if (!dataProvider) return false;
     providerRootController.current?.abort();
+    generationRef.current++;
+    for (const pending of loadControllers.current.values()) pending.abort();
+    for (const pending of detailControllers.current.values()) pending.abort();
+    for (const pending of auxiliaryControllers.current) pending.abort();
+    loadControllers.current.clear(); detailControllers.current.clear();
     const controller = new AbortController(); providerRootController.current = controller;
     const generation = generationRef.current;
     setProviderLoading(true); setProviderError(null);
@@ -315,17 +326,41 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
       const result = await dataProvider(providerRequest('roots', { skip: pageIndex * viewState.rootPage.pageSize, take: viewState.rootPage.pageSize, signal: controller.signal }));
       if (controller.signal.aborted || generation !== generationRef.current || !mounted.current) return false;
       if (result.safeErrorCode) { setProviderError(result.safeMessage ?? result.safeErrorCode); return false; }
+      validateTreeListPage(result, { kind: 'none' }, pageIndex * viewState.rootPage.pageSize, Math.min(maximumProviderTake, viewState.rootPage.pageSize));
+      buildProviderHierarchy({ records: result.nodes, maximumDepth });
       setProviderRecords(immutableArray(result.nodes)); setProviderTotal(Math.max(0, result.totalCount));
       const nextState = createTreeListState(columns, { ...viewState, rootPage: { pageIndex, pageSize: viewState.rootPage.pageSize, totalCount: result.totalCount } });
       setViewState(nextState); props.onStateChange?.(nextState, Object.freeze({ operation: 'root-page', reason: 'provider' }));
       return true;
     } catch (error) {
-      if (!controller.signal.aborted && mounted.current) setProviderError(error instanceof Error ? error.message : 'Provider request failed.');
+      if (!controller.signal.aborted && generation === generationRef.current && mounted.current) setProviderError(error instanceof Error ? error.message : 'Provider request failed.');
       return false;
-    } finally { if (!controller.signal.aborted && mounted.current) setProviderLoading(false); }
+    } finally { if (!controller.signal.aborted && generation === generationRef.current && mounted.current) setProviderLoading(false); }
   }, [columns, dataProvider, props, providerRequest, setViewState, viewState]);
 
-  useEffect(() => {
+
+  const providerGroupsIdentity = JSON.stringify(viewState.groups);
+  const invalidationInitialized = useRef(false);
+  const localDataIdentity = 'data' in props ? props.data : null;
+  useLayoutEffect(() => {
+    if (!invalidationInitialized.current) { invalidationInitialized.current = true; return; }
+    generationRef.current++;
+    mutationController.current?.abort(); summaryController.current?.abort();
+    for (const controller of loadControllers.current.values()) controller.abort();
+    for (const controller of detailControllers.current.values()) controller.abort();
+    for (const controller of auxiliaryControllers.current) controller.abort();
+    auxiliaryControllers.current.clear(); loadControllers.current.clear(); detailControllers.current.clear();
+    setLazyPages(new Map()); setDetailStatuses(new Map()); setLoadStatuses(new Map()); setSummaryStatuses(new Map());
+    setEditSession(null); setOptimisticUpdates(new Map()); activeOptimisticUpdate.current = null;
+    return () => {
+      mutationController.current?.abort(); summaryController.current?.abort();
+      for (const controller of auxiliaryControllers.current) controller.abort();
+      for (const controller of loadControllers.current.values()) controller.abort();
+      for (const controller of detailControllers.current.values()) controller.abort();
+    };
+  }, [ownership, localDataIdentity, props.detailLoader, props.loadChildren, props.snapshotProvider]);
+
+  useLayoutEffect(() => {
     if (!isProvider) return;
     generationRef.current++;
     mutationController.current?.abort();
@@ -336,20 +371,7 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
     setProviderRecords([]);
     void loadProviderRoots(viewState.rootPage.pageIndex);
     return () => providerRootController.current?.abort();
-  }, [isProvider, props.dataProvider, queryId, filter, filterMode, searchText, sorts]); // query replacement owns a new generation
-
-  const localDataIdentity = 'data' in props ? props.data : null;
-  const localDataIdentityRef = useRef(localDataIdentity);
-  useEffect(() => {
-    if (isProvider || Object.is(localDataIdentityRef.current, localDataIdentity)) return;
-    localDataIdentityRef.current = localDataIdentity;
-    generationRef.current++;
-    mutationController.current?.abort();
-    for (const controller of loadControllers.current.values()) controller.abort();
-    for (const controller of detailControllers.current.values()) controller.abort();
-    loadControllers.current.clear(); detailControllers.current.clear();
-    setLazyPages(new Map()); setOptimisticUpdates(new Map()); activeOptimisticUpdate.current = null;
-  }, [isProvider, localDataIdentity]);
+  }, [isProvider, props.dataProvider, ownership, queryId, filter, filterMode, searchText, sorts, providerGroupsIdentity, columns, props.summaries]); // query replacement owns a new generation
 
   useEffect(() => {
     viewStoreReady.current = false;
@@ -391,10 +413,10 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
       return hierarchy.byToken.has(treeListKeyToken(key)) ? [{ nodeKey: key, summaryId: summary.id, scope: 'complete-subtree' as const }] : [];
     });
     summaryController.current?.abort();
-    if (!props.summaryProvider || !requests.length) { setSummaryStatuses(new Map()); return; }
+    if (!props.summaryProvider || !requests.length) { setSummaryStatuses(current => current.size ? new Map() : current); return; }
     const controller = new AbortController(); summaryController.current = controller;
     const generation = generationRef.current;
-    void Promise.resolve(props.summaryProvider(Object.freeze({ queryId, generation, items: immutableArray(requests), signal: controller.signal }))).then((result) => {
+    void Promise.resolve(props.summaryProvider(Object.freeze({ ...ownership, queryId, generation, items: immutableArray(requests), signal: controller.signal }))).then((result) => {
       if (controller.signal.aborted || generation !== generationRef.current || !mounted.current) return;
       const next = new Map<string, SummaryStatus>();
       for (const value of result.values) next.set(`${treeListKeyToken(value.nodeKey)}|${value.summaryId}`, { value: value.value, completeness: value.completeness, ...(value.safeErrorCode ? { errorCode: value.safeErrorCode } : {}) });
@@ -459,12 +481,16 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
         const result = await dataProvider(providerRequest('children', { parentKey: { kind: 'key', key }, skip, take: childPageSize, signal: controller.signal }));
         if (controller.signal.aborted || generation !== generationRef.current || !mounted.current) return false;
         if (result.safeErrorCode) throw new Error(result.safeMessage ?? result.safeErrorCode);
+        validateTreeListPage(result, { kind: 'key', key }, skip, Math.min(maximumProviderTake, childPageSize), new Set((more ? node.children : []).map(child => child.token)), more ? localPage?.totalCount : undefined);
+        for (const record of result.nodes) { const existing = hierarchy.byToken.get(treeListKeyToken(record.key)); if (existing && existing.parent?.token !== token) throw new Error('TreeList child key belongs to a different parent.'); }
         const pageKnown = new Set((more ? node.children : []).map((child) => child.token));
         const pageRecords = result.nodes.filter((record) => { const recordToken = treeListKeyToken(record.key); if (pageKnown.has(recordToken)) return false; pageKnown.add(recordToken); return true; });
         setProviderRecords((current) => {
-          const known = new Set(current.map((record) => treeListKeyToken(record.key)));
+          const removed = more ? new Set<string>() : new Set(hierarchyDescendants(node).map(child => child.token));
+          const retained = current.filter(record => !removed.has(treeListKeyToken(record.key)));
+          const known = new Set(retained.map((record) => treeListKeyToken(record.key)));
           const addedRecords = result.nodes.filter((record) => { const recordToken = treeListKeyToken(record.key); if (known.has(recordToken)) return false; known.add(recordToken); return true; });
-          const updated = current.map((record) => Object.is(record.key, key) ? { ...record, hasChildren: (more ? node.children.length : 0) + result.nodes.length > 0 || result.hasMore === true, projectionComplete: result.projectionComplete ?? result.hasMore !== true } : record);
+          const updated = retained.map((record) => Object.is(record.key, key) ? { ...record, hasChildren: (more ? node.children.length : 0) + result.nodes.length > 0 || result.hasMore === true, projectionComplete: result.projectionComplete ?? result.hasMore !== true } : record);
           return immutableArray([...updated, ...addedRecords]);
         });
         const previousItems = more ? localPage?.items ?? [] : [];
@@ -477,9 +503,16 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
         }
       } else if (props.loadChildren) {
         const skip = more ? localPage?.nextSkip ?? node.children.length : 0;
-        const result = await props.loadChildren(Object.freeze({ parentItem: node.item, parentKey: key, parentLevel: node.level, sorts: immutableArray(sorts), filter, searchText, attempt, generation, skip, take: childPageSize, signal: controller.signal }));
+        const result = await props.loadChildren(Object.freeze({ ...ownership, parentItem: node.item, parentKey: key, parentLevel: node.level, sorts: immutableArray(sorts), filter, searchText, attempt, generation, skip, take: childPageSize, signal: controller.signal }));
         if (controller.signal.aborted || generation !== generationRef.current || !mounted.current) return false;
         const existing = more ? localPage?.items ?? [] : [];
+        const pageKeys = new Set(existing.map(item => treeListKeyToken(props.getKey!(item))));
+        for (const item of result.children) {
+          const value = treeListKeyToken(props.getKey!(item));
+          if (pageKeys.has(value) || (hierarchy.byToken.has(value) && hierarchy.byToken.get(value)!.parent?.token !== token)) throw new Error('Duplicate or overlapping TreeList child key.');
+          pageKeys.add(value);
+        }
+        if (result.children.length > childPageSize || result.totalCount !== undefined && (!Number.isSafeInteger(result.totalCount) || result.totalCount < skip + result.children.length || (more && localPage?.totalCount !== undefined && result.totalCount !== localPage.totalCount)) || result.hasMore && !result.children.length) throw new Error('Inconsistent TreeList child page.');
         const known = new Set(existing.map((item) => { const itemKey = keyForItem(item); return itemKey === null ? '' : treeListKeyToken(itemKey); }));
         const added = result.children.filter((item) => { const itemKey = keyForItem(item); if (itemKey === null) return false; const itemToken = treeListKeyToken(itemKey); if (known.has(itemToken)) return false; known.add(itemToken); return true; });
         const page: LazyPage<TItem> = { items: immutableArray([...existing, ...added]), hasMore: result.hasMore ?? false, nextSkip: skip + result.children.length, ...(result.totalCount === undefined ? {} : { totalCount: result.totalCount }) };
@@ -494,9 +527,9 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
       setLoadStatuses((current) => { const next = new Map(current); next.delete(token); return next; });
       return true;
     } catch (error) {
-      if (!controller.signal.aborted && mounted.current) setLoadStatuses((current) => new Map(current).set(token, { state: 'error', errorCode: error instanceof Error ? error.message : 'LOAD_FAILED' }));
+      if (!controller.signal.aborted && generation === generationRef.current && mounted.current) setLoadStatuses((current) => new Map(current).set(token, { state: 'error', errorCode: error instanceof Error ? error.message : 'LOAD_FAILED' }));
       return false;
-    } finally { loadControllers.current.delete(token); }
+    } finally { if (loadControllers.current.get(token) === controller) loadControllers.current.delete(token); }
   }, [checkMode, checkedKeys, checkedTokens, childPageSize, dataProvider, filter, hierarchy, keyForItem, lazyPages, props, providerRequest, searchText, setCheckedKeys, sorts]);
 
   const performExpansion = useCallback(async (key: TKey, expand: boolean, reason: CgTreeListExpansionEventDetail<TItem, TKey>['reason'], event?: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>): Promise<boolean> => {
@@ -530,11 +563,17 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
     return true;
   }, [hierarchy, props, selectedKeys, selectedTokens, selectionMode, setSelectedKeys, visible]);
 
+  const pendingFocus = useRef<{ key: TKey; fieldId: string } | null>(null);
   const setFocus = useCallback((key: TKey | null, fieldId: string | null, reason: 'pointer' | 'keyboard' | 'api' | 'state-restoration' | 'provider', focusDom: boolean): boolean => {
     if (key !== null && !hierarchy.byToken.has(treeListKeyToken(key))) return false;
     const actualColumn = fieldId && visibleColumns.some((column) => column.fieldId === fieldId) ? fieldId : visibleColumns[0]?.fieldId ?? null;
     setFocusedKey(key); setFocusedColumnId(actualColumn); props.onFocusChange?.(Object.freeze({ focusedKey: key, focusedColumnId: actualColumn, reason }));
-    if (focusDom && key !== null && actualColumn) queueMicrotask(() => cellRefs.current.get(`${treeListKeyToken(key)}|${actualColumn}`)?.focus());
+    if (focusDom && key !== null && actualColumn) {
+      const index = rowsForRendering.findIndex(entry => Object.is(entry.internal.key, key));
+      if (index >= 0 && props.rowVirtualization) { const top = index * rowHeight; setScrollTop(top); if (scrollerRef.current) scrollerRef.current.scrollTop = top; }
+      pendingFocus.current = { key, fieldId: actualColumn };
+      cellRefs.current.get(treeListKeyToken(key) + '|' + actualColumn)?.focus();
+    }
     return true;
   }, [hierarchy.byToken, props, setFocusedColumnId, setFocusedKey, visibleColumns]);
 
@@ -554,7 +593,7 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
     const generation = generationRef.current; const attempt = (detailStatuses.get(token)?.attempt ?? 0) + 1;
     setDetailStatuses((current) => new Map(current).set(token, { loading: true, attempt }));
     try {
-      const result = await props.detailLoader(Object.freeze({ item: node.item, key, attempt, generation, signal: controller.signal }));
+      const result = await props.detailLoader(Object.freeze({ ...ownership, item: node.item, key, attempt, generation, signal: controller.signal }));
       if (controller.signal.aborted || generation !== generationRef.current || !mounted.current) return false;
       setDetailStatuses((current) => new Map(current).set(token, { loading: false, detail: result.detail, errorCode: result.safeErrorCode, attempt })); return !result.safeErrorCode;
     } catch (error) {
@@ -601,11 +640,18 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
 
   const editorCommit = useEditorCommitController();
   const preparingCommit = useRef(false);
+  const [rawDrafts, setRawDrafts] = useState<GridRawDrafts>({});
+  const rawDraftsRef = useRef<GridRawDrafts>({});
+  useLayoutEffect(() => { rawDraftsRef.current = {}; setRawDrafts({}); }, [editSession?.sessionId]);
   const performSaveEdit = useCallback(async (): Promise<boolean> => {
     if (!editSession || editSession.saving) return false;
     if (editSession.kind === 'create' ? !props.onCreate : !props.onUpdate || editSession.key === null || !editSession.original) return false;
     mutationController.current?.abort(); const controller = new AbortController(); mutationController.current = controller;
     const session = editSession; const generation = generationRef.current;
+    const descriptors = columns.map(column => ({ ...column, accessor: column.getValue })) as ReadonlyArray<CgGridColumnDescriptor<TItem>>;
+    const fieldErrors = validateAutomaticGridEditors(descriptors, session.draft, rawDraftsRef.current);
+    for (const column of columns) { const value = column.getValue?.(session.draft); if (column.type === 'number' && typeof value === 'number' && !Number.isFinite(value)) (fieldErrors as Record<string, readonly string[]>)[column.fieldId] = ['Enter a valid finite number.']; }
+    if (Object.keys(fieldErrors).length) { controller.abort(); setEditSession({ ...session, result: { outcome: 'validation-failure', fieldErrors } }); return false; }
     let optimisticOperation: { readonly token: string; readonly operationId: number } | null = null;
     if (props.optimistic && session.kind === 'update' && session.key !== null) {
       optimisticOperation = { token: treeListKeyToken(session.key), operationId: ++optimisticSequence.current };
@@ -616,9 +662,9 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
     try {
       let result: CgTreeListMutationResult<TItem>;
       if (session.kind === 'create') {
-        result = await props.onCreate!(Object.freeze({ draft: session.draft, parentKey: session.parentKey, siblingPosition: session.parentKey.kind === 'none' ? hierarchy.roots.length : hierarchy.byToken.get(treeListKeyToken(session.parentKey.key))?.children.length ?? 0, attempt: session.attempt, generation, clientValidationConclusive: true, signal: controller.signal }));
+        result = await props.onCreate!(Object.freeze({ ...ownership, draft: session.draft, parentKey: session.parentKey, siblingPosition: session.parentKey.kind === 'none' ? hierarchy.roots.length : hierarchy.byToken.get(treeListKeyToken(session.parentKey.key))?.children.length ?? 0, attempt: session.attempt, generation, clientValidationConclusive: true, signal: controller.signal }));
       } else {
-        result = await props.onUpdate!(Object.freeze({ item: session.original!, key: session.key!, draft: session.draft, changedFieldIds: immutableArray(columns.filter((column) => column.getValue && !Object.is(column.getValue(session.original!), column.getValue(session.draft))).map((column) => column.fieldId)), attempt: session.attempt, generation, concurrencyToken: props.getConcurrencyToken?.(session.original!), signal: controller.signal }));
+        result = await props.onUpdate!(Object.freeze({ ...ownership, item: session.original!, key: session.key!, draft: session.draft, changedFieldIds: immutableArray(columns.filter((column) => column.getValue && !Object.is(column.getValue(session.original!), column.getValue(session.draft))).map((column) => column.fieldId)), attempt: session.attempt, generation, concurrencyToken: props.getConcurrencyToken?.(session.original!), signal: controller.signal }));
       }
       if (controller.signal.aborted || generation !== generationRef.current || !mounted.current) { rollbackOptimisticUpdate(optimisticOperation); return false; }
       if (result.outcome === 'success') {
@@ -631,7 +677,7 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
     } catch (error) {
       rollbackOptimisticUpdate(optimisticOperation);
       if (!controller.signal.aborted) setEditSession((current) => current?.sessionId === session.sessionId ? { ...session, saving: false, result: { outcome: 'failure', generalErrors: [error instanceof Error ? error.message : 'Save failed.'] } } : current); return false;
-    }
+    } finally { if (mutationController.current === controller) mutationController.current = null; }
   }, [columns, editSession, hierarchy, props, rollbackOptimisticUpdate]);
 
   const snapshot = useCallback((scope: 'visible-rows' | 'loaded-nodes' | 'complete-tree' = 'visible-rows'): CgTreeListSnapshot<TItem, TKey> => {
@@ -641,15 +687,26 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
     return Object.freeze({ rows: immutableArray(rows), complete, totalSummaries: Object.freeze({}) });
   }, [hierarchy.nodes, visible]);
 
+  const completeSnapshot = useCallback(async (options: CgTreeListExportOptions | CgTreeListPrintOptions): Promise<CgTreeListSnapshot<TItem, TKey>> => {
+    options.signal?.throwIfAborted();
+    const current = snapshot(options.scope);
+    if (options.scope !== 'complete-tree' || current.complete) return current;
+    if (!props.snapshotProvider) throw new Error('CgTreeList complete-tree output requires an authorized snapshotProvider.');
+    const controller = new AbortController(); const generation = generationRef.current;
+    auxiliaryControllers.current.add(controller);
+    const stop = () => controller.abort(); options.signal?.addEventListener('abort', stop, { once: true });
+    try {
+      const result = await props.snapshotProvider(Object.freeze({ ...ownership, scope: 'complete-tree', columnIds: immutableArray(options.columnIds ?? []), includeSummaries: options.includeSummaries ?? true, includeDetails: false, signal: controller.signal }));
+      controller.signal.throwIfAborted();
+      if (!mounted.current || generation !== generationRef.current) throw new DOMException('Obsolete snapshot', 'AbortError');
+      if (!result.complete || new Set(result.rows.map(row => treeListKeyToken(row.key))).size !== result.rows.length) throw new Error('Invalid complete-tree snapshot.');
+      return result;
+    } finally { options.signal?.removeEventListener('abort', stop); auxiliaryControllers.current.delete(controller); }
+  }, [snapshot, props.snapshotProvider, ownership]);
+
   const exportXlsx = useCallback(async (options: CgTreeListExportOptions = {}): Promise<CgTreeListExportResult> => {
     if (options.signal?.aborted) throw new Error('CgTreeList XLSX export was aborted.');
-    let current = snapshot(options.scope);
-    if (options.scope === 'complete-tree' && !current.complete) {
-      if (!props.snapshotProvider) throw new Error('CgTreeList complete-tree export requires an authorized snapshotProvider when the loaded projection is incomplete.');
-      const controller = new AbortController(); options.signal?.addEventListener('abort', () => controller.abort(), { once: true }); current = await props.snapshotProvider(Object.freeze({ scope: 'complete-tree', columnIds: immutableArray(options.columnIds ?? []), includeSummaries: options.includeSummaries ?? true, includeDetails: false, signal: controller.signal }));
-      if (controller.signal.aborted) throw new Error('CgTreeList XLSX export was aborted.');
-      if (!current.complete) throw new Error('CgTreeList snapshotProvider returned an incomplete complete-tree export.');
-    }
+    const current = await completeSnapshot(options);
     const maximum = options.maximumRows ?? 250_000; if (current.rows.length > maximum) throw new Error(`CgTreeList export exceeds the maximum row count of ${maximum}.`);
     const exportable = columns.filter((column) => normalizedColumns.find((entry) => entry.fieldId === column.fieldId)?.visible || column.exportEnabled === true);
     const selected = options.columnIds?.length ? exportable.filter((column) => options.columnIds!.includes(column.fieldId)) : exportable;
@@ -659,7 +716,7 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
 
   const printTree = useCallback(async (options: CgTreeListPrintOptions = {}): Promise<CgTreeListPrintResult> => {
     if (options.signal?.aborted) throw new Error('CgTreeList print preparation was aborted.');
-    let current = snapshot(options.scope); if (options.scope === 'complete-tree' && !current.complete) { if (!props.snapshotProvider) throw new Error('CgTreeList complete-tree print requires an authorized snapshotProvider.'); const controller = new AbortController(); options.signal?.addEventListener('abort', () => controller.abort(), { once: true }); current = await props.snapshotProvider(Object.freeze({ scope: 'complete-tree', columnIds: immutableArray(options.columnIds ?? []), includeSummaries: options.includeSummaries ?? true, includeDetails: false, signal: controller.signal })); if (controller.signal.aborted) throw new Error('CgTreeList print preparation was aborted.'); }
+    const current = await completeSnapshot(options);
     const printColumns = columns.filter((column) => column.printEnabled !== false && column.getValue && (!options.columnIds?.length || options.columnIds.includes(column.fieldId)));
     const title = options.title ?? 'Tree list';
     const html = `<section dir="${directionValue}"><h1>${escapeHtml(title)}</h1><table><thead><tr>${printColumns.map((column) => `<th>${escapeHtml(column.title ?? column.fieldId)}</th>`).join('')}</tr></thead><tbody>${current.rows.map((row) => `<tr>${printColumns.map((column) => `<td>${column.fieldId === hierarchyFieldId ? '&nbsp;'.repeat(Math.min(64, (row.level - 1) * 2)) : ''}${escapeHtml(formatTreeListValue(column, row.item, props.locale))}</td>`).join('')}</tr>`).join('')}</tbody></table></section>`;
@@ -681,7 +738,32 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
     scrollToNode: async (key: TKey) => { const token = tokenOrNull(key); const row = token ? rowRefs.current.get(token) : undefined; if (!row) return false; row.scrollIntoView({ block: 'nearest' }); return true; },
     ensureNodeVisible: async (key: TKey, options?: { focus?: boolean; signal?: AbortSignal }) => {
       const token = tokenOrNull(key); const node = token ? hierarchy.byToken.get(token) : undefined;
-      if (!node && dataProvider) { const controller = new AbortController(); options?.signal?.addEventListener('abort', () => controller.abort(), { once: true }); const result = await dataProvider(providerRequest('resolve-path', { targetKey: key, signal: controller.signal })); if (controller.signal.aborted) return false; setProviderRecords((current) => immutableArray([...current, ...(result.resolvedPath ?? result.nodes)])); const keys = result.resolvedPath ?? result.nodes; const next = new Set(expandedKeys); for (const record of keys.slice(0, -1)) next.add(record.key); setExpandedKeys(immutableSet(next)); if (options?.focus) queueMicrotask(() => { void (runtimeRef.current.focusNode?.(key, hierarchyFieldId) as Promise<boolean>); }); return keys.some((record) => Object.is(record.key, key)); }
+      if (!node && dataProvider) {
+        const controller = new AbortController(); const generation = generationRef.current;
+        const pathKey = 'path:' + treeListKeyToken(key); loadControllers.current.get(pathKey)?.abort(); loadControllers.current.set(pathKey, controller);
+        const stop = () => controller.abort(); if (options?.signal?.aborted) return false;
+        options?.signal?.addEventListener('abort', stop, { once: true }); auxiliaryControllers.current.add(controller);
+        try {
+          const result = await dataProvider(providerRequest('resolve-path', { targetKey: key, signal: controller.signal }));
+          if (controller.signal.aborted || generation !== generationRef.current || !mounted.current) return false;
+          const path = result.resolvedPath ?? result.nodes;
+          if (result.safeErrorCode || !path.length || !Object.is(path.at(-1)!.key, key)) return false;
+          const seen = new Set<string>();
+          for (let i = 0; i < path.length; i++) {
+            const record = path[i]!; const value = treeListKeyToken(record.key);
+            if (seen.has(value) || (i === 0 ? record.parentKey.kind !== 'none' : record.parentKey.kind !== 'key' || !Object.is(record.parentKey.key, path[i - 1]!.key))) return false;
+            seen.add(value);
+          }
+          const known = new Map(providerRecords.map(record => [treeListKeyToken(record.key), record]));
+          for (const record of path) { const existing = known.get(treeListKeyToken(record.key)); if (existing && JSON.stringify(existing.parentKey) !== JSON.stringify(record.parentKey)) return false; known.set(treeListKeyToken(record.key), record); }
+          buildProviderHierarchy({ records: [...known.values()], maximumDepth });
+          setProviderRecords(current => { const merged = new Map(current.map(record => [treeListKeyToken(record.key), record])); for (const record of path) merged.set(treeListKeyToken(record.key), record); return immutableArray(merged.values()); });
+          setExpandedKeys(immutableSet([...expandedKeys, ...path.slice(0, -1).map(record => record.key)]));
+          if (options?.focus) pendingFocus.current = { key, fieldId: hierarchyFieldId };
+          return true;
+        } catch { return false; }
+        finally { options?.signal?.removeEventListener('abort', stop); auxiliaryControllers.current.delete(controller); if (loadControllers.current.get(pathKey) === controller) loadControllers.current.delete(pathKey); }
+      }
       if (!node || !token) return false; const next = new Set(expandedKeys); for (const ancestor of hierarchyAncestors(node)) next.add(ancestor.key); const frozen = immutableSet(next); setExpandedKeys(frozen); if (next.size !== expandedKeys.size) props.onExpandedKeysChange?.(frozen, Object.freeze({ item: node.item, key, level: node.level, expanded: true, reason: 'expandToNode', childrenLoaded: node.childrenLoaded, expandedKeys: frozen })); queueMicrotask(() => { const row = rowRefs.current.get(token!); row?.scrollIntoView({ block: 'nearest' }); if (options?.focus) setFocus(key, hierarchyFieldId, 'api', true); }); return true;
     },
     expandNode: async (key: TKey) => performExpansion(key, true, 'api'), collapseNode: async (key: TKey) => performExpansion(key, false, 'api'), toggleNode: async (key: TKey) => { const token = tokenOrNull(key); return token ? performExpansion(key, !expandedTokens.has(token), 'api') : false; },
@@ -703,8 +785,8 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
       return true;
     },
     addRoot: async (draft?: TItem) => beginCreate({ kind: 'none' }, draft), addChild: async (parentKey: TKey, draft?: TItem) => beginCreate({ kind: 'key', key: parentKey }, draft), editNode: async (key: TKey) => beginEdit(key),
-    deleteNode: async (key: TKey) => { const token = tokenOrNull(key); const node = token ? hierarchy.byToken.get(token) : undefined; if (!node || props.disabled || props.readOnly || !props.allowDelete || !props.onDelete || props.canDelete?.(node.item) === false) return false; mutationController.current?.abort(); const controller = new AbortController(); mutationController.current = controller; const generation = generationRef.current; const result = await props.onDelete(Object.freeze({ item: node.item, key, parentKey: node.parent ? { kind: 'key', key: node.parent.key } : { kind: 'none' }, attempt: 1, generation, concurrencyToken: props.getConcurrencyToken?.(node.item), signal: controller.signal })); return !controller.signal.aborted && generation === generationRef.current && result.outcome === 'success'; },
-    moveNode: async (key: TKey, parentKey: CgTreeListParentKey<TKey>, siblingPosition = 0) => { const token = tokenOrNull(key); const node = token ? hierarchy.byToken.get(token) : undefined; if (!node || props.disabled || props.readOnly || !props.allowMove || !props.onMove || props.canMove?.(node.item) === false) return false; if (parentKey.kind === 'key') { const parentToken = treeListKeyToken(parentKey.key); if (parentToken === token || hierarchyDescendants(node).some((child) => child.token === parentToken)) return false; } mutationController.current?.abort(); const controller = new AbortController(); mutationController.current = controller; const generation = generationRef.current; const result = await props.onMove(Object.freeze({ item: node.item, key, oldParentKey: node.parent ? { kind: 'key', key: node.parent.key } : { kind: 'none' }, proposedParentKey: parentKey, proposedSiblingPosition: Math.max(0, siblingPosition), clientValidationConclusive: hierarchy.nodes.every((entry) => !entry.hasUnloadedChildren && entry.projectionComplete), attempt: 1, generation, concurrencyToken: props.getConcurrencyToken?.(node.item), signal: controller.signal })); return !controller.signal.aborted && generation === generationRef.current && result.outcome === 'success'; },
+    deleteNode: async (key: TKey) => { const token = tokenOrNull(key); const node = token ? hierarchy.byToken.get(token) : undefined; if (!node || props.disabled || props.readOnly || !props.allowDelete || !props.onDelete || props.canDelete?.(node.item) === false) return false; mutationController.current?.abort(); const controller = new AbortController(); mutationController.current = controller; const generation = generationRef.current; const result = await props.onDelete(Object.freeze({ ...ownership, item: node.item, key, parentKey: node.parent ? { kind: 'key', key: node.parent.key } : { kind: 'none' }, attempt: 1, generation, concurrencyToken: props.getConcurrencyToken?.(node.item), signal: controller.signal })); return !controller.signal.aborted && generation === generationRef.current && result.outcome === 'success'; },
+    moveNode: async (key: TKey, parentKey: CgTreeListParentKey<TKey>, siblingPosition = 0) => { const token = tokenOrNull(key); const node = token ? hierarchy.byToken.get(token) : undefined; if (!node || props.disabled || props.readOnly || !props.allowMove || !props.onMove || props.canMove?.(node.item) === false) return false; if (parentKey.kind === 'key') { const parentToken = treeListKeyToken(parentKey.key); if (parentToken === token || hierarchyDescendants(node).some((child) => child.token === parentToken)) return false; } mutationController.current?.abort(); const controller = new AbortController(); mutationController.current = controller; const generation = generationRef.current; const result = await props.onMove(Object.freeze({ ...ownership, item: node.item, key, oldParentKey: node.parent ? { kind: 'key', key: node.parent.key } : { kind: 'none' }, proposedParentKey: parentKey, proposedSiblingPosition: Math.max(0, siblingPosition), clientValidationConclusive: hierarchy.nodes.every((entry) => !entry.hasUnloadedChildren && entry.projectionComplete), attempt: 1, generation, concurrencyToken: props.getConcurrencyToken?.(node.item), signal: controller.signal })); return !controller.signal.aborted && generation === generationRef.current && result.outcome === 'success'; },
     saveEdit, cancelEdit: async () => { editorCommit.resetDrafts(); mutationController.current?.abort(); rollbackOptimisticUpdate(); setEditSession(null); return true; }, retryConflict: async () => { if (!editSession || editSession.result?.outcome !== 'conflict') return false; setEditSession({ ...editSession, attempt: editSession.attempt + 1, result: undefined }); await new Promise((resolve) => setTimeout(resolve, 0)); return runtimeRef.current.saveEdit?.() as Promise<boolean>; }, reloadConflict: async () => { if (!editSession) return false; mutationController.current?.abort(); rollbackOptimisticUpdate(); setEditSession(null); return true; },
     applyFilter: async (nextFilter: typeof filter, mode?: CgTreeListFilterMode) => { const nextMode = mode ?? filterMode; setFilter(nextFilter); props.onFilterChange?.(nextFilter); if (mode) { setFilterMode(mode); props.onFilterModeChange?.(mode); } const nextState = createTreeListState(columns, { ...viewState, filter: nextFilter, filterMode: nextMode }); setViewState(nextState); props.onStateChange?.(nextState, Object.freeze({ operation: 'filter', reason: 'api' })); return true; },
     groupBy: async (fieldId: string) => { if (!columns.some((column) => column.fieldId === fieldId)) return false; const next = createTreeListState(columns, { ...viewState, groups: [...viewState.groups.filter((group) => group.fieldId !== fieldId), { fieldId, direction: 'ascending' }] }); setViewState(next); props.onStateChange?.(next, Object.freeze({ operation: 'group', reason: 'api' })); return true; },
@@ -734,20 +816,37 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
     setFocus(ancestor?.key ?? null, focusedColumnId, 'state-restoration', false);
   }, [focusedColumnId, focusedKey, hierarchy, setFocus, visible]);
 
+  const virtualization = useMemo(() => {
+    const reasons: string[] = [];
+    if (editSession && props.editMode !== 'popup') reasons.push('inline-edit');
+    if (viewState.groups.length) reasons.push('group-rows');
+    if (detailKeys.size) reasons.push('detail-rows');
+    return Object.freeze({ rows: !!props.rowVirtualization && !reasons.length, columns: !!props.columnVirtualization && !reasons.length, reasons: Object.freeze(reasons) });
+  }, [props.rowVirtualization, props.columnVirtualization, props.editMode, !!editSession, viewState.groups.length, detailKeys.size]);
+  useEffect(() => { props.onVirtualizationChange?.(virtualization); }, [virtualization, props.onVirtualizationChange]);
+  runtimeRef.current.getVirtualizationStatus = () => virtualization;
   const columnRenderSet = useMemo(() => {
-    if (!props.columnVirtualization || visibleColumns.length <= 4) return new Set(visibleColumns.map((column) => column.fieldId));
+    if (!virtualization.columns || visibleColumns.length <= 4) return new Set(visibleColumns.map((column) => column.fieldId));
     const fixed = visibleColumns.filter((column) => column.fixed !== 'none'); const middle = visibleColumns.filter((column) => column.fixed === 'none');
     const average = middle.reduce((sum, column) => sum + (typeof column.width === 'number' ? column.width : 160), 0) / Math.max(1, middle.length);
     const start = Math.max(0, Math.floor(scrollLeft / average) - columnOverscan); const count = Math.ceil(viewportWidth / average) + columnOverscan * 2;
-    return new Set([...fixed, ...middle.slice(start, start + count)].map((column) => column.fieldId));
-  }, [columnOverscan, props.columnVirtualization, scrollLeft, viewportWidth, visibleColumns]);
+    return new Set([...fixed, ...middle.slice(start, start + count)].map((column) => column.fieldId).concat(focusedColumnId ? [focusedColumnId] : []));
+  }, [columnOverscan, virtualization.columns, focusedColumnId, scrollLeft, viewportWidth, visibleColumns]);
   const renderedColumns = visibleColumns.filter((column) => columnRenderSet.has(column.fieldId));
   const rowWindow = useMemo(() => {
-    if (!props.rowVirtualization) return { start: 0, end: rowsForRendering.length, top: 0, bottom: 0 };
+    if (!virtualization.rows) return { start: 0, end: rowsForRendering.length, top: 0, bottom: 0 };
     const start = Math.max(0, Math.floor(scrollTop / rowHeight) - overscan); const end = Math.min(rowsForRendering.length, Math.ceil((scrollTop + viewportHeight) / rowHeight) + overscan);
     return { start, end, top: start * rowHeight, bottom: (rowsForRendering.length - end) * rowHeight };
-  }, [overscan, props.rowVirtualization, rowHeight, rowsForRendering.length, scrollTop, viewportHeight]);
-  const renderedRows = rowsForRendering.slice(rowWindow.start, rowWindow.end);
+  }, [overscan, virtualization.rows, focusedKey, rowHeight, rowsForRendering, scrollTop, viewportHeight]);
+  const focusedRowIndex = rowsForRendering.findIndex(entry => Object.is(entry.internal.key, focusedKey));
+  const renderedRowIndices = [...new Set([...Array.from({ length: Math.max(0, rowWindow.end - rowWindow.start) }, (_, i) => rowWindow.start + i), ...(focusedRowIndex >= 0 ? [focusedRowIndex] : [])])].sort((a, b) => a - b);
+  const renderedRows = renderedRowIndices.map(index => rowsForRendering[index]!);
+  useLayoutEffect(() => {
+    const pending = pendingFocus.current;
+    if (!pending) return;
+    const cell = cellRefs.current.get(treeListKeyToken(pending.key) + '|' + pending.fieldId);
+    if (cell) { cell.focus(); cell.scrollIntoView?.({ block: 'nearest', inline: 'nearest' }); pendingFocus.current = null; }
+  });
 
   const toggleGroup = (groupKey: string) => {
     const collapsed = new Set(viewState.collapsedGroupKeys); if (collapsed.has(groupKey)) collapsed.delete(groupKey); else collapsed.add(groupKey);
@@ -758,10 +857,13 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
     const column = columns.find((candidate) => candidate.fieldId === group.fieldId); return `${column?.title ?? group.fieldId}: ${formatTreeListValue(column!, entry.internal.item, props.locale)}`;
   }).join(' · ');
   const globalSummaryValues = useMemo(() => (props.summaries ?? []).filter((summary) => summary.scope === 'visible-rows' || summary.scope === 'loaded-nodes').map((summary) => Object.freeze({ summary, value: calculateSummary(summary, summary.scope === 'visible-rows' ? visible.map((entry) => entry.internal.item) : hierarchy.nodes.map((node) => node.item), columns) })), [columns, hierarchy.nodes, props.summaries, visible]);
+  const descendantValues = useMemo(() => new Map((props.summaries ?? []).filter(summary => summary.scope === 'loaded-descendants').map(summary => [summary.id, descendantSummaries(hierarchy, summary, columns)])), [hierarchy, props.summaries, columns]);
   const nodeSummaryValues = (entry: TreeListProjectionNode<TItem, TKey>) => (props.summaries ?? []).filter((summary) => summary.scope !== 'visible-rows' && summary.scope !== 'loaded-nodes' && summary.nodeKey !== undefined && Object.is(summary.nodeKey, entry.internal.key)).map((summary) => {
+    const cached = descendantValues.get(summary.id)?.get(entry.internal.token);
+    if (cached) return { summary, ...cached, loading: false, errorCode: undefined };
     const nodes = summary.scope === 'direct-children' ? entry.internal.children : hierarchyDescendants(entry.internal);
     const remote = summary.scope === 'complete-subtree' ? summaryStatuses.get(`${entry.internal.token}|${summary.id}`) : undefined;
-    const incomplete = summary.scope === 'complete-subtree' ? remote?.completeness !== 'complete' : entry.internal.hasUnloadedChildren || nodes.some((node) => node.hasUnloadedChildren);
+    const incomplete = summary.scope === 'complete-subtree' ? remote?.completeness !== 'complete' : entry.internal.hasUnloadedChildren || !entry.internal.projectionComplete || nodes.some((node) => node.hasUnloadedChildren || !node.projectionComplete);
     return { summary, value: summary.scope === 'complete-subtree' ? remote?.value : calculateSummary(summary, nodes.map((node) => node.item), columns), incomplete, loading: summary.scope === 'complete-subtree' && !remote, errorCode: remote?.errorCode };
   });
 
@@ -826,13 +928,20 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
     if (!editSession || !column.getValue) return null;
     if (editSession.kind === 'update' && (!entry || editSession.key !== entry.internal.key)) return null;
     const value = column.getValue(editSession.draft); const fieldErrors = editSession.result?.fieldErrors?.[column.fieldId] ?? [];
-    const setValue = (next: unknown) => { const updated = column.updateValue?.(editSession.draft, next as never) ?? column.editor?.setValue(editSession.draft, next as never); if (updated) setEditSession({ ...editSession, draft: updated }); };
-    const context = Object.freeze({ item: entry?.internal.item ?? editSession.original ?? editSession.draft, model: editSession.draft, key: editSession.key, value, setValue, fieldErrors, disabled: !!props.disabled, readOnly: !!props.readOnly });
+    const setValue = (next: unknown) => { if (editSession.saving || mutationController.current && !mutationController.current.signal.aborted) return; const updated = column.updateValue?.(editSession.draft, next as never) ?? column.editor?.setValue(editSession.draft, next as never); if (updated) setEditSession({ ...editSession, draft: updated }); };
+    const context = Object.freeze({ item: entry?.internal.item ?? editSession.original ?? editSession.draft, model: editSession.draft, key: editSession.key, value, setValue, fieldErrors, disabled: !!props.disabled || editSession.saving, readOnly: !!props.readOnly });
     if (column.renderEditor) return column.renderEditor(context as never);
     if (!column.updateValue && !column.editor) return null;
-    if (column.editor?.kind === 'decimal') return <CgDecimalEdit {...column.editor.decimal} value={value == null ? null : normalizeDecimalString(String(value))} onValueChange={setValue} disabled={props.disabled || editSession.saving || column.editor.disabled} readOnly={props.readOnly || column.editor.readOnly} required={column.editor.required} />;
-    if (column.type === 'boolean') return <input type="checkbox" checked={Boolean(value)} onChange={(event) => setValue(event.currentTarget.checked)} />;
-    return <input className={styles.editor} type={column.type === 'number' ? 'number' : column.type === 'date' ? 'date' : 'text'} value={value === null || value === undefined ? '' : String(value)} onChange={(event) => setValue(column.type === 'number' ? event.currentTarget.valueAsNumber : event.currentTarget.value)} />;
+    if (column.editor) {
+      const metadata = { ...column.editor, readOnly: props.readOnly || column.editor.readOnly };
+      const descriptor = { ...column, accessor: column.getValue, editor: metadata } as CgGridColumnDescriptor<TItem>;
+      return renderAutomaticGridEditor(descriptor, editSession.draft, draft => { if (!editSession.saving && !mutationController.current) setEditSession({ ...editSession, draft }); }, editSession.result?.fieldErrors ?? {}, {
+        idPrefix: rootId, showLabel: false, disabled: !!props.disabled || editSession.saving, rawDrafts,
+        onRawDraft: (fieldId, draft) => { rawDraftsRef.current = { ...rawDraftsRef.current, [fieldId]: draft }; setRawDrafts(rawDraftsRef.current); },
+      });
+    }
+    if (column.type === 'boolean') return <input type="checkbox" disabled={props.disabled || editSession.saving} readOnly={props.readOnly} checked={Boolean(value)} onChange={(event) => setValue(event.currentTarget.checked)} />;
+    return <input className={styles.editor} disabled={props.disabled || editSession.saving} readOnly={props.readOnly} type={column.type === 'number' ? 'number' : column.type === 'date' ? 'date' : 'text'} value={value === null || value === undefined ? '' : String(value)} onChange={(event) => setValue(column.type === 'number' ? event.currentTarget.valueAsNumber : event.currentTarget.value)} />;
   };
 
   const renderCell = (entry: TreeListProjectionNode<TItem, TKey>, normalized: (typeof normalizedColumns)[number]): ReactNode => {
@@ -868,9 +977,10 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
       <table role="treegrid" aria-label={ariaLabel} aria-rowcount={visible.length + groupRepresentatives.size} aria-colcount={visibleColumns.length} aria-multiselectable={selectionMode === 'multiple' || undefined} aria-busy={providerLoading || undefined} aria-disabled={props.disabled || undefined} aria-readonly={props.readOnly || undefined} className={cx(styles.table, stickyHeader && styles.sticky)}>
         <thead><tr role="row">{renderedColumns.map((normalized) => { const column = normalized.descriptor; const sort = sorts.find((entry) => entry.fieldId === column.fieldId); const defaultContent = normalized.title; const context = Object.freeze({ column, sort, sortPriority: sorts.findIndex((entry) => entry.fieldId === column.fieldId) + 1, actions, defaultContent }); return <th key={column.fieldId} role="columnheader" aria-sort={sort?.direction ?? 'none'} className={styles.headerCell} style={{ width: normalized.width, minWidth: column.minWidth, maxWidth: column.maxWidth }} onContextMenu={(event) => showContextMenu(event, 'header', undefined, column)}>{column.sortable !== false && column.getValue ? <button type="button" className={styles.headerButton} onClick={(event) => cycleSort(column, event)}>{column.renderHeader?.(context) ?? defaultContent}<span aria-hidden="true">{sort?.direction === 'ascending' ? '▲' : sort?.direction === 'descending' ? '▼' : ''}</span></button> : column.renderHeader?.(context) ?? defaultContent}</th>; })}</tr></thead>
         <tbody>
-          {rowWindow.top ? <tr aria-hidden="true" role="presentation"><td colSpan={renderedColumns.length} style={{ height: rowWindow.top, padding: 0, border: 0 }} /></tr> : null}
-          {renderedRows.map((entry) => {
+
+          {renderedRows.map((entry, renderIndex) => {
             const groupKey = groupKeyFor(entry); const firstInGroup = !!groupKey && groupRepresentatives.get(groupKey) === entry.internal.token; const rowHidden = hiddenByCollapsedGroup.has(entry.internal.token); const selected = selectedTokens.has(entry.internal.token); const disabledRow = props.canSelect?.(entry.internal.item) === false; const status = loadStatuses.get(entry.internal.token); return <Fragment key={entry.internal.token}>
+              {virtualization.rows && renderedRowIndices[renderIndex]! > (renderIndex ? renderedRowIndices[renderIndex - 1]! + 1 : 0) ? <tr aria-hidden="true" role="presentation"><td colSpan={renderedColumns.length} style={{ height: (renderedRowIndices[renderIndex]! - (renderIndex ? renderedRowIndices[renderIndex - 1]! + 1 : 0)) * rowHeight, padding: 0, border: 0 }} /></tr> : null}
               {firstInGroup ? <tr role="row" className={styles.groupRow} aria-level={entry.publicNode.level} aria-expanded={!viewState.collapsedGroupKeys.has(groupKey!)} data-group-key={groupKey}><td role="gridcell" colSpan={renderedColumns.length}><button type="button" className={styles.groupToggle} aria-label={`${viewState.collapsedGroupKeys.has(groupKey!) ? 'Expand' : 'Collapse'} ${groupLabel(entry)}`} onClick={() => toggleGroup(groupKey!)}><span aria-hidden="true">{viewState.collapsedGroupKeys.has(groupKey!) ? directionValue === 'rtl' ? '◂' : '▸' : '▾'}</span> {groupLabel(entry)}</button></td></tr> : null}
               {rowHidden ? null : <>
               <tr ref={(element) => { if (element) rowRefs.current.set(entry.internal.token, element); else rowRefs.current.delete(entry.internal.token); }} role="row" data-row-token={entry.internal.token} data-key={String(entry.internal.key)} data-match={entry.publicNode.directMatch || undefined} data-ancestor-match={entry.publicNode.retainedAsAncestor || undefined} className={cx(styles.row, selected && styles.selected, disabledRow && styles.disabledRow, editSession?.key === entry.internal.key && styles.editing)} aria-level={entry.publicNode.level} aria-posinset={entry.publicNode.posInSet} aria-setsize={entry.publicNode.setSize} aria-rowindex={entry.publicNode.visibleIndex + 2} aria-expanded={entry.publicNode.hasChildren ? expandedTokens.has(entry.internal.token) : undefined} aria-selected={selectionMode === 'none' ? undefined : selected} aria-busy={status?.state === 'loading' || undefined} aria-disabled={disabledRow || undefined} onClick={(event) => { if ((event.target as HTMLElement).closest('button,input,a')) return; setFocus(entry.internal.key, hierarchyFieldId, 'pointer', false); void selectNode(entry.internal.key, { add: selectionMode === 'multiple' && (event.ctrlKey || event.metaKey), range: selectionMode === 'multiple' && event.shiftKey }); }} onDoubleClick={() => { if (props.renderDetail) void toggleDetail(entry.internal.key); }} onContextMenu={(event) => showContextMenu(event, (event.target as HTMLElement).closest('[data-column-id]') ? 'cell' : 'row', entry, columns.find((column) => column.fieldId === (event.target as HTMLElement).closest<HTMLElement>('[data-column-id]')?.dataset.columnId))}>
@@ -882,7 +992,7 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
               </>}
             </Fragment>;
           })}
-          {rowWindow.bottom ? <tr aria-hidden="true" role="presentation"><td colSpan={renderedColumns.length} style={{ height: rowWindow.bottom, padding: 0, border: 0 }} /></tr> : null}
+          {rowWindow.bottom ? <tr aria-hidden="true" role="presentation"><td colSpan={renderedColumns.length} style={{ height: Math.max(0, rowsForRendering.length - (renderedRowIndices.at(-1) ?? -1) - 1) * rowHeight, padding: 0, border: 0 }} /></tr> : null}
         </tbody>
         {globalSummaryValues.length ? <tfoot><tr role="row" className={styles.summaryRow}>{renderedColumns.map((column) => { const summaries = globalSummaryValues.filter((entry) => entry.summary.fieldId === column.fieldId || (entry.summary.type === 'count' && column.fieldId === hierarchyFieldId)); return <td key={column.fieldId} role="gridcell" className={styles.summaryCell}>{summaries.map(({ summary, value }) => <div key={summary.id}>{summary.label ?? summary.id}: {value === undefined ? 'Unavailable' : String(value)}</div>)}</td>; })}</tr></tfoot> : null}
       </table>

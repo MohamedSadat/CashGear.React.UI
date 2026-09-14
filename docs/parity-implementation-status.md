@@ -11,9 +11,10 @@ This record tracks implementation separately from acceptance. An implemented API
 | 27 | Numeric policies, exact decimal editor | Implemented | Focused checks passed; final cross-phase integration pending |
 | 28 | ListBox transactions, TagBox context, key adapter | Implemented | Phase checks passed; final cross-phase integration pending |
 | 29 | Grid virtualization, export scopes | Implemented | Phase acceptance below; final cross-phase integration pending |
-| 30 | PivotTable and TreeList hardening | Pending | Pending |
+| 30 | PivotTable and TreeList hardening | Implemented | Phase acceptance below; final cross-phase integration pending |
 | 31 | Calendar multiple selection, preset selector | Pending | Pending |
 | 32 | Scheduler recurrence, resources, reminders, templates, iCalendar | Pending | Pending |
+| 33 | Grid JSON/width exports and async LookUpGrid selection | Pending | Pending |
 
 ## Recent reference commits
 
@@ -79,3 +80,13 @@ Phase 29 verification: all 712 Vitest tests in 73 files passed with two workers.
 Chromium/WebKit passed the eight Phase 29 interaction/Axe scenarios and four existing Grid editing/personalization regressions. Fourteen visual comparisons passed: eleven existing Grid baselines remained unchanged and three new light/dark/Arabic-RTL-narrow baselines were visually inspected. Firefox was attempted once for this acceptance pass and reproduced the 30-second `RenderCompositorSWGL failed mapping default framebuffer` launch timeout before page creation; no Firefox component coverage is claimed.
 
 Work stops at this phase boundary. Phases 30–32 and final cross-phase integration/reconciliation remain pending. [Resume checkpoint](parity-resume.md).
+
+## Phase 30 acceptance
+
+Reference: read-only Blazor aea3e6222adce68b10ff120d7bee1e43358287d0; React starts at 9663863. The user authorized completing Phases 30–33 while preserving React defaults. Blazor's uncommitted delayed Grid download URL revocation is recorded separately for Phase 33.
+
+Pivot adds opaque query ownership, context-safe retained results, source/contribution budgets, single-evaluation measure selectors, hidden dependent filtering, stable null placement, scoped exports, and incremental cancellable serialization while preserving the synchronous export helper. TreeList adds ownership propagation, validated pages and paths, snapshot cancellation, editor validation/save locking, virtual focus retention and diagnostics, and iterative weighted descendant summaries. Existing React defaults remain unchanged.
+
+Verification: typecheck, full ESLint, cycle analysis (337 modules), production and Storybook builds passed. The full unit suite passed 721 tests in 74 files with two workers; the final affected Pivot/TreeList run passed 73 tests. Four Phase 30 Chromium/WebKit interaction/Axe cases passed on the rebuilt bundle. Three light/dark/RTL-narrow Chromium baselines were visually inspected and passed a separate unchanged comparison. Package verification passed with 203 runtime exports and 2,237 packed files. One Firefox attempt reproduced the existing 30-second pre-page SWGL framebuffer failure; no Firefox assertion ran.
+
+Phases 31–33 and final cross-phase integration remain pending. No package was published and no consuming or Blazor repository was modified.

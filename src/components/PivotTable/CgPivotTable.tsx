@@ -1,4 +1,4 @@
-import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { CgToolbar } from '../Toolbar';
 import { CgButton } from '../Button';
@@ -8,7 +8,7 @@ import { cx } from '../../utils';
 import type { CgPivotActions, CgPivotArea, CgPivotAxisNode, CgPivotCell, CgPivotDrillDownContext, CgPivotExportFormat, CgPivotExportOptions, CgPivotField, CgPivotLayout, CgPivotQuery, CgPivotResult, CgPivotTableProps } from './CgPivotTable.types';
 import { CgPivotBrowserLayoutStore, CgPivotError, CgPivotLimitError, abort, createPivotQuery, freeze, normalizePivotLayout, pivotAreas, validateFields, validatePivotResult } from './model';
 import { cellKey, processPivotData } from './engine';
-import { createPivotExport, downloadPivotExport } from './export';
+import { createPivotExportAsync, downloadPivotExport } from './export';
 import { formatPivotValue, pivotProjection } from './projection';
 import { english, arabic } from './labels';
 import { PivotDrillDown, PivotFieldList, PivotFilter } from './PivotDialogs';
@@ -19,6 +19,9 @@ export function CgPivotTable<TItem>(props: CgPivotTableProps<TItem>) {
     if ((data === undefined) === (dataProvider === undefined))
         throw new CgPivotError('Supply exactly one of data or dataProvider.');
     validateFields(fields, data !== undefined);
+    for (const [name, limit] of Object.entries({ maximumSourceRows: props.maximumSourceRows, maximumAggregateOperations: props.maximumAggregateOperations })) {
+        if (limit !== undefined && (!Number.isSafeInteger(limit) || limit < 1)) throw new CgPivotError(`Invalid ${name}.`);
+    }
     const rowHeight = props.rowHeight ?? 34, cellWidth = props.dataCellWidth ?? 132, rowOverscan = props.rowOverscan ?? 6, columnOverscan = props.columnOverscan ?? 3;
     for (const [name, value] of Object.entries({ rowHeight, cellWidth, rowOverscan, columnOverscan, drillDownPageSize: props.drillDownPageSize ?? 50, maximumDrillDownRows: props.maximumDrillDownRows ?? 5000, maximumExportCells: props.maximumExportCells ?? 2000000, layoutSaveDebounce: props.layoutSaveDebounce ?? 500 }))
         if (!Number.isSafeInteger(value) || value < ((name.includes('Overscan') || name === 'layoutSaveDebounce') ? 0 : 1))
@@ -30,7 +33,9 @@ export function CgPivotTable<TItem>(props: CgPivotTableProps<TItem>) {
     const query = useMemo(() => createPivotQuery(fields, layout, { locale, timeZone: props.groupingTimeZone, maxRows: props.maximumResultRows, maxColumns: props.maximumResultColumns, maxCells: props.maximumResultCells }), [fields, layout, locale, props.groupingTimeZone, props.maximumResultRows, props.maximumResultColumns, props.maximumResultCells]);
     // Expansion changes do not requery. Keep a stable immutable query for child operations.
     const queryText = JSON.stringify(query);
-    const stableQuery = useMemo(() => freeze(JSON.parse(queryText) as CgPivotQuery), [queryText]);
+    const stableQuery = useMemo(() => Object.freeze({ ...freeze(JSON.parse(queryText) as CgPivotQuery), dataVersion: props.dataVersion, queryContext: props.queryContext,
+        maximumSourceRows: props.maximumSourceRows, maximumAggregateOperations: props.maximumAggregateOperations }), [queryText, props.dataVersion, props.queryContext, props.maximumSourceRows, props.maximumAggregateOperations]);
+    const previousContext = useRef(props.queryContext);
     const [result, setResult] = useState<CgPivotResult | null>(null);
     const resultRef = useRef<CgPivotResult | null>(null);
     const [loading, setLoading] = useState(false), [error, setError] = useState<unknown>(), [fieldList, setFieldList] = useState(false), [filterField, setFilterField] = useState<CgPivotField<TItem> | null>(null), [drill, setDrill] = useState<CgPivotDrillDownContext | null>(null);
@@ -56,6 +61,15 @@ export function CgPivotTable<TItem>(props: CgPivotTableProps<TItem>) {
     const restore = useStableCallback((saved: unknown, expected: CgPivotLayout | undefined) => { if (saved && props.layout === expected)
         commit(normalizePivotLayout(fields, saved)); });
     /* eslint-disable react-hooks/set-state-in-effect -- storage identity changes and query replacement invalidate transient UI snapshots. */
+    useLayoutEffect(() => {
+        queryOperation.current?.abort(); exportOperation.current?.abort();
+        if (!Object.is(previousContext.current, props.queryContext)) {
+            resultRef.current = null; setResult(null); setError(undefined);
+            previousContext.current = props.queryContext;
+        }
+        setDrill(null); setFilterField(null); clearTimeout(clickTimer.current);
+        return () => { queryOperation.current?.abort(); exportOperation.current?.abort(); };
+    }, [stableQuery, data, dataProvider, fields, props.queryContext, props.exportProvider, props.maximumExportCells]);
     useEffect(() => {
         const controller = new AbortController();
         const version = changed.current;
@@ -144,6 +158,7 @@ export function CgPivotTable<TItem>(props: CgPivotTableProps<TItem>) {
         keys.add(node.id); update({ ...layout, expandedRowPaths: row ? [...keys] : layout.expansionStateInitialized ? layout.expandedRowPaths : allPaths(result!.rowHierarchy), expandedColumnPaths: row ? layout.expansionStateInitialized ? layout.expandedColumnPaths : allPaths(result!.columnHierarchy) : [...keys], expansionStateInitialized: true }); };
     const reset = useStableCallback(async () => { saveController.current?.abort(); const controller = new AbortController(); await store.delete(context, controller.signal); update(normalizePivotLayout(fields, props.defaultLayout)); });
     const exporting = useStableCallback(async (format: CgPivotExportFormat, options: CgPivotExportOptions = {}) => {
+        if (options.scope !== undefined && options.scope !== 'currentLayout' && options.scope !== 'allExpanded') throw new CgPivotError('Invalid export scope.');
         exportOperation.current?.abort();
         const controller = new AbortController();
         exportOperation.current = controller;
@@ -162,11 +177,11 @@ export function CgPivotTable<TItem>(props: CgPivotTableProps<TItem>) {
             if (dataProvider) {
                 if (!props.exportProvider)
                     throw new CgPivotError('Provider pivots require an exportProvider for complete exports.');
-                file = await props.exportProvider.export({ query: exportQuery, layout, format, maximumCells: props.maximumExportCells ?? 2000000, fields: fields.map(f => ({ key: f.key, caption: f.caption ?? f.key, cellFormat: f.cellFormat, currency: f.currency })), rightToLeft: direction === 'rtl' }, controller.signal);
+                file = await props.exportProvider.export({ query: exportQuery, layout, format, scope: options.scope ?? 'allExpanded', maximumCells: props.maximumExportCells ?? 2000000, fields: fields.map(f => ({ key: f.key, caption: f.caption ?? f.key, cellFormat: f.cellFormat, currency: f.currency })), rightToLeft: direction === 'rtl' }, controller.signal);
             }
             else {
                 const full = await processPivotData(data, fields, exportQuery, controller.signal);
-                file = createPivotExport(full, layout, fields, format, { ...options, rightToLeft: direction === 'rtl', locale, maximumCells: props.maximumExportCells, signal: controller.signal, grandTotalText: labels.grandTotal });
+                file = await createPivotExportAsync(full, layout, fields, format, { ...options, rightToLeft: direction === 'rtl', locale, maximumCells: props.maximumExportCells, signal: controller.signal, grandTotalText: labels.grandTotal });
             }
             abort(controller.signal);
             if (options.download)

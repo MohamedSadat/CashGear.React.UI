@@ -129,6 +129,20 @@ interface MutableNode {
 export async function processPivotData<T>(data: ReadonlyArray<T>, fields: ReadonlyArray<CgPivotField<T>>, query: CgPivotQuery, signal?: AbortSignal): Promise<CgPivotResult> {
     validateFields(fields, true);
     abort(signal);
+    if (query.maximumSourceRows !== undefined) checkLimit('sourceRows', data.length, query.maximumSourceRows);
+    if (query.maximumAggregateOperations !== undefined) checkLimit('aggregateOperations', 0, query.maximumAggregateOperations);
+    let contributions = 0;
+    const values = new Map<(item: T) => CgPivotValue, CgPivotValue>();
+    const cached = (selector: (item: T) => CgPivotValue) => (item: T): CgPivotValue => {
+        if (!values.has(selector)) values.set(selector, selector(item));
+        return values.get(selector)!;
+    };
+    fields = fields.map(field => ({ ...field, getValue: field.getValue && cached(field.getValue), calculated: field.calculated && {
+        ...field.calculated,
+        left: { ...field.calculated.left, getValue: cached(field.calculated.left.getValue) },
+        right: field.calculated.right && { ...field.calculated.right, getValue: cached(field.calculated.right.getValue) },
+        denominator: field.calculated.denominator && { ...field.calculated.denominator, getValue: cached(field.calculated.denominator.getValue) },
+    } }));
     const definitions = new Map(fields.map(f => [f.key, f]));
     for (const q of query.fields)
         if (!definitions.has(q.key))
@@ -158,6 +172,7 @@ export async function processPivotData<T>(data: ReadonlyArray<T>, fields: Readon
                 await new Promise<void>(resolve => setTimeout(resolve, 0));
             abort(signal);
         }
+        values.clear();
         const item = data[i]!;
         if (!matchesPivotFilters(item, fields, query))
             continue;
@@ -168,6 +183,8 @@ export async function processPivotData<T>(data: ReadonlyArray<T>, fields: Readon
         for (let r = 0; r <= rp.length; r++)
             for (let c = 0; c <= cp.length; c++)
                 for (const measure of measures) {
+                    contributions++;
+                    if (query.maximumAggregateOperations !== undefined) checkLimit('aggregateOperations', contributions, query.maximumAggregateOperations);
                     const row = pathKey(rp.slice(0, r)), column = pathKey(cp.slice(0, c));
                     const key = cellKey(row, column, measure.key);
                     let cell = cells.get(key);
@@ -199,7 +216,7 @@ export async function processPivotData<T>(data: ReadonlyArray<T>, fields: Readon
         const bv = f.sortMode === 'summaryValue' ? lookup.get(cellKey(row ? b.id : '', row ? '' : b.id, measure)) ?? null : b.member.value;
         const type = f.sortMode === 'summaryValue' ? 'decimal' : f.groupInterval === 'year' ? 'number' : f.groupInterval !== 'none' ? 'text' : f.valueType;
         const comparison = av === null && bv === null ? 0 : av === null ? (f.nullPlacement === 'first' ? -1 : 1) : bv === null ? (f.nullPlacement === 'first' ? 1 : -1) : compareValues(av, bv, type, query.locale);
-        return comparison * (f.sortOrder === 'descending' ? -1 : 1) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+        return comparison * (av === null || bv === null ? 1 : f.sortOrder === 'descending' ? -1 : 1) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
     });
     const result = { rowHierarchy: hierarchy(rows, rowFields, true), columnHierarchy: hierarchy(columns, columnFields, false), cells: resultCells, sourceRecordCount };
     validatePivotResult(result, query);
@@ -207,6 +224,7 @@ export async function processPivotData<T>(data: ReadonlyArray<T>, fields: Readon
 }
 export async function getPivotDistinctValues<T>(data: ReadonlyArray<T>, fields: ReadonlyArray<CgPivotField<T>>, request: CgPivotDistinctValuesQuery, signal?: AbortSignal): Promise<CgPivotDistinctValuesResult> {
     validatePage(request.skip, request.take);
+    if (request.pivotQuery.maximumSourceRows !== undefined) checkLimit('sourceRows', data.length, request.pivotQuery.maximumSourceRows);
     abort(signal);
     const field = fields.find(f => f.key === request.fieldKey);
     const queryField = request.pivotQuery.fields.find(f => f.key === request.fieldKey);
@@ -233,6 +251,7 @@ export async function getPivotDistinctValues<T>(data: ReadonlyArray<T>, fields: 
 }
 export async function getPivotDrillDown<T>(data: ReadonlyArray<T>, fields: ReadonlyArray<CgPivotField<T>>, request: CgPivotDrillDownQuery, signal?: AbortSignal): Promise<CgPivotDrillDownResult> {
     validatePage(request.skip, request.take);
+    if (request.pivotQuery.maximumSourceRows !== undefined) checkLimit('sourceRows', data.length, request.pivotQuery.maximumSourceRows);
     checkLimit('drillDown', 0, request.maximumResultSize);
     abort(signal);
     const query = request.pivotQuery;

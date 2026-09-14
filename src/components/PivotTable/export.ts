@@ -53,17 +53,36 @@ function zip(files: ReadonlyArray<[
     return result;
 }
 function safeName(name: string | undefined, format: CgPivotExportFormat): string { return `${(name ?? 'pivot').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').replace(/\.(xlsx|csv)$/i, '').replace(/[. ]+$/, '').slice(0, 160) || 'pivot'}.${format}`; } // eslint-disable-line no-control-regex
-export function createPivotExport<T>(result: CgPivotResult, layout: CgPivotLayout, fields: ReadonlyArray<CgPivotField<T>>, format: CgPivotExportFormat, options: {
+interface PivotExportSettings {
     fileName?: string;
     rightToLeft?: boolean;
     locale?: string;
     maximumCells?: number;
     signal?: AbortSignal;
     grandTotalText?: string;
-} = {}): CgPivotExportFile {
+    scope?: 'currentLayout' | 'allExpanded';
+}
+export function createPivotExport<T>(result: CgPivotResult, layout: CgPivotLayout, fields: ReadonlyArray<CgPivotField<T>>, format: CgPivotExportFormat, options: PivotExportSettings = {}): CgPivotExportFile {
+    const work = serializePivotExport(result, layout, fields, format, options);
+    let step = work.next();
+    while (!step.done) step = work.next();
+    return step.value;
+}
+export async function createPivotExportAsync<T>(result: CgPivotResult, layout: CgPivotLayout, fields: ReadonlyArray<CgPivotField<T>>, format: CgPivotExportFormat, options: PivotExportSettings = {}): Promise<CgPivotExportFile> {
+    const work = serializePivotExport(result, layout, fields, format, options);
+    let step = work.next();
+    while (!step.done) {
+        await new Promise<void>(resolve => setTimeout(resolve, 0));
+        abort(options.signal);
+        step = work.next();
+    }
+    return step.value;
+}
+function* serializePivotExport<T>(result: CgPivotResult, layout: CgPivotLayout, fields: ReadonlyArray<CgPivotField<T>>, format: CgPivotExportFormat, options: PivotExportSettings): Generator<void, CgPivotExportFile> {
     abort(options.signal);
     if(result.isPartial)throw new CgPivotError('A complete pivot result is required for export.');
-    const { rows, columns } = pivotProjection(result, layout, fields, options.grandTotalText ?? 'Grand Total', true);
+    if (options.scope !== undefined && options.scope !== 'allExpanded' && options.scope !== 'currentLayout') throw new CgPivotError('Invalid export scope.');
+    const { rows, columns } = pivotProjection(result, layout, fields, options.grandTotalText ?? 'Grand Total', options.scope !== 'currentLayout');
     checkLimit('exportCells', rows.length * columns.length, options.maximumCells ?? 2000000);
     const lookup = new Map(result.cells.map(c => [cellKey(c.rowPathKey, c.columnPathKey, c.dataFieldKey), c]));
     const depth = Math.max(1, ...columns.map(c => c.axis.node?.path.length ?? 1));
@@ -75,6 +94,7 @@ export function createPivotExport<T>(result: CgPivotResult, layout: CgPivotLayou
         const escape = (s: string) => `"${(/^[\s]*[=+\-@\t\r]/.test(s) ? "'" + s : s).replaceAll('"', '""')}"`;
         const lines = [['Rows', ...columns.map(c => `${c.axis.node?.path.map(p => p.displayText).join(' / ') ?? c.axis.label} / ${c.field.caption ?? c.field.key}`)].map(escape).join(',')];
         for (const row of rows) {
+            if ((lines.length & 127) === 0) yield;
             abort(options.signal);
             lines.push([`${'  '.repeat(row.node?.level ?? 0)}${row.label}`, ...columns.map(c => formatPivotValue(dataValue(row, c), c.field, options.locale))].map(escape).join(','));
         }
@@ -101,7 +121,9 @@ export function createPivotExport<T>(result: CgPivotResult, layout: CgPivotLayou
             }
         }
         sheetRows.push(`<row r="${headers}">${text(`A${headers}`, '', 1)}${columns.map((c, i) => text(`${columnName(i + 1)}${headers}`, c.field.caption ?? c.field.key, 1)).join('')}</row>`);
-        rows.forEach((r, index) => {
+        for (let index = 0; index < rows.length; index++) {
+            if ((index & 127) === 0) yield;
+            const r = rows[index]!;
             abort(options.signal);
             const n = index + headers + 1;
             sheetRows.push(`<row r="${n}" outlineLevel="${Math.min(r.node?.level ?? 0, 7)}">${text(`A${n}`, `${'  '.repeat(r.node?.level ?? 0)}${r.label}`, r.total ? 1 : 0)}${columns.map((c, i) => {
@@ -116,7 +138,7 @@ export function createPivotExport<T>(result: CgPivotResult, layout: CgPivotLayou
                 const significant = String(value).replace(/[-.]/g, '').replace(/^0+/, '').length;
                 return numeric && significant <= 15 ? `<c r="${ref}" s="${style}"><v>${xml(String(value))}</v></c>` : text(ref, String(value), style);
             }).join('')}</row>`);
-        });
+        }
         const styles = `<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="${formats.length}">${formats.map((f, i) => `<numFmt numFmtId="${164 + i}" formatCode="${xml(f)}"/>`).join('')}</numFmts><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="${2 + formats.length * 2}"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0"/>${formats.map((_, i) => [0, 1].map(b => `<xf numFmtId="${164 + i}" fontId="${b}" fillId="0" borderId="0" applyNumberFormat="1"/>`).join('')).join('')}</cellXfs></styleSheet>`;
         const worksheet = `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0" rightToLeft="${options.rightToLeft ? 1 : 0}"><pane xSplit="1" ySplit="${headers}" topLeftCell="B${headers + 1}" activePane="bottomRight" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="28" customWidth="1"/><col min="2" max="${Math.max(2, columns.length + 1)}" width="18" customWidth="1"/></cols><sheetData>${sheetRows.join('')}</sheetData>${merges.length ? `<mergeCells count="${merges.length}">${merges.map(ref => `<mergeCell ref="${ref}"/>`).join('')}</mergeCells>` : ''}</worksheet>`;
         bytes = zip([

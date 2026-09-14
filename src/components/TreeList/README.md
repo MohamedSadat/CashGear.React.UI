@@ -62,3 +62,10 @@ The component renders `treegrid`, `row`, `columnheader`, and `gridcell` roles wi
 Render is deterministic and does not access browser globals, storage, observers, or measurements. Browser work starts in effects and is cleaned up; multiple Strict Mode instances remain independent. Styles use logical properties and existing tokens, with dark, compact, forced-colors, reduced-motion, 400% zoom, sticky headers, narrow horizontal scrolling, and Arabic RTL coverage.
 
 `actionsRef` is stable for the mounted instance and covers focus/scroll, expansion/path resolution, selection/checks, node and root loading, editing and structure, filter/group/columns, details, XLSX/print/PDF, refresh/batching, and immutable projection/snapshot inspection. Unknown keys return `false`/`null` rather than throwing.
+# Phase 30 request and editor reliability
+
+Optional `dataVersion` and `queryContext` identity tokens are forwarded to provider, child, detail, summary, mutation, and snapshot requests. Ownership changes invalidate pending work and clear cached child/detail data. Root and child pages must have unique keys, matching parents, consistent totals, and no overlap; invalid responses leave the previous valid records intact.
+
+Save flushes registered editors and validates editor metadata before calling persistence. Pending saves lock editor updates; errors retain the draft. Automatic metadata editors share Grid parsing and validation. Loaded-descendant summaries use iterative postorder accumulation, weighted averages, and partial-completeness reporting.
+
+`onVirtualizationChange` and `actionsRef.current.getVirtualizationStatus()` expose active row/column modes and fallback reasons. Inline editing, grouped rows, and detail rows use complete rendering. Virtual row windows retain the focused row separately from the viewport, and focus actions reveal the target before moving DOM focus.

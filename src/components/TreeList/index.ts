@@ -3,6 +3,8 @@ export { CG_TREE_LIST_DEFAULT_MAXIMUM_DEPTH, CG_TREE_LIST_MAXIMUM_DEPTH_LIMIT, t
 export { CG_TREE_LIST_STATE_VERSION, createTreeListState, normalizeTreeListState } from './state';
 export { createTreeListXlsx, downloadTreeListExport, sanitizeTreeListExportFileName } from './exportXlsx';
 export type {
+  CgTreeListQueryOwnership,
+  CgTreeListVirtualizationStatus,
   CgTreeListActions,
   CgTreeListBooleanColumn,
   CgTreeListCellRenderContext,

@@ -975,3 +975,7 @@ ListBox adds guarded selection actions, displayed-order ranges, mounted active d
 Grid adds opt-in fixed row/column windows with focus retention, frozen geometry, status/fallback diagnostics, and optional group footers. Exports retain the full-filtered default and add current-page/hidden-selection scopes, hard row limits, independent cancellation, committed-record summaries, and an extended typed remote adapter. Inherited RTL detection is corrected while explicit direction and existing saved-state version 11 remain intact. See the [Grid contracts](../src/components/Grid/README.md), [acceptance record](parity-implementation-status.md), and [resume checkpoint](parity-resume.md).
 
 Implementation is paused after Phase 29. Phases 30–32 and final cross-phase integration remain outstanding.
+
+## Phase 30 — PivotTable and TreeList reliability
+
+Implemented and phase-verified against Blazor aea3e622. See the acceptance record and component contracts for query ownership, processing limits, export scopes, validated hierarchy loading, save locking, virtual focus, and weighted descendant summaries. Phases 31–33 and final integration remain pending.

@@ -105,6 +105,10 @@ export interface CgPivotQueryField extends Omit<CgPivotFieldState, 'width' | 'vi
     readonly customAggregateKey?: string;
 }
 export interface CgPivotQuery {
+    readonly dataVersion?: unknown;
+    readonly queryContext?: unknown;
+    readonly maximumSourceRows?: number;
+    readonly maximumAggregateOperations?: number;
     readonly version: 1;
     readonly purpose: 'view' | 'export';
     readonly fields: ReadonlyArray<CgPivotQueryField>;
@@ -196,7 +200,9 @@ export interface CgPivotDataProvider {
     getDrillDown(query: CgPivotDrillDownQuery, signal: AbortSignal): PromiseLike<CgPivotDrillDownResult>;
 }
 export type CgPivotExportFormat = 'xlsx' | 'csv';
+export type CgPivotExportScope = 'currentLayout' | 'allExpanded';
 export interface CgPivotExportOptions {
+    readonly scope?: CgPivotExportScope;
     readonly fileName?: string;
     readonly download?: boolean;
     readonly signal?: AbortSignal;
@@ -208,6 +214,7 @@ export interface CgPivotExportFile {
     readonly rowCount: number;
 }
 export interface CgPivotExportRequest {
+    readonly scope?: CgPivotExportScope;
     readonly query: CgPivotQuery;
     readonly layout: CgPivotLayout;
     readonly format: CgPivotExportFormat;
@@ -314,6 +321,10 @@ export interface CgPivotLabels {
     totals: string;
 }
 interface CgPivotCommonProps<TItem> extends Omit<HTMLAttributes<HTMLDivElement>, 'children' | 'onError'> {
+    readonly dataVersion?: unknown;
+    readonly queryContext?: unknown;
+    readonly maximumSourceRows?: number;
+    readonly maximumAggregateOperations?: number;
     readonly fields: ReadonlyArray<CgPivotField<TItem>>;
     readonly layout?: CgPivotLayout;
     readonly defaultLayout?: Partial<CgPivotLayout>;
