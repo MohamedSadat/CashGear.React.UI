@@ -7,6 +7,27 @@ export type CgSchedulerKey = string | number;
 /** ISO 8601 instant with an explicit Z or numeric offset. Callbacks emit UTC. */
 export type CgSchedulerInstant = string;
 export interface CgSchedulerVisibleRange { startDate: CgDateValue; endDate: CgDateValue; start: CgSchedulerInstant; end: CgSchedulerInstant }
+export type CgSchedulerRecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+export type CgSchedulerRecurrenceRange = 'noEndDate' | 'occurrenceCount' | 'endByDate';
+export type CgSchedulerWeekOfMonth = 'none' | 'first' | 'second' | 'third' | 'fourth' | 'last';
+export type CgSchedulerRecurrenceEditScope = 'series' | 'occurrence';
+export interface CgSchedulerRecurrenceRule {
+  readonly frequency: CgSchedulerRecurrenceFrequency;
+  readonly interval?: number;
+  readonly range?: CgSchedulerRecurrenceRange;
+  readonly occurrenceCount?: number;
+  readonly endDate?: CgDateValue;
+  readonly weekDays?: readonly CgDayOfWeek[];
+  readonly dayOfMonth?: number;
+  readonly month?: number;
+  readonly weekOfMonth?: CgSchedulerWeekOfMonth;
+  readonly exceptions?: readonly CgSchedulerRecurrenceException[];
+}
+export interface CgSchedulerRecurrenceException {
+  readonly originalStart: CgSchedulerInstant;
+  readonly isDeleted?: boolean;
+  readonly replacement?: Readonly<CgSchedulerAppointmentDraft>;
+}
 export interface CgSchedulerAppointmentDraft {
   title: string;
   start: CgSchedulerInstant;
@@ -14,6 +35,7 @@ export interface CgSchedulerAppointmentDraft {
   description: string;
   color: string;
   isAllDay: boolean;
+  recurrence?: CgSchedulerRecurrenceRule;
 }
 export type CgSchedulerOperationResult = { success: true } | { success: false; error?: string; fieldErrors?: Partial<Record<keyof CgSchedulerAppointmentDraft, string>> };
 export type CgSchedulerInteractionSource = 'editor' | 'timeCell' | 'keyboard' | 'drag' | 'resize';
@@ -23,6 +45,8 @@ export interface CgSchedulerOperationRequest<TItem> {
   draft: Readonly<CgSchedulerAppointmentDraft>;
   source: CgSchedulerInteractionSource;
   edge?: 'start' | 'end';
+  scope?: CgSchedulerRecurrenceEditScope;
+  originalOccurrenceStart?: CgSchedulerInstant;
 }
 export type CgSchedulerOperationHandler<TItem> = (request: CgSchedulerOperationRequest<TItem>, signal: AbortSignal) => CgSchedulerOperationResult | Promise<CgSchedulerOperationResult>;
 export interface CgSchedulerAppointmentContext<TItem> extends Readonly<CgSchedulerAppointmentDraft> {
@@ -32,6 +56,7 @@ export interface CgSchedulerAppointmentContext<TItem> extends Readonly<CgSchedul
   continuesBefore: boolean;
   continuesAfter: boolean;
   view: CgSchedulerView;
+  originalOccurrenceStart?: CgSchedulerInstant;
 }
 export interface CgSchedulerTimeCellContext {
   date: CgDateValue;
@@ -43,7 +68,7 @@ export interface CgSchedulerTimeCellContext {
   isSelected: boolean;
   view: CgSchedulerView;
 }
-export interface CgSchedulerSelection<TItem> { appointment: TItem | null; appointmentId: CgSchedulerKey | null; slot: CgSchedulerTimeCellContext | null }
+export interface CgSchedulerSelection<TItem> { appointment: TItem | null; appointmentId: CgSchedulerKey | null; slot: CgSchedulerTimeCellContext | null; originalOccurrenceStart?: CgSchedulerInstant }
 export interface CgSchedulerProviderRequest { range: CgSchedulerVisibleRange; view: CgSchedulerView; signal: AbortSignal }
 export type CgSchedulerItemsProvider<TItem> = (request: CgSchedulerProviderRequest) => Promise<readonly TItem[]>;
 export interface CgSchedulerToolbarContext { selectedDate: CgDateValue; currentView: CgSchedulerView; range: CgSchedulerVisibleRange; navigate: (direction: -1 | 1) => void; today: () => void; changeView: (view: CgSchedulerView) => void; refresh: () => void }
@@ -67,6 +92,11 @@ interface CgSchedulerCommonProps<TItem> {
   colorSelector?: (item: TItem) => string | null | undefined;
   allDaySelector?: (item: TItem) => boolean;
   cssClassSelector?: (item: TItem) => string | null | undefined;
+  recurrenceSelector?: (item: TItem) => CgSchedulerRecurrenceRule | null | undefined;
+  enableRecurrence?: boolean;
+  recurringAppointmentDragMode?: CgSchedulerRecurrenceEditScope;
+  selectedOccurrenceStart?: CgSchedulerInstant | null;
+  onSelectedOccurrenceStartChange?: (start: CgSchedulerInstant | null) => void;
   selectedDate?: CgDateValue;
   defaultSelectedDate?: CgDateValue;
   onSelectedDateChange?: (date: CgDateValue) => void;

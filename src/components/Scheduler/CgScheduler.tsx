@@ -6,10 +6,12 @@ import { localeFirstDayOfWeek } from '../../internal/date/dateFormat';
 import { CgButton } from '../Button';
 import { CgPopup } from '../Popup';
 import { cx } from '../../utils';
-import type { CgSchedulerAppointmentContext, CgSchedulerAppointmentDraft, CgSchedulerOperationHandler, CgSchedulerProps, CgSchedulerTimeCellContext, CgSchedulerView } from './CgScheduler.types';
+import type { CgSchedulerAppointmentContext, CgSchedulerAppointmentDraft, CgSchedulerOperationHandler, CgSchedulerRecurrenceEditScope, CgSchedulerProps, CgSchedulerTimeCellContext, CgSchedulerView } from './CgScheduler.types';
 import { addDays, boundary, civil, DAY, dayIndex, fromLocalInput, instant, iso, localInput, localParts, MINUTE, navigateDate, slots, timeMinutes, visibleDates, visibleRange, WEEKDAYS, WORKING_DAYS, zonedInstant } from './schedulerDate';
-import { draftOf, layout, layoutDates, project } from './schedulerLayout';
+import { draftOf, expandAppointments, layout, layoutDates, project } from './schedulerLayout';
 import type { Appointment, Segment } from './schedulerLayout';
+import { snapshotRecurrence, validateRecurrence } from './schedulerRecurrence';
+import { SchedulerRecurrenceFields } from './SchedulerRecurrenceFields';
 import { arabic, english } from './schedulerLabels';
 import { useSchedulerPointer } from './useSchedulerPointer';
 import type { PointerCell } from './useSchedulerPointer';
@@ -18,7 +20,7 @@ import styles from './CgScheduler.module.css';
 const VIEWS: readonly CgSchedulerView[] = ['day', 'workWeek', 'week', 'month', 'timeline'];
 const EMPTY: readonly never[] = [];
 const systemNow = () => new Date().toISOString();
-interface Editor<T> { appointment: Appointment<T> | null; draft: CgSchedulerAppointmentDraft }
+interface Editor<T> { appointment: Appointment<T> | null; draft: CgSchedulerAppointmentDraft; scope?: CgSchedulerRecurrenceEditScope }
 function positive(value: number, name: string, max: number) { if (!Number.isInteger(value) || value <= 0 || value > max) throw new Error(`CgScheduler ${name} must be an integer between 1 and ${max}.`); }
 
 export function CgScheduler<TItem>(props: CgSchedulerProps<TItem>) {
@@ -35,6 +37,7 @@ export function CgScheduler<TItem>(props: CgSchedulerProps<TItem>) {
   const [date, setDate] = useControllableState(props.selectedDate, props.defaultSelectedDate ?? todayDate, 'CgScheduler.selectedDate');
   const [view, setView] = useControllableState(props.currentView, props.defaultCurrentView ?? 'week', 'CgScheduler.currentView');
   const [selected, setSelected] = useControllableState(props.selectedAppointmentId, props.defaultSelectedAppointmentId ?? null, 'CgScheduler.selectedAppointmentId');
+  const [occurrenceSelection, setOccurrenceSelection] = useControllableState(props.selectedOccurrenceStart, null, 'CgScheduler.selectedOccurrenceStart');
   if (!VIEWS.includes(view)) throw new Error('Invalid CgScheduler view.');
   const interval = props.timeInterval ?? 30; const minimum = Math.ceil((props.minimumAppointmentDuration ?? 30) / interval) * interval;
   const dayCount = props.dayCount ?? 1; const monthCount = props.monthCount ?? 1; const monthLimit = props.monthAppointmentLimit ?? 3;
@@ -74,7 +77,7 @@ export function CgScheduler<TItem>(props: CgSchedulerProps<TItem>) {
   const loadError = !!provider && remote.key === rangeKey && remote.error;
   const items = props.items ?? (remote.key === rangeKey ? remote.items : EMPTY);
   // Selectors are caller-owned and may change independently of items.
-  const appointments = project(items, props).filter((a) => a.startMs < instant(range.end) && a.endMs > instant(range.start));
+  const appointments = expandAppointments(project(items, props), range, zone);
   const [slotSelection, setSlotSelection] = useState<CgSchedulerTimeCellContext | null>(null);
   const [focusKey, setFocusKey] = useState('');
   const [editor, setEditor] = useState<Editor<TItem> | null>(null);
@@ -103,14 +106,14 @@ export function CgScheduler<TItem>(props: CgSchedulerProps<TItem>) {
   const shortTimeFormat = useMemo(() => new Intl.DateTimeFormat(locale, { timeZone: zone, hour: '2-digit', minute: '2-digit' }), [locale, zone]);
   const dateFormat = useMemo(() => new Intl.DateTimeFormat(locale, { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric' }), [locale]);
   const longDate = (d: string) => dateFormat.format(civil(d));
-  const context = (a: Appointment<TItem>, before = false, after = false): CgSchedulerAppointmentContext<TItem> => ({ ...draftOf(a), item: a.item, id: a.id, isSelected: selected === a.id, continuesBefore: before, continuesAfter: after, view });
+  const context = (a: Appointment<TItem>, before = false, after = false): CgSchedulerAppointmentContext<TItem> => ({ ...draftOf(a), item: a.item, id: a.id, isSelected: selected === a.id && (!a.originalOccurrenceStart || occurrenceSelection === a.originalOccurrenceStart), originalOccurrenceStart: a.originalOccurrenceStart, continuesBefore: before, continuesAfter: after, view });
   const choose = (a: Appointment<TItem> | null, slot: CgSchedulerTimeCellContext | null) => {
     if (props.disabled) return;
     const id = a?.id ?? null;
-    if (selected === id && slotSelection?.start === slot?.start && slotSelection?.end === slot?.end && slotSelection?.isAllDay === slot?.isAllDay) return;
+    if (selected === id && occurrenceSelection === (a?.originalOccurrenceStart ?? null) && slotSelection?.start === slot?.start && slotSelection?.end === slot?.end && slotSelection?.isAllDay === slot?.isAllDay) return;
     if (selected !== id) { setSelected(id); props.onSelectedAppointmentIdChange?.(id); }
-    setSlotSelection(slot);
-    props.onSelectionChange?.({ appointment: a?.item ?? null, appointmentId: id, slot });
+    setSlotSelection(slot); setOccurrenceSelection(a?.originalOccurrenceStart ?? null); props.onSelectedOccurrenceStartChange?.(a?.originalOccurrenceStart ?? null);
+    props.onSelectionChange?.({ appointment: a?.item ?? null, appointmentId: id, slot, originalOccurrenceStart: a?.originalOccurrenceStart });
   };
   const navigate = (direction: -1 | 1) => { if (!props.disabled) { const next = navigateDate(date, view, direction); setDate(next); props.onSelectedDateChange?.(next); } };
   const changeView = (next: CgSchedulerView) => { setView(next); props.onCurrentViewChange?.(next); };
@@ -119,14 +122,16 @@ export function CgScheduler<TItem>(props: CgSchedulerProps<TItem>) {
   const openEditor = (appointment: Appointment<TItem> | null, cell?: CgSchedulerTimeCellContext) => {
     if (busy || (appointment ? !canEdit : !canCreate)) return;
     clearErrors(); setMoreDate(null);
-    setEditor({ appointment, draft: appointment ? draftOf(appointment) : { title: '', start: cell!.start, end: cell!.isAllDay ? cell!.end : iso(Math.max(instant(cell!.end), instant(cell!.start) + minimum * MINUTE)), isAllDay: cell!.isAllDay, description: '', color: '' } });
+    setEditor({ appointment, scope: appointment?.originalOccurrenceStart ? 'occurrence' : 'series', draft: appointment ? draftOf(appointment) : { title: '', start: cell!.start, end: cell!.isAllDay ? cell!.end : iso(Math.max(instant(cell!.end), instant(cell!.start) + minimum * MINUTE)), isAllDay: cell!.isAllDay, description: '', color: '' } });
   };
   const closeEditor = () => { abortOperation(); setEditor(null); setDeleting(null); clearErrors(); };
-  const run = async (handler: CgSchedulerOperationHandler<TItem> | undefined, appointment: Appointment<TItem> | null, draft: CgSchedulerAppointmentDraft, source: 'editor' | 'drag' | 'resize', edge?: 'start' | 'end') => {
+  const run = async (handler: CgSchedulerOperationHandler<TItem> | undefined, appointment: Appointment<TItem> | null, draft: CgSchedulerAppointmentDraft, source: 'editor' | 'drag' | 'resize', edge?: 'start' | 'end', scope: CgSchedulerRecurrenceEditScope = appointment?.originalOccurrenceStart ? (source === 'editor' ? editor?.scope ?? 'occurrence' : props.recurringAppointmentDragMode ?? 'occurrence') : 'series') => {
     if (!handler || operation.current || !writable) return;
     const controller = new AbortController(); operation.current = controller; setBusy(true); clearErrors();
     try {
-      const result = await handler({ originalItem: appointment?.item ?? null, original: appointment ? Object.freeze(draftOf(appointment)) : null, draft: Object.freeze({ ...draft }), source, edge }, controller.signal);
+      if (scope === 'series' && source !== 'editor' && appointment?.series) draft = { ...draft, start: iso(instant(appointment.series.start) + instant(draft.start) - appointment.startMs), end: iso(instant(appointment.series.end) + instant(draft.end) - appointment.endMs) };
+      const frozenDraft = Object.freeze({ ...draft, ...(draft.recurrence ? { recurrence: snapshotRecurrence(draft.recurrence) } : {}) });
+      const result = await handler({ originalItem: appointment?.item ?? null, original: appointment ? Object.freeze(scope === 'series' && appointment.series ? { ...appointment.series } : draftOf(appointment)) : null, draft: frozenDraft, source, edge, scope, originalOccurrenceStart: appointment?.originalOccurrenceStart }, controller.signal);
       if (controller.signal.aborted || operation.current !== controller) return;
       if (result.success) { setEditor(null); setDeleting(null); if (provider) setReload((n) => n + 1); }
       else { setError(result.error ?? labels.operationError); setFieldErrors(result.fieldErrors ?? {}); }
@@ -199,7 +204,7 @@ export function CgScheduler<TItem>(props: CgSchedulerProps<TItem>) {
     const startPointer = (event: React.PointerEvent<HTMLElement>, kind: string) => { event.stopPropagation(); if (busy || (kind === 'drag' ? !canDrag : !canResize)) return; dragAppointment.current = a; pointer.start(event, kind, origin); };
     return <div key={key} role="gridcell" className={cx(styles.appointmentBox, horizontal && styles.horizontal)} style={{ ...style, '--cg-scheduler-appointment-color': a.color || undefined } as CSSProperties}>
       <button type="button" disabled={props.disabled} className={cx(styles.appointment, a.className)} data-appointment={a.key} data-focus-key={key} data-col={col} data-row={row} tabIndex={tabIndex(key)} aria-pressed={ctx.isSelected} aria-label={`${a.title}, ${a.isAllDay ? labels.allDay : timeFormat.format(a.startMs)}, ${longDate(localParts(a.startMs, zone).date)}`} onFocus={() => setFocusKey(key)} onPointerDown={(e) => startPointer(e, 'drag')}
-        onClick={(event) => { if (pointer.suppressClick.current) { pointer.suppressClick.current = false; return; } if (selected !== a.id) choose(a, null); if (event.detail === 0) openEditor(a); else delayClick(() => props.onAppointmentClick?.(ctx)); }}
+        onClick={(event) => { if (pointer.suppressClick.current) { pointer.suppressClick.current = false; return; } choose(a, null); if (event.detail === 0) openEditor(a); else delayClick(() => props.onAppointmentClick?.(ctx)); }}
         onDoubleClick={() => { cancelClick(); props.onAppointmentDoubleClick?.(ctx); openEditor(a); }}>
         {props.renderAppointment?.(ctx) ?? <><span className={styles.appointmentTitle}>{ctx.continuesBefore && '‹ '}{a.title}{ctx.continuesAfter && ' ›'}</span>{!horizontal && !a.isAllDay && <small>{shortTimeFormat.format(a.startMs)} – {shortTimeFormat.format(a.endMs)}</small>}</>}
       </button>
@@ -258,6 +263,7 @@ export function CgScheduler<TItem>(props: CgSchedulerProps<TItem>) {
     const draft = editor.draft; const errors: typeof fieldErrors = {};
     if (!draft.title.trim()) errors.title = labels.requiredTitle;
     try { if (instant(draft.end) <= instant(draft.start)) errors.end = labels.invalidDates; } catch { errors.start = labels.invalidDates; }
+    try { if (draft.recurrence) validateRecurrence(draft.recurrence); } catch (cause) { errors.recurrence = cause instanceof Error ? cause.message : labels.invalidDates; }
     if (Object.keys(errors).length) { setFieldErrors(errors); setError(labels.invalidDates); return; }
     void run(editor.appointment ? props.onAppointmentUpdating : props.onAppointmentCreating, editor.appointment, draft, 'editor');
   };
@@ -267,10 +273,12 @@ export function CgScheduler<TItem>(props: CgSchedulerProps<TItem>) {
     const update = (next: CgSchedulerAppointmentDraft) => { if (!busy) setEditor({ ...editor, draft: next }); };
     if (props.renderEditor) return props.renderEditor({ item: editor.appointment?.item ?? null, draft: { ...draft }, setDraft: update, busy, fieldErrors });
     return <div className={styles.fields}>
+      <>{editor.appointment?.originalOccurrenceStart && <label>{locale.startsWith('ar') ? 'نطاق التعديل' : 'Edit scope'}<select value={editor.scope} disabled={busy} onChange={event => { const scope = event.target.value as CgSchedulerRecurrenceEditScope; setEditor({ ...editor, scope, draft: scope === 'series' ? { ...editor.appointment!.series! } : draftOf(editor.appointment!) }); }}><option value="occurrence">{locale.startsWith('ar') ? 'هذا الموعد' : 'This occurrence'}</option><option value="series">{locale.startsWith('ar') ? 'السلسلة' : 'Entire series'}</option></select></label>}</>
       <label>{labels.title}<input name="title" autoFocus value={draft.title} disabled={busy} aria-invalid={!!fieldErrors.title} onChange={(e) => update({ ...draft, title: e.target.value })} /></label>
       <label className={styles.checkbox}><input type="checkbox" checked={draft.isAllDay} disabled={busy} onChange={(e) => { const isAllDay = e.target.checked; const startDate = localParts(instant(draft.start), zone).date; const endDate = localParts(instant(draft.end), zone).date; update({ ...draft, isAllDay, ...(isAllDay ? { start: iso(boundary(startDate, zone)), end: iso(boundary(endDate > startDate ? endDate : addDays(startDate, 1), zone)) } : {}) }); }} />{labels.allDay}</label>
       {(['start', 'end'] as const).map((field) => <label key={field}>{labels[field]}<input name={field} type={draft.isAllDay ? 'date' : 'datetime-local'} value={draft.isAllDay ? localParts(instant(draft[field]), zone).date : localInput(draft[field], zone)} disabled={busy} aria-invalid={!!fieldErrors[field]} onChange={(e) => { if (!e.target.value) return; try { update({ ...draft, [field]: draft.isAllDay ? iso(boundary(e.target.value, zone)) : fromLocalInput(e.target.value, zone) }); } catch { setFieldErrors({ [field]: labels.invalidDates }); } }} /></label>)}
       <small>{labels.timeZone}: {zone}</small>
+      {props.enableRecurrence && editor.scope !== 'occurrence' && <SchedulerRecurrenceFields draft={draft} update={update} disabled={busy} locale={locale} />}
       <label>{labels.description}<textarea name="description" value={draft.description} disabled={busy} onChange={(e) => update({ ...draft, description: e.target.value })} /></label>
       <label>{labels.color}<input name="color" value={draft.color} disabled={busy} onChange={(e) => update({ ...draft, color: e.target.value })} /></label>
     </div>;

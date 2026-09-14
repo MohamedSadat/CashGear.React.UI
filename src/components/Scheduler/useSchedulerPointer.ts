@@ -65,7 +65,6 @@ export function useSchedulerPointer(root: RefObject<HTMLDivElement | null>, scro
       // Capture on the stable viewport: overlap reflow can move an appointment's DOM node.
       const element = scroll.current ?? event.currentTarget;
       gesture.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, currentX: event.clientX, currentY: event.clientY, moved: false, origin: cell, target: cell, element, kind };
-      element.setPointerCapture?.(event.pointerId);
     },
     move: (event: PointerEvent) => {
       const g = gesture.current;
@@ -73,7 +72,7 @@ export function useSchedulerPointer(root: RefObject<HTMLDivElement | null>, scro
       g.currentX = event.clientX; g.currentY = event.clientY;
       if (!g.moved && Math.hypot(g.currentX - g.x, g.currentY - g.y) < 5) return;
       event.preventDefault();
-      if (!g.moved) { g.moved = true; animation.current = requestAnimationFrame(tick); }
+      if (!g.moved) { g.moved = true; g.element.setPointerCapture?.(event.pointerId); animation.current = requestAnimationFrame(tick); }
       locate(g);
     },
     end: () => stop(false),

@@ -1,7 +1,8 @@
-import type { CgSchedulerAppointmentDraft, CgSchedulerKey, CgSchedulerProps } from './CgScheduler.types';
+import type { CgSchedulerAppointmentDraft, CgSchedulerKey, CgSchedulerProps, CgSchedulerVisibleRange } from './CgScheduler.types';
+import { expandRecurrence, snapshotRecurrence } from './schedulerRecurrence';
 import { addDays, boundary, instant, iso, localParts } from './schedulerDate';
 
-export interface Appointment<TItem> extends CgSchedulerAppointmentDraft { item: TItem; id: CgSchedulerKey; key: string; startMs: number; endMs: number; className: string }
+export interface Appointment<TItem> extends CgSchedulerAppointmentDraft { item: TItem; id: CgSchedulerKey; key: string; startMs: number; endMs: number; className: string; originalOccurrenceStart?: string; series?: CgSchedulerAppointmentDraft }
 export function project<TItem>(items: readonly TItem[], props: CgSchedulerProps<TItem>): Appointment<TItem>[] {
   const keys = new Set<string>();
   return items.flatMap((item) => {
@@ -12,10 +13,14 @@ export function project<TItem>(items: readonly TItem[], props: CgSchedulerProps<
     keys.add(key);
     const startMs = instant(props.startSelector(item)); const endMs = instant(props.endSelector(item));
     if (endMs <= startMs) return [];
-    return [{ item, id, key, startMs, endMs, start: iso(startMs), end: iso(endMs), title: props.titleSelector(item) ?? '', description: props.descriptionSelector?.(item) ?? '', color: props.colorSelector?.(item) ?? '', isAllDay: props.allDaySelector?.(item) ?? false, className: props.cssClassSelector?.(item) ?? '' }];
+    const recurrence = props.enableRecurrence ? props.recurrenceSelector?.(item) : undefined;
+    return [{ item, id, key, startMs, endMs, start: iso(startMs), end: iso(endMs), title: props.titleSelector(item) ?? '', description: props.descriptionSelector?.(item) ?? '', color: props.colorSelector?.(item) ?? '', isAllDay: props.allDaySelector?.(item) ?? false, className: props.cssClassSelector?.(item) ?? '', ...(recurrence ? { recurrence: snapshotRecurrence(recurrence) } : {}) }];
   }).sort((a, b) => a.startMs - b.startMs || b.endMs - a.endMs || a.key.localeCompare(b.key));
 }
-export function draftOf<TItem>(a: Appointment<TItem>): CgSchedulerAppointmentDraft { return { title: a.title, start: a.start, end: a.end, description: a.description, color: a.color, isAllDay: a.isAllDay }; }
+export function draftOf<TItem>(a: Appointment<TItem>): CgSchedulerAppointmentDraft { return { title: a.title, start: a.start, end: a.end, description: a.description, color: a.color, isAllDay: a.isAllDay, ...(a.recurrence ? { recurrence: snapshotRecurrence(a.recurrence) } : {}) }; }
+export function expandAppointments<TItem>(appointments: readonly Appointment<TItem>[], range: CgSchedulerVisibleRange, zone: string): Appointment<TItem>[] {
+  return appointments.flatMap(a => expandRecurrence(a, range, zone).map(occurrence => a.recurrence && a.recurrence.frequency !== 'none' ? { ...a, ...occurrence.replacement, start: occurrence.start, end: occurrence.end, startMs: instant(occurrence.start), endMs: instant(occurrence.end), key: `${a.key}@${occurrence.originalStart}`, originalOccurrenceStart: occurrence.originalStart, series: draftOf(a), recurrence: a.recurrence } : a)).sort((a, b) => a.startMs - b.startMs || a.key.localeCompare(b.key));
+}
 export interface Segment<TItem> { appointment: Appointment<TItem>; start: number; end: number; lane: number; lanes: number; continuesBefore: boolean; continuesAfter: boolean }
 /** Interval partitioning: adjacent half-open intervals share a lane; connected overlap groups share widths. */
 export function layout<TItem>(appointments: readonly Appointment<TItem>[], start: number, end: number): Segment<TItem>[] {

@@ -97,3 +97,10 @@ Calendar now supports controlled/uncontrolled multiple dates, stable sorted snap
 
 Verification: 17 affected unit/public API tests passed with two workers; typecheck, full lint, cycle analysis (341 modules), production and Storybook builds and package verification passed (204 runtime exports). Four Chromium/WebKit interaction/Axe scenarios passed. Three light/dark/RTL-narrow screenshots were inspected. Final integration remains pending.
 Firefox was attempted once for Phase 31: the existing SWGL framebuffer failure prevented page creation after the 30-second launch timeout. No Firefox component coverage is claimed.
+
+## Phase 32A acceptance
+
+Recurrence is opt-in, immutable and bounded, with wall-clock DST patterns, exclusive all-day ends, ordered weekly/monthly/yearly rules, exceptions and occurrence/series operation scopes. Repeated appointments retain host IDs and carry a separate original occurrence start. The editor exposes recurrence patterns and edit scopes, and retains failed drafts. Pointer capture starts after the drag threshold so double-click editing remains available.
+
+Verification: 23 affected unit tests passed with two workers; typecheck, full lint, cycle analysis (343 modules), production/Storybook builds and package verification passed (204 runtime exports). All 20 Scheduler Chromium/WebKit interaction/Axe scenarios passed. The combined runner stalled after the last WebKit test during teardown and was interrupted; all three inspected light/dark/RTL-narrow visual baselines subsequently passed in a separate clean run. Phases 32B, 32C, 33 and final integration remain pending.
+The Phase 32A Firefox launch attempt reproduced the 30-second SWGL framebuffer failure before page creation; no Firefox component coverage is claimed.
