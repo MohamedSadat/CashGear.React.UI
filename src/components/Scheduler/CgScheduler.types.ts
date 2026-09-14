@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react';
+import type { CSSProperties, ReactNode, Ref } from 'react';
 import type { CgDateValue, CgDayOfWeek } from '../../types/date';
 import type { CgDirection } from '../../types';
 import type { CgPopupProps } from '../Popup';
@@ -69,6 +69,32 @@ export interface CgSchedulerOperationRequest<TItem> {
   edge?: 'start' | 'end';
   scope?: CgSchedulerRecurrenceEditScope;
   originalOccurrenceStart?: CgSchedulerInstant;
+  occurrenceAction?: 'replace' | 'delete' | 'restore';
+}
+export interface CgSchedulerReminder<TItem> { readonly item: TItem; readonly id: CgSchedulerKey; readonly key: string; readonly title: string; readonly appointmentStart: CgSchedulerInstant; readonly dueAt: CgSchedulerInstant; readonly isOccurrence: boolean; readonly originalOccurrenceStart?: CgSchedulerInstant }
+export interface CgSchedulerICalendarOptions { calendarName?: string; download?: boolean; fileName?: string }
+export interface CgSchedulerAppointmentTarget { id: CgSchedulerKey; originalOccurrenceStart?: CgSchedulerInstant }
+export interface CgSchedulerActions<TItem> {
+  goToDate: (date: CgDateValue) => void;
+  navigate: (direction: -1 | 1) => void;
+  today: () => void;
+  changeView: (view: CgSchedulerView) => void;
+  refresh: () => void;
+  selectAppointment: (target: CgSchedulerAppointmentTarget | null) => boolean;
+  scrollTo: (target: CgSchedulerAppointmentTarget | CgSchedulerInstant) => Promise<boolean>;
+  createAppointment: (draft: CgSchedulerAppointmentDraft) => Promise<CgSchedulerOperationResult | undefined>;
+  editAppointment: (target: CgSchedulerAppointmentTarget) => void;
+  saveAppointment: (target: CgSchedulerAppointmentTarget, draft: CgSchedulerAppointmentDraft, scope?: CgSchedulerRecurrenceEditScope) => Promise<CgSchedulerOperationResult | undefined>;
+  deleteAppointment: (target: CgSchedulerAppointmentTarget, scope?: CgSchedulerRecurrenceEditScope) => Promise<CgSchedulerOperationResult | undefined>;
+  restoreOccurrence: (target: Required<CgSchedulerAppointmentTarget>) => Promise<CgSchedulerOperationResult | undefined>;
+  showCreateAppointmentForm: (cell?: CgSchedulerTimeCellContext) => void;
+  showEditAppointmentForm: (target: CgSchedulerAppointmentTarget) => void;
+  saveForm: () => Promise<CgSchedulerOperationResult | undefined>;
+  closeAppointmentForm: () => void;
+  showAppointmentTooltip: (target: CgSchedulerAppointmentTarget) => void;
+  closeAppointmentTooltip: () => void;
+  getReminders: (windowStart: CgSchedulerInstant, windowEnd: CgSchedulerInstant) => readonly CgSchedulerReminder<TItem>[];
+  exportToICalendar: (options?: CgSchedulerICalendarOptions) => string;
 }
 export type CgSchedulerOperationHandler<TItem> = (request: CgSchedulerOperationRequest<TItem>, signal: AbortSignal) => CgSchedulerOperationResult | Promise<CgSchedulerOperationResult>;
 export interface CgSchedulerAppointmentContext<TItem> extends Readonly<CgSchedulerAppointmentDraft> {
@@ -109,6 +135,10 @@ export interface CgSchedulerLabels {
   timeZone: string; resizeStart: string; resizeEnd: string; noAppointments: string;
 }
 interface CgSchedulerCommonProps<TItem> {
+  actionsRef?: Ref<CgSchedulerActions<TItem>>;
+  /** Reminder lead time in minutes. Negative/null values disable that appointment's reminder. */
+  reminderSelector?: (item: TItem) => number | null | undefined;
+  onRemindersDue?: (reminders: readonly CgSchedulerReminder<TItem>[]) => void | PromiseLike<void>;
   dataVersion?: unknown;
   queryContext?: unknown;
   idSelector: (item: TItem) => CgSchedulerKey;
