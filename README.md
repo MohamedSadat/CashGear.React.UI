@@ -843,6 +843,45 @@ Use Tooltip for short contextual descriptions that do not move focus. Use `CgFly
 
 Consumer formatters, render functions, class names, styles, and safe attributes are trusted developer inputs. Do not pass untrusted user HTML, CSS, or executable values through them; these APIs deliberately do not sanitize application code.
 
+## StatusBar and Slider
+
+`CgStatusBar` is a thin bar for the bottom of an application window, 24 px tall at the default size. It is a polite `role="status"` live region with `aria-atomic="false"`, so a screen reader reads only the item that changed. Pass `aria-live="off"` if updates come too often to announce.
+
+```tsx
+<CgStatusBar
+  ariaLabel="Workbook status"
+  items={[
+    { key: 'ready', content: 'Ready', priority: 10 },
+    { key: 'caps', content: 'Caps Lock', separator: true, tooltip: 'Toggle Caps Lock', onClick: toggleCaps },
+    { key: 'sum', content: `Sum: ${sum}`, align: 'end', 'data-testid': 'status-sum' },
+    { key: 'zoom', content: <ZoomSlider />, align: 'end', separator: true, priority: 5 },
+  ]}
+/>
+```
+
+Items never wrap or grow the bar. When space runs out, long text truncates with an ellipsis down to 96 px, then items hide from the lowest `priority` up, the later of two equals first. A lower priority never shows while a higher one is hidden. Content holding a control keeps its whole width until it hides. An item's `data-*` attributes reach its element, which is a button when `onClick` is set.
+
+`CgSlider` is a single-thumb horizontal slider. It is 10rem wide unless `style` or `className` says otherwise.
+
+```tsx
+<CgSlider
+  ariaLabel="Zoom"
+  min={10}
+  max={400}
+  value={zoom}
+  onValueChange={setZoom}
+  onValueCommit={saveZoom}
+  formatValue={(value) => `${value}%`}
+  marks={[100]}
+  showSteppers
+  stepperStep={10}
+  decreaseLabel="Zoom out"
+  increaseLabel="Zoom in"
+/>
+```
+
+`onValueChange` runs on every change. `onValueCommit` runs when a change is finished: on pointer release, on each handled key press, and on a stepper click. A cancelled pointer restores the starting value without a commit. Pressing the thumb never moves it; clicking the track jumps there and can continue as a drag. Arrow keys step, with the horizontal ones mirrored in RTL, PageUp and PageDown move ten steps, and Home and End go to the limits. Values stay authoritative when controlled, and are not snapped to the step until the user moves them. The root takes native attributes such as `data-testid`, the `role="slider"` thumb takes the name and value, and tests can find the parts through `data-cg-slider-thumb`, `data-cg-slider-track`, `data-cg-slider-stepper="decrease"` or `"increase"`, and `data-cg-slider-mark`.
+
 ## MaskedInput
 
 `CgMaskedInput` follows TextBox's `value`, `defaultValue`, and `onValueChange` convention, uses `''` as empty, and forwards its `HTMLInputElement` ref plus native events and attributes. Masks are Unicode-aware: `0`, `L`, `A`, and `*` are required digit/letter/alphanumeric slots; `9`, `l`, `a`, and `?` are optional; backslash escapes the next code point. Empty masks and trailing escapes are configuration errors.
@@ -900,7 +939,7 @@ Components:
 - `CgTextBox`, `CgMemo`, `CgRichTextEditor`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgKeyComboBox`, `CgLookUpGrid`, `CgListBox`, `CgTagBox`, `CgKeyTagBox`, `CgDropDownBox`, `CgDateEdit`, `CgTimeEdit`, `CgCalendar`, `CgDateRangePicker`, `CgDateRangePresetSelect`, `CgFileUploader`
 - `CgFlyout`, `CgPopup`, `CgWindow`, `CgMessageBox`, `CgMaskedInput`
 - `CgSplitter`, `CgDrawer`
-- `CgChart`, `CgMap`, `CgPdfViewer`, `CgRangeSelector`, `CgTooltip`, `CgStatusBadge`
+- `CgChart`, `CgMap`, `CgPdfViewer`, `CgRangeSelector`, `CgSlider`, `CgTooltip`, `CgStatusBadge`, `CgStatusBar`
 - `CgMenu`, `CgContextMenu`, `CgDropDownButton`, `CgSplitButton`, `CgToolbar`
 - `CgLayoutBreakpoint`, `CgGridLayout`, `CgGridLayoutItem`, `CgTabs`, `CgStepper`, `CgAccordion`, `CgTreeView`, `CgTreeList`, `CgPivotTable`, `CgScheduler`, `CgFilterBuilder`, `CgPager`, `CgGrid`
 - `CgFormLayout`, `CgFormLayoutItem`, `CgFormLayoutGroup`, `CgFormLayoutTabs`
