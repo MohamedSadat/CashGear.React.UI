@@ -40,6 +40,7 @@ export * from './RadioGroup';
 export * from './RichTextEditor';
 export * from './RangeSelector';
 export * from './SearchBox';
+export * from './Slider';
 export * from './SpinEdit';
 export * from './SplitButton';
 export * from './Splitter';

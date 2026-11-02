@@ -87,6 +87,8 @@ export { CgRangeSelector, normalizeCgDecimalValue, normalizeCgInstantValue, norm
 export type { CgDecimalValue, CgInstantValue, CgLocalDateTimeValue, CgRangeChangeReason, CgRangeHandle, CgRangeSelectorActions, CgRangeSelectorBigIntProps, CgRangeSelectorChangedDetails, CgRangeSelectorChangingDetails, CgRangeSelectorChartRenderContext, CgRangeSelectorDateProps, CgRangeSelectorDecimalProps, CgRangeSelectorInstantProps, CgRangeSelectorLocalDateTimeProps, CgRangeSelectorNumberProps, CgRangeSelectorProps, CgRangeSelectorSize, CgRangeSelectorValue, CgRangeSelectorValueChangeDetails } from './components/RangeSelector';
 export { CgSearchBox } from './components/SearchBox';
 export type { CgMinimumLengthMessage, CgSearchBoxProps, CgSearchContext, CgSearchMode, CgSearchReason } from './components/SearchBox';
+export { CgSlider } from './components/Slider';
+export type { CgSliderProps } from './components/Slider';
 export { CgSpinEdit } from './components/SpinEdit';
 export type { CgSpinEditProps } from './components/SpinEdit';
 export { CgSplitButton } from './components/SplitButton';

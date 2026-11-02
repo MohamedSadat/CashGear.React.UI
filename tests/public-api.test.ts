@@ -75,6 +75,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'CgRichTextEditor',
   'CgRangeSelector',
   'CgSearchBox',
+  'CgSlider',
   'CgSpinEdit',
   'CgSplitButton',
   'CgSplitter',
