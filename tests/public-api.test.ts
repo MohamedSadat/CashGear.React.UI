@@ -80,6 +80,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'CgSplitButton',
   'CgSplitter',
   'CgStatusBadge',
+  'CgStatusBar',
   'CgStepper',
   'CgSwitch',
   'CgTabs',

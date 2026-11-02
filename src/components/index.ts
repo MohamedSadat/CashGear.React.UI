@@ -46,6 +46,7 @@ export * from './SplitButton';
 export * from './Splitter';
 export * from './Stepper';
 export * from './StatusBadge';
+export * from './StatusBar';
 export * from './Switch';
 export * from './TagBox';
 export * from './Tabs';

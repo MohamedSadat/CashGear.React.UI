@@ -99,6 +99,8 @@ export { CgStepper } from './components/Stepper';
 export type { CgStepDescriptor, CgStepRenderContext, CgStepperActions, CgStepperCancelableResult, CgStepperChangeSource, CgStepperGuardDetails, CgStepperLabels, CgStepperProps, CgStepperSelectionChangeDetails } from './components/Stepper';
 export { CgStatusBadge } from './components/StatusBadge';
 export type { CgStatusBadgeAppearance, CgStatusBadgeDismissDetails, CgStatusBadgeProps, CgStatusBadgeShape, CgStatusBadgeSize, CgStatusBadgeType } from './components/StatusBadge';
+export { CgStatusBar } from './components/StatusBar';
+export type { CgStatusBarItem, CgStatusBarItemAlign, CgStatusBarProps } from './components/StatusBar';
 export { CgSwitch } from './components/Switch';
 export type { CgSwitchProps } from './components/Switch';
 export { CgTagBox } from './components/TagBox';
