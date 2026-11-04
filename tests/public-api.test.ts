@@ -27,6 +27,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'CgCalendar',
   'CgChart',
   'CgCheckBox',
+  'CgColorPicker',
   'CgComboBox',
   'CgConfirmationProvider',
   'CgContextMenu',

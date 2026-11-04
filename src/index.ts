@@ -8,6 +8,8 @@ export { CgButtonGroup } from './components/ButtonGroup';
 export type { CgButtonGroupActivationSource, CgButtonGroupItem, CgButtonGroupItemActivationDetails, CgButtonGroupItemRenderContext, CgButtonGroupMultipleProps, CgButtonGroupNoneProps, CgButtonGroupProps, CgButtonGroupSelectionDetails, CgButtonGroupSelectionMode, CgButtonGroupSingleProps } from './components/ButtonGroup';
 export { CgCheckBox } from './components/CheckBox';
 export type { CgCheckBoxProps, CgCheckedState, CgLabelPosition } from './components/CheckBox';
+export { CgColorPicker } from './components/ColorPicker';
+export type { CgColorPickerChangeDetails, CgColorPickerLabels, CgColorPickerProps, CgColorPickerSource, CgColorPickerStandardColor, CgColorPickerThemeColor, CgColorPickerValue } from './components/ColorPicker';
 export { CgComboBox } from './components/ComboBox';
 export type { CgComboBoxChangeReason, CgComboBoxErrorMessage, CgComboBoxLoadContext, CgComboBoxMinimumLengthMessage, CgComboBoxProps, CgComboBoxRenderContext, CgComboBoxSearchMode, CgComboBoxValueChangeDetails } from './components/ComboBox';
 export { CgContextMenu, useCgContextMenuTarget } from './components/ContextMenu';

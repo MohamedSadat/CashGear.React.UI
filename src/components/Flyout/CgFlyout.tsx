@@ -195,7 +195,8 @@ export const CgFlyout = forwardRef<HTMLDivElement, CgFlyoutProps>(function CgFly
   });
 
   const focusFirst = useStableCallback(() => {
-    const first = surfaceRef.current?.querySelector<HTMLElement>('button:not(:disabled),[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])');
+    const first = surfaceRef.current?.querySelector<HTMLElement>('[data-cg-initial-focus]:not(:disabled)')
+      ?? surfaceRef.current?.querySelector<HTMLElement>('button:not(:disabled),[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])');
     (first ?? surfaceRef.current)?.focus({ preventScroll: true });
   });
   const focusAnchor = useStableCallback(() => resolvedAnchorRef.current?.focus({ preventScroll: true }));
