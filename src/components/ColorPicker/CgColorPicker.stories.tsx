@@ -82,7 +82,7 @@ function ControlledExample({ theme = officeTheme, labels, standard, testId = 'pi
  * The host keeps the last color: the main part reapplies it, the arrow opens the picker,
  * and the bar under the icon shows what the main part will apply.
  */
-function FillColorButton({ label = 'Fill color', toggleLabel = 'Choose fill color', menuLabel = 'Fill color', theme = officeTheme, labels, standard }: { label?: string; toggleLabel?: string; menuLabel?: string; theme?: ReadonlyArray<CgColorPickerThemeColor>; labels?: Partial<CgColorPickerLabels>; standard?: ReadonlyArray<CgColorPickerStandardColor> }) {
+function FillColorButton({ label = 'Fill color', toggleLabel = 'Choose fill color', menuLabel = 'Fill color', theme = officeTheme, labels, standard, direction }: { label?: string; toggleLabel?: string; menuLabel?: string; theme?: ReadonlyArray<CgColorPickerThemeColor>; labels?: Partial<CgColorPickerLabels>; standard?: ReadonlyArray<CgColorPickerStandardColor>; direction?: 'ltr' | 'rtl' }) {
   const [last, setLast] = useState<CgColorPickerValue>({ kind: 'rgb', color: '#ffff00' });
   const [recents, setRecents] = useState<ReadonlyArray<CgColorPickerValue>>([]);
   const [applied, setApplied] = useState<ReadonlyArray<string>>([]);
@@ -91,6 +91,7 @@ function FillColorButton({ label = 'Fill color', toggleLabel = 'Choose fill colo
     <div style={{ display: 'grid', gap: 8, justifyItems: 'start' }}>
       <CgSplitButton
         appearance="outline"
+        direction={direction}
         icon={<CgIcon name="fill-color" size={20} accentColor={'color' in last ? last.color : 'transparent'} />}
         toggleAriaLabel={toggleLabel}
         menuAriaLabel={menuLabel}
@@ -122,4 +123,4 @@ export const StandardOnly: Story = { render: () => frame(<CgColorPicker defaultV
 export const CustomShades: Story = { render: () => frame(<CgColorPicker defaultValue={null} standardColors={[]} themeColors={[{ key: 'brand', name: 'Brand', color: '#1769ff', tints: [0.5, -0.5] }, { key: 'ink', name: 'Ink', color: '#172033', tints: [0.9] }]} data-testid="picker" />) };
 export const Disabled: Story = { render: () => frame(<CgColorPicker disabled themeColors={officeTheme} allowAutomatic allowNone allowCustomColor data-testid="picker" />) };
 export const Dark: Story = { globals: { theme: 'dark' }, render: () => frame(<div style={{ display: 'flex', gap: 24, alignItems: 'start' }}><ControlledExample /><FillColorButton /></div>) };
-export const ArabicRtl: Story = { globals: { direction: 'rtl' }, render: () => frame(<div style={{ display: 'flex', gap: 24, alignItems: 'start' }}><ControlledExample theme={arabicTheme} standard={arabicStandard} labels={arabicLabels} /><FillColorButton label="لون التعبئة" toggleLabel="اختيار لون التعبئة" menuLabel="لون التعبئة" theme={arabicTheme} standard={arabicStandard} labels={arabicLabels} /></div>) };
+export const ArabicRtl: Story = { globals: { direction: 'rtl' }, render: () => frame(<div style={{ display: 'flex', gap: 24, alignItems: 'start' }}><ControlledExample theme={arabicTheme} standard={arabicStandard} labels={arabicLabels} /><FillColorButton label="لون التعبئة" toggleLabel="اختيار لون التعبئة" menuLabel="لون التعبئة" theme={arabicTheme} standard={arabicStandard} labels={arabicLabels} direction="rtl" /></div>) };

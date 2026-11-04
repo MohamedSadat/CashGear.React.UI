@@ -421,6 +421,7 @@ function CgToolbarInner<TData>(
         actionsRef={(actions) => { if (actions) menuActions.current.set(node.name, actions); else menuActions.current.delete(node.name); }}
         {...menuProps}
         toggleAriaLabel={node.toggleAriaLabel}
+        direction={resolvedDirection}
         appearance={node.appearance ?? defaultItemAppearance}
         intent="neutral"
         size={size}
@@ -442,6 +443,7 @@ function CgToolbarInner<TData>(
         ref={(element) => { if (element) itemElements.current.set(node.name, element); else itemElements.current.delete(node.name); }}
         actionsRef={(actions) => { if (actions) menuActions.current.set(node.name, actions); else menuActions.current.delete(node.name); }}
         {...menuProps}
+        direction={resolvedDirection}
         appearance={node.appearance ?? defaultItemAppearance}
         size={size}
         icon={node.icon}
@@ -514,6 +516,7 @@ function CgToolbarInner<TData>(
         items={overflowItems}
         renderItem={(context) => renderMenuItem(context, true)}
         onItemClick={(details) => activateMenuItem(details, true)}
+        direction={resolvedDirection}
         appearance={defaultItemAppearance}
         size={size}
         tabIndex={resolvedActiveName === '__overflow' ? 0 : -1}

@@ -47,10 +47,11 @@
 .group:last-child { border-inline-end: 0; }
 .flyoutGroup { padding-inline: 0; border-inline-end: 0; }
 
+/* A fixed height, so the panel stays the same height on every tab. */
 .groupBody {
   display: flex;
   align-items: center;
-  min-block-size: calc(var(--cg-control-height-small) * 3 + var(--cg-ribbon-row-gap) * 2);
+  block-size: calc(var(--cg-control-height-small) * 3 + var(--cg-ribbon-row-gap) * 2);
 }
 
 .groupFooter {
@@ -115,7 +116,9 @@
 
 .toolbar [data-stacked] button { gap: 0.125rem; justify-content: flex-start; max-inline-size: 4.75rem; padding-block: 0.125rem; line-height: 1.15; white-space: normal; }
 .toolbar [data-stacked] svg { inline-size: 1.875rem; block-size: 1.875rem; }
-.toolbar [data-stacked] span:not([role='group']) > button[aria-haspopup] { justify-content: center; }
+.toolbar [data-stacked] button > span:last-of-type { display: inline; text-align: center; }
+.toolbar [data-stacked] span:not([role='group']) > button[aria-haspopup]::after { content: none; }
+.toolbar [data-stacked] span:not([role='group']) > button[aria-haspopup] > span:last-of-type::after { margin-inline-start: 0.25em; font-size: 0.75em; content: '▾'; }
 .toolbar [data-stacked] [role='group'] > button:last-of-type { min-block-size: 0; padding-block: 0; line-height: 1; }
 
 .peek > div { padding: 0; }

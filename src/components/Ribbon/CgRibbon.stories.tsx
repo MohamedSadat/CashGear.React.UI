@@ -78,7 +78,7 @@ interface Host {
   log: (entry: string) => void;
 }
 
-function buildTabs(text: Text, host: Host): ReadonlyArray<CgRibbonTab> {
+function buildTabs(text: Text, host: Host, direction: 'ltr' | 'rtl' = 'ltr'): ReadonlyArray<CgRibbonTab> {
   return [
     {
       key: 'home',
@@ -98,8 +98,8 @@ function buildTabs(text: Text, host: Host): ReadonlyArray<CgRibbonTab> {
           key: 'font', text: text.font, layout: 'rows', priority: 4, icon: 'text-font',
           onLauncherClick: () => host.log('font-dialog'),
           items: [
-            { name: 'font-name', ownsKeyboard: true, render: () => <div style={{ inlineSize: '8.5rem' }}><CgComboBox<string> aria-label={text.fontName} size="small" fullWidth clearable={false} options={FONTS} value={host.font} onValueChange={(next) => { if (next) host.setFont(next); }} getOptionKey={(item) => item} getOptionLabel={(item) => item} /></div> },
-            { name: 'font-size', ownsKeyboard: true, render: () => <div style={{ inlineSize: '4.75rem' }}><CgComboBox<string> aria-label={text.fontSize} size="small" fullWidth clearable={false} options={SIZES} defaultValue="11" getOptionKey={(item) => item} getOptionLabel={(item) => item} /></div> },
+            { name: 'font-name', ownsKeyboard: true, render: () => <div style={{ inlineSize: '8.5rem' }}><CgComboBox<string> aria-label={text.fontName} size="small" direction={direction} fullWidth clearable={false} options={FONTS} value={host.font} onValueChange={(next) => { if (next) host.setFont(next); }} getOptionKey={(item) => item} getOptionLabel={(item) => item} /></div> },
+            { name: 'font-size', ownsKeyboard: true, render: () => <div style={{ inlineSize: '4.75rem' }}><CgComboBox<string> aria-label={text.fontSize} size="small" direction={direction} fullWidth clearable={false} options={SIZES} defaultValue="11" getOptionKey={(item) => item} getOptionLabel={(item) => item} /></div> },
             { name: 'grow', text: text.grow, icon: 'font-size-increase', hideText: true, onClick: () => host.log('grow') },
             { name: 'shrink', text: text.shrink, icon: 'font-size-decrease', hideText: true, onClick: () => host.log('shrink') },
             { name: 'bold', text: text.bold, icon: 'text-bold', hideText: true, beginRow: true, checked: host.bold, onCheckedChange: host.setBold },
@@ -212,7 +212,7 @@ function useHost() {
 
 function RibbonExample({ text = english, labels, defaultCollapsed, width }: { text?: Text; labels?: Partial<CgRibbonLabels>; defaultCollapsed?: boolean; width?: number }) {
   const { host, entries } = useHost();
-  const tabs = useMemo(() => buildTabs(text, host), [host, text]);
+  const tabs = useMemo(() => buildTabs(text, host, text === arabic ? 'rtl' : 'ltr'), [host, text]);
   return (
     <>
       <div style={{ inlineSize: width ?? '100%', maxInlineSize: '100%' }} data-testid="ribbon-frame">

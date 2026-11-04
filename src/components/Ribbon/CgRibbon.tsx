@@ -317,7 +317,7 @@ function CgRibbonInner<TData>(
         }}
         scrollMode="native"
         size="small"
-        direction={direction}
+        direction={resolvedDirection}
         ariaLabel={ariaLabel ?? nativeAriaLabel ?? text.ribbon}
         startContent={startContent}
         endContent={endContent !== undefined || collapsible ? <>
