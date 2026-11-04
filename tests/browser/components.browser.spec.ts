@@ -1084,6 +1084,8 @@ test('Phase 14 LookUpGrid covers lookup interaction, ERP context, accessibility,
   let input = page.getByRole('combobox', { name: 'Local item' });
   await expect(page.getByRole('grid')).toBeVisible();
   await input.fill('Drive Shaft 2');
+  // ITM-0002 is also in the unfiltered list, so wait for the filter first: it moves the rows, and a click can land on the wrong one.
+  await expect(page.getByRole('row').filter({ hasText: 'ITM-0001' })).toHaveCount(0);
   await expect(page.getByRole('row').filter({ hasText: 'ITM-0002' })).toBeVisible();
   await page.getByRole('row').filter({ hasText: 'ITM-0002' }).click();
   await expect(input).toHaveValue(/ITM-0002/u);
