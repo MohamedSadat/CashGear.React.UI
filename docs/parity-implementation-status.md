@@ -186,4 +186,43 @@ The baselines are now mixed. The 630 images from before November were rendered w
 
 The first gate run also found that `verify:package` failed before any of this work: `core.autocrlf=true` rewrote vendored text files, breaking their integrity hashes. `.gitattributes` now keeps `src/vendor/**` byte-exact, and three Leaflet files were restored from `leaflet-1.9.4.tgz`.
 
-Known limitation: `useDirection` looks up `dir` starting from the element itself, so a control that writes its own `dir` keeps it under `direction="auto"` and stays LTR inside an RTL parent. `CgRibbon` and `CgToolbar` pass an explicit direction; other hosts must pass `direction` to split, dropdown and combo controls in RTL. The root fix would change RTL baselines across the library and was left out of this phase.
+This phase shipped with a known limitation in `useDirection`, since fixed. See [Direction inheritance](#direction-inheritance-acceptance).
+
+## Direction inheritance acceptance
+
+`useDirection` looked up `dir` starting from the element itself, so a control that wrote its own `dir` read that value back and stayed LTR inside an RTL parent. It now resolves `auto` from the element's parent, and an explicit `direction` still wins. Hosts no longer need to pass `direction` in RTL.
+
+Starting from the parent was not enough on its own, so these controls changed too:
+
+- `CgComboBox`, `CgDateEdit`, `CgDateRangePicker`, `CgDropDownBox`, `CgListBox`, `CgLookUpGrid`, `CgMaskedInput`, `CgTagBox` and `CgTimeEdit` passed a ref to an inner element, so their own root's `dir` was still the nearest. They now pass their root.
+- `CgGrid` passed its parent, its own workaround for this bug, which would now have skipped that parent's `dir`. It now passes its root.
+- `CgContextMenu` is portaled to the body and keeps its anchor's direction in its own `dir`, so it now resolves from inside that surface.
+- `CgRadioGroup` has no `dir` of its own to write, so a native `dir` passed to it is now read directly.
+- `CgFormLayoutGroup` outside a form layout wrote `dir="auto"`, which reads as LTR to the controls inside it. It now leaves `dir` unset.
+
+The hook now uses a layout effect, so a control that writes `dir` doesn't paint LTR before it settles. The same bug also affected `CgMenu`, `CgTreeList`, `CgPdfViewer`, `CgScheduler` and `CgDateRangePresetSelect`, which the fix covers. `CgRibbon` and `CgToolbar` still pass their direction down, because their children then get it in the same render instead of a moment later. `CgPivotTable` is unchanged: without `direction`, it takes its direction from `locale`.
+
+| Gate | Recorded result |
+| --- | --- |
+| Full unit suite | 963 tests in 88 files passed with two workers. |
+| Typecheck, lint, cycles | Passed; 374 source modules have no relative-import cycles. |
+| Chromium semantic and Axe suite | 312 of 312 passed. |
+| WebKit semantic and Axe suite | 306 of 312 passed on the full run, while another session rendered on the same machine. Five failures were 30-second timeouts and one was a LookUpGrid click that landed on the wrong row in an LTR story, a race in that test. All six then passed three of three reruns, the LookUpGrid one with a wait for the filter that was added to the test separately. |
+| Inherited against explicit RTL | 27 story sections per engine were pixel-identical between `direction` omitted and `direction="rtl"`. |
+| Visual cases against the pre-fix code | 704 cases, 352 per engine, compared with images rendered from `7e43699` on this host: 694 passed and 10 exceeded the tolerance. |
+| Exact pixel comparison | 12 images changed, six captures per engine, all RTL and all inspected. Two LTR toast images also differed by about 40 pixels, but the same build alternates between both versions across runs, so that is rendering noise. |
+| Production build and package verification | Not rerun. The fix adds no public export. |
+| Firefox | Not attempted. It could not launch on this host in the previous phase, so no Firefox coverage is claimed. |
+
+These captures changed, and each now shows the control mirrored:
+
+| Capture | What changed |
+| --- | --- |
+| `combo-box-arabic-rtl` | Placeholder and chevron swap sides. This stays within the 0.1% visual tolerance, so only the exact comparison shows it. |
+| `drop-down-box-arabic-rtl` | The list inside the popup aligns right. |
+| `phase-14-lookupgrid-rtl` | Columns reverse and the popup aligns to the control's right edge. |
+| `phase-23-editor-rtl-narrow` | The editor's tabs and toolbar mirror. |
+| `phase-28-selection-rtl` | The TagBox and ListBox mirror. |
+| `phase-30-analysis-rtl` | The tree list header mirrors. |
+
+Their committed baselines were not updated by this work, so these captures will fail on any host until they are re-rendered. Most other RTL stories pass `direction` explicitly, so they did not change. `src/stories/Direction.stories.tsx` renders all 26 controls without `direction`, and `tests/browser/direction.browser.spec.ts` covers them in both engines.
