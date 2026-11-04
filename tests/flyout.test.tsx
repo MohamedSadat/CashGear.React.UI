@@ -5,6 +5,27 @@ import { describe, expect, it, vi } from 'vitest';
 import { CgFlyout } from '../src';
 import type { CgFlyoutActions } from '../src';
 
+describe('CgFlyout focus return', () => {
+  it('returns focus to the opener on close, but leaves focus the user moved elsewhere', () => {
+    function Host({ open }: { open: boolean }) {
+      return <><button>Opener</button><input aria-label="Elsewhere" /><CgFlyout anchor={{ x: 0, y: 0 }} open={open} returnFocusOnClose><button>Inside</button></CgFlyout></>;
+    }
+    const { rerender } = render(<Host open={false} />);
+    const opener = screen.getByRole('button', { name: 'Opener' });
+    act(() => opener.focus());
+    rerender(<Host open />);
+    act(() => screen.getByText('Inside').focus());
+    rerender(<Host open={false} />);
+    expect(opener).toHaveFocus();
+
+    rerender(<Host open />);
+    const elsewhere = screen.getByRole('textbox', { name: 'Elsewhere' });
+    act(() => elsewhere.focus());
+    rerender(<Host open={false} />);
+    expect(elsewhere).toHaveFocus();
+  });
+});
+
 describe('CgFlyout', () => {
   it('supports element, ref, selector, rectangle, and point anchors', async () => {
     const anchorRect = { x: 100, y: 80, left: 100, top: 80, right: 220, bottom: 110, width: 120, height: 30, toJSON: () => ({}) };
