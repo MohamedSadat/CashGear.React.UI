@@ -1,0 +1,2 @@
+# Vendored files are verified byte for byte, so checkout must not change their line endings.
+src/vendor/** -text
