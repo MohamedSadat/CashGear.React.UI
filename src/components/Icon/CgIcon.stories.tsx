@@ -4,8 +4,9 @@ import { StoryFrame, parityParameters } from '../../stories/storySupport';
 import type { CgIconName } from '../../types';
 
 const source = 'No exact Razor component';
-const difference = 'New React implementation with a typed inline-SVG registry. Spreadsheet and formatting icons are checked-in Fluent System Icons (MIT).';
-const meta = { title: 'Phase 1–2/Icon', component: CgIcon, parameters: parityParameters(source, difference), args: { name: 'search' } } satisfies Meta<typeof CgIcon>;
+const difference = 'New React implementation with a deliberately small typed inline-SVG registry.';
+const spreadsheetDifference = 'New React implementation with a typed inline-SVG registry. Spreadsheet and formatting icons are checked-in Fluent System Icons (MIT).';
+const meta ={ title: 'Phase 1–2/Icon', component: CgIcon, parameters: parityParameters(source, difference), args: { name: 'search' } } satisfies Meta<typeof CgIcon>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 
@@ -36,6 +37,6 @@ const Sheet = () => <div style={{ display: 'grid', gap: 12, inlineSize: '100%' }
 
 export const Registry: Story = { render: () => <StoryFrame source={source} difference={difference}>{(['search', 'clear', 'close', 'eye', 'eye-off', 'check', 'minus', 'chevron-up', 'chevron-down'] as const).map((name) => <CgIcon key={name} name={name} label={name} size={28} />)}</StoryFrame> };
 export const LogicalRtl: Story = { render: () => <StoryFrame source={source} difference={difference}><span dir="ltr"><CgIcon name="chevron-end" label="LTR next" size={32} /></span><span dir="rtl"><CgIcon name="chevron-end" label="RTL next" size={32} /></span></StoryFrame> };
-export const Spreadsheet: Story = { render: () => <StoryFrame source={source} difference={difference}><Sheet /></StoryFrame> };
-export const SpreadsheetDark: Story = { globals: { theme: 'dark' }, render: () => <StoryFrame source={source} difference={difference}><Sheet /></StoryFrame> };
-export const SpreadsheetRtl: Story = { globals: { direction: 'rtl' }, render: () => <StoryFrame source={source} difference={difference}><Sheet /></StoryFrame> };
+export const Spreadsheet: Story = { render: () => <StoryFrame source={source} difference={spreadsheetDifference}><Sheet /></StoryFrame> };
+export const SpreadsheetDark: Story = { globals: { theme: 'dark' }, render: () => <StoryFrame source={source} difference={spreadsheetDifference}><Sheet /></StoryFrame> };
+export const SpreadsheetRtl: Story = { globals: { direction: 'rtl' }, render: () => <StoryFrame source={source} difference={spreadsheetDifference}><Sheet /></StoryFrame> };
