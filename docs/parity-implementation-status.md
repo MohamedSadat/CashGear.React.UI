@@ -161,7 +161,7 @@ Added `CgRibbon`, `CgColorPicker`, `CgGallery`, `CgBorderPicker` and 114 spreads
 
 Shared additions: `CgFlyout` leaves focus where a click outside put it and honours `data-cg-initial-focus`; an overlay limit of `none` stays inside the viewport; `CgToolbar` gains `layout`, `columnRows` and the item options `iconOnly`, `beginRow`, `stacked`, `renderFlyout`, `menuAriaLabel`, `toggleAriaLabel` and `ownsKeyboard`; `CgTabs` gains `startContent` and `endContent`; `CgComboBox` `fullWidth` drops its 12rem minimum.
 
-`npm run verify` does not pass end to end on this host: the visual gate fails on existing baselines for an environment reason described below, and Firefox cannot launch. Every other gate passed.
+When this phase was recorded, `npm run verify` did not pass end to end on this host: the visual gate failed on existing baselines for an environment reason described below, and Firefox could not launch. Every other gate passed. The baselines were re-rendered afterwards. See [Baseline re-render](#baseline-re-render-acceptance).
 
 Recorded host: Windows, without the Inter font installed.
 
@@ -182,7 +182,7 @@ The semantic suites and the comparison against committed baselines ran at `44ac3
 
 The committed baselines fail because `--cg-font-family` starts with Inter, which the library does not bundle. An inspected Phase 26 capture shows Inter in the baseline and Segoe UI on this host, with only text and text-sized boxes differing, and the code from before this phase fails that capture by the same 2,308 pixels. Only that one capture was inspected this way, so the font is the likely cause for the rest rather than a proven one. What the 650-case comparison does prove is that this phase changed no existing capture on this host. No existing baseline was updated.
 
-The baselines are now mixed. The 630 images from before November were rendered with Inter, while the 20 Phase 34 and 54 Phase 34.1 images were rendered without it, so no single host can pass all of them until one set is re-rendered.
+That left the baselines mixed. The 646 images from before November were rendered with Inter, while the 20 Phase 34 and 54 Phase 34.1 images were rendered without it, so no single host could pass all of them. An earlier version of this record said 630 images, which is the number of older test cases.
 
 The first gate run also found that `verify:package` failed before any of this work: `core.autocrlf=true` rewrote vendored text files, breaking their integrity hashes. `.gitattributes` now keeps `src/vendor/**` byte-exact, and three Leaflet files were restored from `leaflet-1.9.4.tgz`.
 
@@ -225,4 +225,32 @@ These captures changed, and each now shows the control mirrored:
 | `phase-28-selection-rtl` | The TagBox and ListBox mirror. |
 | `phase-30-analysis-rtl` | The tree list header mirrors. |
 
-Their committed baselines were not updated by this work, so these captures will fail on any host until they are re-rendered. Most other RTL stories pass `direction` explicitly, so they did not change. `src/stories/Direction.stories.tsx` renders all 26 controls without `direction`, and `tests/browser/direction.browser.spec.ts` covers them in both engines.
+This work did not update their baselines; the [baseline re-render](#baseline-re-render-acceptance) below did. Most other RTL stories pass `direction` explicitly, so they did not change. `src/stories/Direction.stories.tsx` renders all 26 controls without `direction`, and `tests/browser/direction.browser.spec.ts` covers them in both engines.
+
+## Baseline re-render acceptance
+
+The older visual baselines were re-rendered with the maintainer's approval, on a Windows host without Inter, so the visual gate can pass there. The committed images now match a host without Inter, so expect a host with Inter to fail most of them.
+
+This rewrote 623 of the 720 images: 312 Chromium and 311 WebKit. The other 97 were kept: all 74 from Phases 34 and 34.1, and 23 older images that still pass as they were.
+
+- **611 images** came from `7e43699`. The 650-case comparison above shows that build renders the same as the code from before Phase 34.1, so these record the same code in a different font, not new behaviour.
+- **12 images** are the six captures per engine that the direction fix changed, rendered from `0bc9722` with every one rewritten, because `combo-box-arabic-rtl` stays inside the visual tolerance and would otherwise have kept its old image.
+
+Six of the largest changes were inspected side by side, and they show only Segoe UI replacing Inter and the text wrapping that follows. The six direction captures were inspected in one engine each, and each shows the control mirrored. The other images were not opened individually. Among images that kept their size, the median change is 1.56% of pixels and the largest is 12.47%; 28 images changed size.
+
+The gates ran on `0bc9722` plus these baselines, in a clean export under the ignored `playwright-report` folder on port 6016, because another session was editing the shared checkout. Apart from that port and line endings, the export's `src`, `tests`, `.storybook`, `scripts` and configuration match the commit. Only images and documentation follow it.
+
+| Gate | Recorded result |
+| --- | --- |
+| Full unit suite | 963 tests in 88 files passed with two workers. |
+| Typecheck, lint, cycles | Passed; 374 source modules have no relative-import cycles. |
+| Production and Storybook builds | Passed sequentially. |
+| Chromium semantic and Axe suite | 312 of 312 passed. |
+| WebKit semantic and Axe suite | 312 of 312 passed. |
+| Visual cases against committed baselines | 704 of 704 passed, 352 per engine, on a fresh Storybook build. |
+| Package verification | Passed: 210 runtime exports and 2,422 packed files. |
+| Firefox | One attempt failed before page creation with `browserType.launch: spawn UNKNOWN`. Environment-blocked; no component, Axe or visual coverage claimed. |
+
+`npm run verify` as a single command still stops on this host, because its browser step includes Firefox. Every other gate above was run separately, in the same order.
+
+An earlier run of these gates on `7e43699` found a race in the Phase 14 LookUpGrid browser test. `ITM-0002` is also in the unfiltered list, so the test could click before the 300 ms debounced filter moved the rows. The unchanged test failed 5 of 8 WebKit runs on `d9296d5` and 5 of 8 on `7e43699`: eight of those failures landed on `ITM-0022`, one left the typed text in the field, and one was a page timeout. It now waits for the filter, and passed 12 of 12 runs before the full suite above.
