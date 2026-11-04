@@ -2,6 +2,8 @@
 
 Current reconciliation is pinned to Blazor `aea3e6222adce68b10ff120d7bee1e43358287d0`, with React starting at `9663863`. Phases 30–33 and final integration are accepted for the approved scope. The current capability classification and pinned-reference reconciliation near the end supersede historical gap/deferred entries below. See the [acceptance record](parity-implementation-status.md).
 
+`CgStatusBar`, `CgSlider`, `CgRibbon`, `CgColorPicker`, `CgGallery`, `CgBorderPicker` and the spreadsheet icon set are new React components with no Razor source, so they are outside this parity comparison.
+
 ## Core Scheduler port
 
 Reference: `CashGear.Blazor.UI/Components/Data/Scheduler` at `1e327060d65c8ae7e94088b24014cb7ebbd72714`; source working tree read only. The requested light/core scope includes all five views, local/provider items, selected date/view/appointment, working-time and current-time display, month overflow, all-day/multi-day spans, CRUD validation, dedicated drag/resize callbacks, range selection, keyboard/RTL behavior, and render contexts.

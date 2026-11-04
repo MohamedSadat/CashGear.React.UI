@@ -20,3 +20,7 @@ Final acceptance: 755 unit tests with two workers; 402 full-suite Chromium/WebKi
 Firefox remains environment-blocked: the final attempt reproduced the known pre-page SWGL framebuffer launch timeout. No Firefox coverage is claimed. Any future Blazor revision requires a new scoped audit; do not restart the completed phase work.
 
 Build library, Storybook and package checks sequentially to avoid vendor-copy contention. Playwright uses shared port 6006, so browser invocations must be sequential. Node is C:/Program Files/nodejs/node.exe. The ignored playwright-report directory holds current pass logs. No recurring continuation is configured.
+
+Phase 34.1 (2026-11-04) added CgRibbon, CgColorPicker, CgGallery, CgBorderPicker and the spreadsheet icon set: 900 unit tests, 303 Chromium and 302 of 303 WebKit semantic/Axe cases with one transient timeout that passed on rerun, and package verification (210 runtime exports, 2,422 files). `npm run verify` does not pass end to end. Visual baselines depend on the Inter font, which is not bundled: the 630 older images were rendered with it and the 74 Phase 34 and 34.1 images without it, so no single host passes them all until one set is re-rendered. All 650 existing captures match the pre-task code on a host without Inter. Firefox fails to launch with `spawn UNKNOWN`; no Firefox coverage is claimed. See [acceptance](parity-implementation-status.md).
+
+Do not keep a project export under `.claude/` while running lint: `eslint .` scans it.

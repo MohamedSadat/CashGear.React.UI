@@ -154,3 +154,36 @@ Recorded host: Windows, Node 22.20.0 and npm 10.9.3.
 | Firefox | One final attempt reproduced the 30-second RenderCompositorSWGL framebuffer launch failure before page creation. Environment-blocked; no component, Axe or visual coverage claimed. |
 
 The accepted scope is complete. Every audited capability is implemented and verified, intentionally adapted, or deferred in both libraries in the current parity ledger. Existing React selection, numeric and export defaults remain intact. The Blazor reference and its separately recorded Grid download-cleanup working-tree change remain read-only. No runtime dependency, consuming-application/backend change, package publication or remote push was made.
+
+## Phase 34.1 — ribbon, pickers, gallery and icons (2026-11-04)
+
+Added `CgRibbon`, `CgColorPicker`, `CgGallery`, `CgBorderPicker` and 114 spreadsheet and formatting icons for `CgIcon`, requested by the CashGear Sheet application. All are generic controlled components with no spreadsheet logic and no Razor source. Ribbon key tips were deliberately left out. The icons are checked-in Fluent System Icons 1.1.345 (MIT), measured at 13.4 KB gzip and 47 KB raw; no production dependency was added.
+
+Shared additions: `CgFlyout` leaves focus where a click outside put it and honours `data-cg-initial-focus`; an overlay limit of `none` stays inside the viewport; `CgToolbar` gains `layout`, `columnRows` and the item options `iconOnly`, `beginRow`, `stacked`, `renderFlyout`, `menuAriaLabel`, `toggleAriaLabel` and `ownsKeyboard`; `CgTabs` gains `startContent` and `endContent`; `CgComboBox` `fullWidth` drops its 12rem minimum.
+
+`npm run verify` does not pass end to end on this host: the visual gate fails on existing baselines for an environment reason described below, and Firefox cannot launch. Every other gate passed.
+
+Recorded host: Windows, without the Inter font installed.
+
+| Gate | Recorded result |
+| --- | --- |
+| Full unit suite | 900 tests in 87 files passed with two workers. |
+| Typecheck, lint, cycles | Passed; 374 source modules have no relative-import cycles. |
+| Production and Storybook builds | Passed sequentially. |
+| Chromium semantic and Axe suite | 303 of 303 passed. |
+| WebKit semantic and Axe suite | 302 of 303 passed. Phase 29 grouping and editing timed out once clicking Cancel edit, then passed three of three reruns. |
+| New visual cases | 54 cases, 27 per engine, passed against baselines generated and inspected on this host. |
+| Visual cases against committed baselines | **Failed.** 304 of 352 Chromium and 303 of 352 WebKit captures differ. |
+| Existing visual cases against the pre-task code | 650 of 650 passed: 325 per engine, comparing the final build with images rendered from `d9296d5` on this host. |
+| Package verification | Passed: 210 runtime exports and 2,422 packed files. |
+| Firefox | One attempt failed before page creation with `browserType.launch: spawn UNKNOWN`. Environment-blocked; no component, Axe or visual coverage claimed. |
+
+The semantic suites and the comparison against committed baselines ran at `44ac3f2`. The only source change after that restores a Storybook note on two Icon stories, and the fast gates and the 650-case comparison were rerun with it in place.
+
+The committed baselines fail because `--cg-font-family` starts with Inter, which the library does not bundle. An inspected Phase 26 capture shows Inter in the baseline and Segoe UI on this host, with only text and text-sized boxes differing, and the code from before this phase fails that capture by the same 2,308 pixels. Only that one capture was inspected this way, so the font is the likely cause for the rest rather than a proven one. What the 650-case comparison does prove is that this phase changed no existing capture on this host. No existing baseline was updated.
+
+The baselines are now mixed. The 630 images from before November were rendered with Inter, while the 20 Phase 34 and 54 Phase 34.1 images were rendered without it, so no single host can pass all of them until one set is re-rendered.
+
+The first gate run also found that `verify:package` failed before any of this work: `core.autocrlf=true` rewrote vendored text files, breaking their integrity hashes. `.gitattributes` now keeps `src/vendor/**` byte-exact, and three Leaflet files were restored from `leaflet-1.9.4.tgz`.
+
+Known limitation: `useDirection` looks up `dir` starting from the element itself, so a control that writes its own `dir` keeps it under `direction="auto"` and stays LTR inside an RTL parent. `CgRibbon` and `CgToolbar` pass an explicit direction; other hosts must pass `direction` to split, dropdown and combo controls in RTL. The root fix would change RTL baselines across the library and was left out of this phase.
