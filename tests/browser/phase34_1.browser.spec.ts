@@ -498,6 +498,19 @@ test.describe('CgRibbon', () => {
     expect(problems).toEqual([]);
   });
 
+  test('keeps a flyout wider than the window on screen, scrolling inside it', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 500 });
+    await openStory(page, 'phase-34-ribbon--very-narrow');
+    await group(page, 'font').getByRole('button', { name: 'Font' }).click();
+    const flyout = page.getByRole('dialog', { name: 'Font' });
+    await expect(flyout).toBeVisible();
+    const surface = page.locator('[data-cg-overlay-surface="flyout"]').filter({ has: flyout });
+    await expect(surface).toBeInViewport({ ratio: 1 });
+    expect((await box(surface)).width).toBeLessThanOrEqual(360);
+    const scrolls = await surface.evaluate((element) => [...element.querySelectorAll('*')].some((node) => node.scrollWidth > node.clientWidth + 1 && getComputedStyle(node).overflowX !== 'visible'));
+    expect(scrolls).toBe(true);
+  });
+
   test('scrolls instead of losing commands when even collapsed groups do not fit', async ({ page }) => {
     await openStory(page, 'phase-34-ribbon--very-narrow');
     const panel = page.locator('[data-cg-ribbon-stage]');
@@ -653,6 +666,17 @@ test.describe('CgRibbon', () => {
     await page.getByRole('tab', { name: 'Insert' }).click();
     await expect(page.getByRole('toolbar', { name: 'Charts' })).toBeVisible();
     expect(problems).toEqual([]);
+  });
+
+  test('leaves focus on an input clicked below an open tab or flyout', async ({ page }) => {
+    await page.setViewportSize({ width: 1700, height: 500 });
+    await openStory(page, 'phase-34-ribbon--spreadsheet');
+    await page.getByRole('button', { name: 'Fill color: more options' }).click();
+    await expect(page.getByRole('dialog', { name: 'Fill color' })).toBeVisible();
+    const font = page.getByRole('combobox', { name: 'Font size' });
+    await font.click();
+    await expect(page.getByRole('dialog', { name: 'Fill color' })).toBeHidden();
+    await expect(font).toBeFocused();
   });
 
   test('stays controlled by its host, with content before and after the tabs', async ({ page }) => {

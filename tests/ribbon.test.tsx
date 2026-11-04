@@ -105,6 +105,14 @@ describe('CgRibbon', () => {
     expect(failed.mock.calls[0]![0]).toBe(failure);
   });
 
+  it('reports an icon-only item with its text, whatever its width', async () => {
+    const shared = vi.fn();
+    render(<CgRibbon tabs={[{ key: 'home', text: 'Home', groups: [{ key: 'g', text: 'G', items: [{ name: 'bold', text: 'Bold', icon: 'text-bold', hideText: true }] }] }]} onItemClick={shared} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Bold' }));
+    await waitFor(() => expect(shared).toHaveBeenCalledOnce());
+    expect(shared.mock.calls[0]![0].item.text).toBe('Bold');
+  });
+
   it('toggles checked items through the host', async () => {
     function Host() {
       const [bold, setBold] = useState(false);
@@ -152,6 +160,59 @@ describe('CgRibbon', () => {
       expect(screen.getByRole('toolbar', { name: 'Clipboard' })).toBeInTheDocument();
       fireEvent.doubleClick(screen.getByRole('tab', { name: 'Home' }));
       expect(changed).toHaveBeenLastCalledWith(true, { source: 'tab' });
+    });
+
+    it('keeps focus in the ribbon when Ctrl+F1 collapses it from a command, so Ctrl+F1 can expand it again', () => {
+      render(<CgRibbon tabs={tabs} />);
+      const cut = screen.getByRole('button', { name: 'Cut' });
+      act(() => cut.focus());
+      fireEvent.keyDown(cut, { key: 'F1', ctrlKey: true });
+      expect(screen.queryByRole('toolbar')).toBeNull();
+      const home = screen.getByRole('tab', { name: 'Home' });
+      expect(home).toHaveFocus();
+      fireEvent.keyDown(home, { key: 'F1', ctrlKey: true });
+      expect(screen.getByRole('toolbar', { name: 'Clipboard' })).toBeInTheDocument();
+    });
+
+    it('does not bring a peek back when the host expands and collapses again', async () => {
+      const { rerender } = render(<CgRibbon tabs={tabs} collapsed />);
+      await userEvent.click(screen.getByRole('tab', { name: 'Home' }));
+      await screen.findByRole('toolbar', { name: 'Clipboard' });
+      rerender(<CgRibbon tabs={tabs} collapsed={false} />);
+      rerender(<CgRibbon tabs={tabs} collapsed />);
+      expect(screen.queryByRole('toolbar')).toBeNull();
+    });
+
+    it('closes the open tab when a launcher is used', async () => {
+      const launcher = vi.fn();
+      render(<CgRibbon tabs={[{ key: 'home', text: 'Home', groups: [{ key: 'g', text: 'G', onLauncherClick: launcher, items: [{ name: 'a', text: 'A' }] }] }]} defaultCollapsed />);
+      await userEvent.click(screen.getByRole('tab', { name: 'Home' }));
+      await userEvent.click(await screen.findByRole('button', { name: 'G: more options' }));
+      expect(launcher).toHaveBeenCalledOnce();
+      await waitFor(() => expect(screen.queryByRole('toolbar')).toBeNull());
+    });
+
+    it('returns focus to the tab shown, after switching tabs while one is open', async () => {
+      render(<CgRibbon tabs={tabs} defaultCollapsed />);
+      await userEvent.click(screen.getByRole('tab', { name: 'Home' }));
+      await screen.findByRole('toolbar', { name: 'Clipboard' });
+      const insert = screen.getByRole('tab', { name: 'Insert' });
+      await userEvent.click(insert);
+      const pie = await screen.findByRole('button', { name: 'Pie' });
+      await waitFor(() => expect(pie).toHaveFocus());
+      await userEvent.keyboard('{Escape}');
+      await waitFor(() => expect(screen.queryByRole('toolbar')).toBeNull());
+      await waitFor(() => expect(insert).toHaveFocus());
+    });
+
+    it('leaves focus where a click outside put it', async () => {
+      render(<><CgRibbon tabs={tabs} defaultCollapsed /><input aria-label="Below" /></>);
+      await userEvent.click(screen.getByRole('tab', { name: 'Home' }));
+      await screen.findByRole('toolbar', { name: 'Clipboard' });
+      const below = screen.getByRole('textbox', { name: 'Below' });
+      await userEvent.click(below);
+      await waitFor(() => expect(screen.queryByRole('toolbar')).toBeNull());
+      expect(below).toHaveFocus();
     });
 
     it('stays authoritative when controlled, and can be switched off', async () => {

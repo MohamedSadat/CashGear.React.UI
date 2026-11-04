@@ -38,6 +38,8 @@ export interface CgToolbarItem<TData = unknown> {
   data?: TData;
   render?: (context: CgToolbarItemRenderContext<TData>) => ReactNode;
   children?: ReadonlyArray<CgToolbarItem<TData>>;
+  /** Shows only the icon, with `text` as the accessible name and tooltip. */
+  iconOnly?: boolean;
   /** Starts a new row when the toolbar's `layout` is `rows`. */
   beginRow?: boolean;
   /** Puts the icon above the text. When the toolbar's `layout` is `columns`, the item also fills its column. */

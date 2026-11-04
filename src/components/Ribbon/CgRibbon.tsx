@@ -67,11 +67,10 @@ function toToolbarItem<TData>(item: CgRibbonItem<TData>, mode: RibbonGroupMode, 
   if (item.render) return { ...rest, ownsKeyboard: item.ownsKeyboard ?? true };
   const name = item.text ?? item.tooltip ?? item.name;
   const stacked = size === 'large' && mode === 'full' && layout !== 'rows';
-  const iconOnly = item.icon !== undefined && !stacked && (hideText === true || mode === 'icons');
   return {
     ...rest,
     stacked,
-    ...(iconOnly ? { text: undefined, tooltip: item.tooltip ?? name } : {}),
+    iconOnly: item.icon !== undefined && !stacked && (hideText === true || mode === 'icons'),
     menuAriaLabel: item.menuAriaLabel ?? name,
     toggleAriaLabel: item.toggleAriaLabel ?? labels.openMenu(name),
   };
@@ -108,7 +107,7 @@ function RibbonGroupFrame<TData>({ group, mode, events, onActivated, inFlyout }:
       <div className={styles.groupFooter}>
         <span className={styles.groupLabel} aria-hidden="true">{group.text}</span>
         {group.onLauncherClick ? (
-          <button type="button" className={styles.launcher} aria-label={launcherName} title={launcherName} data-cg-ribbon-launcher={group.key} onClick={(event: MouseEvent<HTMLButtonElement>) => group.onLauncherClick?.(event)}>
+          <button type="button" className={styles.launcher} aria-label={launcherName} title={launcherName} data-cg-ribbon-launcher={group.key} onClick={(event: MouseEvent<HTMLButtonElement>) => { group.onLauncherClick?.(event); onActivated?.(); }}>
             <svg viewBox="0 0 10 10" aria-hidden="true" focusable="false"><path d="M1.5 4V1.5H4M1.5 1.5l6 6M8.5 5.5v3h-3" /></svg>
           </button>
         ) : null}
@@ -232,10 +231,14 @@ function CgRibbonInner<TData>(
   const tabsActions = useRef<CgTabsActions>(null);
   const peekActions = useRef<CgFlyoutActions>(null);
   const peekOpen = isCollapsed && peeking && currentKey !== null;
+  // Expanding ends a peek, so collapsing again later doesn't bring it back.
+  if (!isCollapsed && peeking) setPeeking(false);
 
   const requestCollapsed = useStableCallback((next: boolean, source: CgRibbonCollapseSource) => {
     setPeeking(false);
     if (next === isCollapsed) return;
+    // The commands are about to unmount, and focus falling to the page would take Ctrl+F1 with it.
+    if (next && rootRef.current?.querySelector('[data-cg-ribbon-stage]')?.contains(document.activeElement)) tabsActions.current?.focusActive();
     setIsCollapsed(next);
     onCollapsedChange?.(next, { source });
   });
@@ -340,6 +343,7 @@ function CgRibbonInner<TData>(
       {/* Mounted only while open: the root's ref isn't attached yet when a flyout mounted with it resolves its anchor. */}
       {peekOpen && activeTab ? (
         <CgFlyout
+          key={activeTab.key}
           actionsRef={peekActions}
           anchor={rootRef}
           open
@@ -348,7 +352,6 @@ function CgRibbonInner<TData>(
           offset={0}
           matchAnchorWidth
           maxHeight="none"
-          scrollable={false}
           returnFocusOnClose
           className={cx(styles.scope, styles.peek)}
           data-cg-ribbon-peek=""

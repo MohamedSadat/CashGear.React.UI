@@ -356,13 +356,13 @@ function CgToolbarInner<TData>(
     tabIndex: resolvedActiveName === node.name ? 0 : -1,
     'data-cg-toolbar-name': node.name,
     onFocus: () => setActiveName(node.name),
-    title: node.tooltip,
+    title: node.tooltip ?? (node.iconOnly ? node.text : undefined),
     'aria-label': node.text ? undefined : node.tooltip ?? node.name,
   });
 
   const renderPlacement = (placement: ToolbarPlacement) => {
     const node = byName.get(placement.name)!;
-    const displayMode = placement.displayMode;
+    const displayMode = node.iconOnly && node.icon !== undefined ? 'icon-only' : placement.displayMode;
     const label = displayMode === 'icon-only' ? null : displayMode === 'adaptive' ? node.adaptiveText ?? node.text : node.text;
     const busy = node.busy === true || busyNames.has(node.name);
     const controlProps = {

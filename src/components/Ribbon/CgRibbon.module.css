@@ -6,13 +6,14 @@
   /* The groups clip their overflow, so a control's focus ring is drawn inside it. */
   --cg-focus-ring-width: 0.125rem;
   --cg-focus-ring-offset: -0.125rem;
-  --cg-ribbon-row-gap: 0.0625rem;
   color: var(--cg-text);
   font-family: var(--cg-font-family);
   font-size: var(--cg-font-size-sm);
 }
 
-:global([data-cg-density='compact']) .scope {
+/* An overlay carries the density attribute itself, as well as this class. */
+:global([data-cg-density='compact']) .scope,
+.scope[data-cg-density='compact'] {
   --cg-control-height-small: 1.375rem;
   --cg-control-padding-x: 0.25rem;
 }
@@ -51,7 +52,7 @@
 .groupBody {
   display: flex;
   align-items: center;
-  block-size: calc(var(--cg-control-height-small) * 3 + var(--cg-ribbon-row-gap) * 2);
+  block-size: calc(var(--cg-control-height-small) * 3 + var(--cg-space-1) * 2);
 }
 
 .groupFooter {
@@ -99,8 +100,6 @@
   border: 0;
   border-radius: 0;
 }
-
-.group .toolbar [data-layout] { row-gap: var(--cg-ribbon-row-gap); }
 
 .toolbar button { padding-block: var(--cg-space-1); font-weight: var(--cg-font-weight-regular); white-space: nowrap; }
 .toolbar button > span:empty { display: none; }
