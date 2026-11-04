@@ -12,6 +12,7 @@
 .headerItem:has(.active) { border-color: var(--tabs-accent); }
 .close,.nav { inline-size: 2rem; min-inline-size: 2rem; padding: 0; font: inherit; color: inherit; background: transparent; border: 0; cursor: pointer; }
 .close:disabled,.nav:disabled { color: var(--cg-disabled-text); cursor: default; }
+.headerSlot { display: flex; flex: none; align-items: center; gap: var(--cg-space-2); padding-inline: var(--cg-space-2); }
 .icon { display: inline-flex; }
 .content { min-inline-size: 0; }
 .panel { min-inline-size: 0; padding: 1rem; }

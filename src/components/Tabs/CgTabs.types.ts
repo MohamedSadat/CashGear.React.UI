@@ -92,6 +92,10 @@ export interface CgTabsProps<TData = unknown> extends NativeTabsProps {
   onCloseError?: (error: unknown, details: CgTabCloseDetails<TData>) => void;
   onReorder?: (details: CgTabReorderDetails<TData>) => void;
   emptyContent?: ReactNode;
+  /** Shown in the header before the tabs, such as an application menu. */
+  startContent?: ReactNode;
+  /** Shown in the header after the tabs, such as a search box or a command. */
+  endContent?: ReactNode;
   ariaLabel?: string;
   labels?: Partial<CgTabsLabels>;
   actionsRef?: Ref<CgTabsActions>;

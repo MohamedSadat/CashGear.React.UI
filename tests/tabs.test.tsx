@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createRef, useState } from 'react';
 import { renderToString } from 'react-dom/server';
@@ -95,5 +95,19 @@ describe('CgTabs', () => {
   it('rejects missing and duplicate keys', () => {
     expect(() => render(<CgTabs tabs={[{ key: '', text: 'Empty' }]} />)).toThrow(/nonempty key/);
     expect(() => render(<CgTabs tabs={[{ key: 'a', text: 'A' }, { key: 'a', text: 'Again' }]} />)).toThrow(/duplicate key/);
+  });
+});
+
+describe('CgTabs header slots', () => {
+  it('shows content before and after the tabs, outside the tab list', () => {
+    render(<CgTabs tabs={[{ key: 'a', text: 'A', content: 'Panel' }]} scrollMode="native" startContent={<button type="button">File</button>} endContent={<button type="button">Share</button>} />);
+    const order = screen.getAllByRole('button').map((element) => element.textContent);
+    expect(order).toEqual(['File', 'Share']);
+    const tab = screen.getByRole('tab', { name: 'A' });
+    const file = screen.getByRole('button', { name: 'File' });
+    const share = screen.getByRole('button', { name: 'Share' });
+    expect(file.compareDocumentPosition(tab) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(share.compareDocumentPosition(tab) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+    expect(within(screen.getByRole('tabpanel')).queryByRole('button')).toBeNull();
   });
 });

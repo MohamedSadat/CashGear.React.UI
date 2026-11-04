@@ -35,6 +35,8 @@ function CgTabsInner<TData>(
     onCloseError,
     onReorder,
     emptyContent,
+    startContent,
+    endContent,
     ariaLabel = 'Tabs',
     labels,
     actionsRef,
@@ -244,6 +246,7 @@ function CgTabsInner<TData>(
   const tabId = (key: string) => `${rootId}-tab-${stableKeyToken(key)}`;
   const panelId = (key: string) => `${tabId(key)}-panel`;
   const headers = <div className={styles.headers}>
+    {startContent !== undefined ? <div className={styles.headerSlot}>{startContent}</div> : null}
     {resolvedScroll === 'buttons' ? <button type="button" className={styles.nav} aria-label={mergedLabels.previousTabs} disabled={!scrollState.previous} onClick={() => scrollHeaders(-1)}>‹</button> : null}
     <div ref={viewportRef} className={cx(styles.viewport, resolvedScroll === 'none' && styles.noScroll)}>
       <div role="tablist" aria-label={ariaLabel} aria-orientation={position === 'left' || position === 'right' ? 'vertical' : 'horizontal'} aria-owns={tabs.filter((tab) => tab.visible !== false).map((tab) => tabId(tab.key)).join(' ')} className={styles.semanticTablist} />
@@ -282,6 +285,7 @@ function CgTabsInner<TData>(
       </div>
     </div>
     {resolvedScroll === 'buttons' ? <button type="button" className={styles.nav} aria-label={mergedLabels.nextTabs} disabled={!scrollState.next} onClick={() => scrollHeaders(1)}>›</button> : null}
+    {endContent !== undefined ? <div className={styles.headerSlot}>{endContent}</div> : null}
   </div>;
   const panels = <div className={styles.content}>{tabs.map((tab) => {
     if (tab.visible === false) return null;

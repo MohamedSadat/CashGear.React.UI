@@ -28,3 +28,4 @@ export const OverflowButtons: Story = { args: { tabs: Array.from({ length: 12 },
 export const Empty: Story = { args: { tabs: [], emptyContent: <p>No tabs are available.</p> } };
 export const DarkCompact: Story = { globals: { theme: 'dark', density: 'compact' }, args: { tabs: baseTabs, defaultActiveKey: 'lines' } };
 export const ArabicRtl: Story = { globals: { direction: 'rtl' }, args: { tabs: [{ key: 'عام', text: 'عام', content: 'الإعدادات العامة' }, { key: 'سطور', text: 'السطور', closable: true, content: 'سطور الطلب' }], direction: 'rtl' } };
+export const HeaderContent: Story = { args: { tabs: baseTabs, defaultActiveKey: 'general', scrollMode: 'native', startContent: <button type="button">File</button>, endContent: <button type="button">Share</button>, style: { width: 620 } } };
