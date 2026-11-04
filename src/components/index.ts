@@ -1,3 +1,4 @@
+export * from './BorderPicker';
 export * from './Button';
 export * from './ButtonGroup';
 export * from './Accordion';

@@ -2,6 +2,8 @@ import './styles/index.css';
 
 export * from './components/Scheduler';
 
+export { CgBorderPicker } from './components/BorderPicker';
+export type { CgBorderApplyDetails, CgBorderEdge, CgBorderEdgeStyle, CgBorderLineStyle, CgBorderPickerLabels, CgBorderPickerProps, CgBorderPresetKey } from './components/BorderPicker';
 export { CgButton } from './components/Button';
 export type { CgButtonAppearance, CgButtonIconPosition, CgButtonProps } from './components/Button';
 export { CgButtonGroup } from './components/ButtonGroup';

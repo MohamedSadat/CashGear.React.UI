@@ -22,6 +22,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'CG_TREE_LIST_MAXIMUM_DEPTH_LIMIT',
   'CG_TREE_LIST_STATE_VERSION',
   'CgAccordion',
+  'CgBorderPicker',
   'CgButton',
   'CgButtonGroup',
   'CgCalendar',
