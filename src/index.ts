@@ -37,6 +37,8 @@ export { CgDropDownBox } from './components/DropDownBox';
 export type { CgDropDownBoxActions, CgDropDownBoxAfterCloseDetails, CgDropDownBoxAfterOpenDetails, CgDropDownBoxBeforeCloseDetails, CgDropDownBoxBeforeOpenDetails, CgDropDownBoxCancelableResult, CgDropDownBoxCloseReason, CgDropDownBoxCommitMode, CgDropDownBoxContext, CgDropDownBoxDisplayContext, CgDropDownBoxErrorContext, CgDropDownBoxFormSerializer, CgDropDownBoxOpenChangeDetails, CgDropDownBoxOpenReason, CgDropDownBoxPlacement, CgDropDownBoxProps, CgDropDownBoxTransitionPhase, CgDropDownBoxValueChangeDetails, CgDropDownBoxValueChangeReason, CgDropDownBoxValueCommittedDetails, CgDropDownBoxWidthMode } from './components/DropDownBox';
 export { CgDrawer } from './components/Drawer';
 export type { CgDrawerActions, CgDrawerBeforeCloseDetails, CgDrawerBeforeOpenDetails, CgDrawerCancelableResult, CgDrawerClosedDetails, CgDrawerCloseReason, CgDrawerLifecyclePhase, CgDrawerMode, CgDrawerOpenedDetails, CgDrawerOpenChangeDetails, CgDrawerOpenReason, CgDrawerPosition, CgDrawerProps, CgDrawerRenderContext } from './components/Drawer';
+export { CgGallery } from './components/Gallery';
+export type { CgGalleryChangeDetails, CgGalleryDisplay, CgGalleryGroup, CgGalleryItem, CgGalleryItemRenderContext, CgGalleryProps } from './components/Gallery';
 export { CgField } from './components/Field';
 export type { CgFieldProps } from './components/Field';
 export { CgFileUploader } from './components/FileUploader';

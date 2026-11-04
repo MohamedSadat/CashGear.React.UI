@@ -49,6 +49,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'CgFormLayoutGroup',
   'CgFormLayoutItem',
   'CgFormLayoutTabs',
+  'CgGallery',
   'CgGrid',
   'CgGridBrowserViewStore',
   'CgGridFilterConfigurationError',

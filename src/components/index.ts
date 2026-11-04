@@ -14,6 +14,7 @@ export * from './DropDownButton';
 export * from './DropDownBox';
 export * from './Drawer';
 export * from './Field';
+export * from './Gallery';
 export * from './FileUploader';
 export * from './Flyout';
 export * from './FilterBuilder';

@@ -1,0 +1,60 @@
+.root { min-inline-size: 0; }
+.root[data-display='dropdown'] { display: inline-flex; }
+.root[data-display='inline'] { display: block; }
+
+/* A dropdown's panel renders in a body portal, so it sets its own type rather than inheriting from the root. */
+.panel {
+  --cg-gallery-gap: 0.25rem;
+  display: grid;
+  gap: 0.375rem;
+  inline-size: max-content;
+  max-inline-size: 100%;
+  color: var(--cg-text);
+  font-family: var(--cg-font-family);
+  font-size: var(--cg-font-size-sm);
+}
+
+.scroller {
+  display: grid;
+  gap: 0.5rem;
+  max-block-size: var(--cg-gallery-max-height, 22rem);
+  padding: 0.25rem;
+  overflow: hidden auto;
+  scrollbar-width: thin;
+}
+
+.section { display: grid; gap: 0.25rem; }
+.heading { padding-inline: 0.125rem; color: var(--cg-text-secondary); font-size: 0.75rem; font-weight: var(--cg-font-weight-medium); }
+.grid { display: grid; gap: var(--cg-gallery-gap); }
+.row { display: flex; gap: var(--cg-gallery-gap); }
+
+.item {
+  position: relative;
+  box-sizing: border-box;
+  display: grid;
+  flex: none;
+  place-items: stretch;
+  inline-size: var(--cg-gallery-item-width, 4.25rem);
+  block-size: var(--cg-gallery-item-height, 3rem);
+  margin: 0;
+  padding: 0.1875rem;
+  overflow: hidden;
+  color: inherit;
+  font: inherit;
+  background: var(--cg-surface);
+  border: var(--cg-border-width) solid var(--cg-border);
+  border-radius: var(--cg-radius-sm);
+  cursor: pointer;
+}
+
+.itemText { display: grid; place-items: center; min-inline-size: 0; overflow: hidden; font-size: 0.75rem; text-overflow: ellipsis; white-space: nowrap; }
+.item:hover:not(:disabled) { border-color: var(--cg-accent); box-shadow: inset 0 0 0 var(--cg-border-width) var(--cg-accent); }
+.item[aria-selected='true'] { background: var(--cg-selected); border-color: var(--cg-accent); box-shadow: inset 0 0 0 var(--cg-border-width) var(--cg-accent); }
+.item:focus-visible { z-index: 1; outline: var(--cg-focus-ring-width) solid var(--cg-focus-ring-color); outline-offset: 0; }
+.item:disabled { cursor: not-allowed; opacity: 0.5; }
+
+.footer { display: grid; gap: 0.125rem; padding-block-start: 0.375rem; border-block-start: var(--cg-border-width) solid var(--cg-border); }
+
+@media (forced-colors: active) {
+  .item[aria-selected='true'] { outline: 0.125rem solid Highlight; outline-offset: -0.125rem; }
+}
