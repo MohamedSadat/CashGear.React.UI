@@ -47,6 +47,8 @@ Theme and density are inherited through data attributes; direction uses native `
 - `data-cg-density`: `comfortable` or `compact`
 - `dir`: `ltr` or `rtl`
 
+Some controls write their own `dir`, including `CgSplitButton`, `CgDropDownButton`, `CgComboBox`, `CgTabs` and `CgToolbar`, and with `direction="auto"` they stay left to right inside an RTL parent. In RTL, pass them `direction="rtl"`. `CgRibbon`, `CgColorPicker`, `CgGallery`, `CgBorderPicker`, `CgStatusBar` and `CgSlider` follow an inherited direction.
+
 The stylesheet exposes the source-aligned `--cg-surface`, `--cg-text`, `--cg-accent`, feedback, typography, spacing, editor-height, focus, and overlay tokens. The earlier `--cg-color-*` names remain aliases. Override tokens on a scoped container; no global reset is installed.
 
 ## Fields and controlled state
@@ -882,6 +884,110 @@ Items never wrap or grow the bar. When space runs out, long text truncates with 
 
 `onValueChange` runs on every change. `onValueCommit` runs when a change is finished: on pointer release, on each handled key press, and on a stepper click. A cancelled pointer restores the starting value without a commit. Pressing the thumb never moves it; clicking the track jumps there and can continue as a drag. Arrow keys step, with the horizontal ones mirrored in RTL, PageUp and PageDown move ten steps, and Home and End go to the limits. Values stay authoritative when controlled, and are not snapped to the step until the user moves them. The root takes native attributes such as `data-testid`, the `role="slider"` thumb takes the name and value, and tests can find the parts through `data-cg-slider-thumb`, `data-cg-slider-track`, `data-cg-slider-stepper="decrease"` or `"increase"`, and `data-cg-slider-mark`.
 
+## Ribbon, ColorPicker, Gallery, BorderPicker and spreadsheet icons
+
+These are generic controlled components for an Excel-like command surface. They hold no spreadsheet logic: the host owns the commands, the selection and what each choice does.
+
+`CgRibbon` is tabs and named groups, composed from `CgTabs` and one `CgToolbar` per group. Tab moves between groups and arrow keys move within one, mirrored in RTL.
+
+```tsx
+<CgRibbon
+  tabs={[{
+    key: 'home',
+    text: 'Home',
+    groups: [
+      {
+        key: 'clipboard',
+        text: 'Clipboard',
+        priority: 5,
+        onLauncherClick: openPasteDialog,
+        items: [
+          { name: 'paste', text: 'Paste', icon: 'paste', size: 'large', onClick: paste, children: [{ name: 'values', text: 'Paste values', onClick: pasteValues }] },
+          { name: 'cut', text: 'Cut', icon: 'cut', onClick: cut },
+          { name: 'copy', text: 'Copy', icon: 'copy', onClick: copy },
+        ],
+      },
+      {
+        key: 'font',
+        text: 'Font',
+        layout: 'rows',
+        items: [
+          { name: 'font-name', render: () => <FontBox /> },
+          { name: 'bold', text: 'Bold', icon: 'text-bold', hideText: true, beginRow: true, checked: bold, onCheckedChange: setBold },
+          { name: 'fill', text: 'Fill color', hideText: true, icon: <CgIcon name="fill-color" accentColor={fill.color} />, onClick: applyFill, renderFlyout: ({ close }) => <CgColorPicker value={fill} onValueChange={(next) => { setFill(next); close(); }} /> },
+        ],
+      },
+    ],
+  }]}
+  collapsed={collapsed}
+  onCollapsedChange={setCollapsed}
+/>
+```
+
+Items take the same options as toolbar items. `layout: 'columns'`, the default, fills columns of three small items beside any `size: 'large'` ones, and `layout: 'rows'` starts a row at each `beginRow`. A `render` item keeps its own tab stop and keyboard, so a font box still takes spaces and caret arrows. To set its direction, pass `direction` to the control you render.
+
+As width runs out, every group gives up large buttons, then every group gives up text, and only then do groups collapse one at a time into a single button whose flyout holds the group as declared. Within each round lower `priority` goes first, and among equals the later group does. Measuring ignores a re-render that only changes state, such as a toggled button. If even collapsed groups don't fit, the groups scroll. Call `actionsRef.current.recalculateLayout()` after a change the ribbon can't see, such as a font loading.
+
+The collapse button, Ctrl+F1 while focus is in the ribbon, and double-clicking a tab all collapse it to its tabs. A tab then opens its commands over the content below, closing on that tab, an outside click, Escape or a command. To make the shortcut work everywhere, bind it in the host and call `actionsRef.current.toggleCollapsed()`. Key tips are not built yet. Group and item labels come from the host, and `labels` covers the rest for Arabic.
+
+`CgColorPicker` is a theme palette with shades, standard and recent colors, and optional Automatic, no-color and browser color dialog options. A theme color stays a reference, so the value keeps `key` and `tint` alongside the `color` to display. A tint such as `0.79998` from a file selects the same swatch as `0.8`. Recent colors are newest first without repeats. A picker in a flyout unmounts when it closes, so keep them in the host there.
+
+```tsx
+const [last, setLast] = useState<CgColorPickerValue>({ kind: 'rgb', color: '#ffff00' });
+
+<CgSplitButton
+  icon={<CgIcon name="fill-color" accentColor={'color' in last ? last.color : 'transparent'} />}
+  toggleAriaLabel="Choose fill color"
+  menuMaxHeight="none"
+  menuMaxWidth="none"
+  onClick={() => applyFill(last)}
+  renderFlyout={({ close }) => (
+    <CgColorPicker
+      value={last}
+      onValueChange={(next) => { setLast(next); applyFill(next); close(); }}
+      themeColors={workbookTheme}
+      recentColors={recent}
+      onRecentColorsChange={setRecent}
+      allowNone
+      labels={{ none: 'No fill' }}
+    />
+  )}
+>Fill color</CgSplitButton>
+```
+
+The host keeps the last color: the main part reapplies it, the arrow opens the picker and the bar under the icon shows it. `accentColor` works on `text-color`, `fill-color` and `line-color`, the icons with a bar to fill.
+
+`CgGallery` is a dropdown grid of swatches the host draws, through `item.preview` or `renderItem`. Items can sit under named `groups`, and `footer` adds commands below them. Use `display="inline"` to host only the grid in another surface, such as a ribbon item's `renderFlyout`.
+
+```tsx
+<CgGallery
+  triggerText="Format as table"
+  triggerIcon="table-style"
+  ariaLabel="Table styles"
+  items={styles.map((style) => ({ key: style.id, text: style.name, group: style.weight, preview: <TableSwatch style={style} /> }))}
+  groups={[{ key: 'light', text: 'Light' }, { key: 'medium', text: 'Medium' }, { key: 'dark', text: 'Dark' }]}
+  value={tableStyle}
+  onValueChange={setTableStyle}
+/>
+```
+
+`CgBorderPicker` offers edge presets, line styles and a line color in a nested `CgColorPicker`. Choosing a preset is a command, so it changes no state and reports what to draw. `edges` holds each edge with its line style, using the chosen style unless the preset fixes one, as `outside-thick` does. `clear` is `true` for the `none` preset. Edges are physical and don't swap in RTL, because they describe the target.
+
+```tsx
+<CgBorderPicker
+  colorPicker={{ themeColors: workbookTheme }}
+  activePreset={lastPreset}
+  onApply={({ preset, edges, clear, color }) => {
+    setLastPreset(preset);
+    applyBorders(clear ? null : edges, color);
+  }}
+/>
+```
+
+`CgIcon` adds 114 spreadsheet and formatting icons by name, for font, alignment, cells, rows and columns, freeze panes, borders, number formats, sort, filter, charts, tables and commands. See `Phase 1–2/Icon` in Storybook for all of them. They work anywhere an `icon` name does, and alignment and border icons stay physical in RTL. They are Fluent System Icons from a pinned `@fluentui/svg-icons`, checked in under `src/vendor/fluent-icons` with their MIT licence, and `vendor-src/fluent-icons` regenerates them. Names can't be tree-shaken, so they add 13 KB gzip to any app that renders an icon by name.
+
+`CgToolbar` gains what the ribbon needs, all opt-in: `layout` and `columnRows`, and items with `stacked`, `iconOnly`, `beginRow`, `renderFlyout`, `menuAriaLabel`, `toggleAriaLabel` and `ownsKeyboard`. `CgTabs` gains `startContent` and `endContent` in its header.
+
 ## MaskedInput
 
 `CgMaskedInput` follows TextBox's `value`, `defaultValue`, and `onValueChange` convention, uses `''` as empty, and forwards its `HTMLInputElement` ref plus native events and attributes. Masks are Unicode-aware: `0`, `L`, `A`, and `*` are required digit/letter/alphanumeric slots; `9`, `l`, `a`, and `?` are optional; backslash escapes the next code point. Empty masks and trailing escapes are configuration errors.
@@ -937,10 +1043,11 @@ Components:
 
 - `CgIcon`, `CgButton`, `CgButtonGroup`, `CgField`
 - `CgTextBox`, `CgMemo`, `CgRichTextEditor`, `CgCheckBox`, `CgSwitch`, `CgComboBox`, `CgKeyComboBox`, `CgLookUpGrid`, `CgListBox`, `CgTagBox`, `CgKeyTagBox`, `CgDropDownBox`, `CgDateEdit`, `CgTimeEdit`, `CgCalendar`, `CgDateRangePicker`, `CgDateRangePresetSelect`, `CgFileUploader`
+- `CgColorPicker`, `CgBorderPicker`, `CgGallery`
 - `CgFlyout`, `CgPopup`, `CgWindow`, `CgMessageBox`, `CgMaskedInput`
 - `CgSplitter`, `CgDrawer`
 - `CgChart`, `CgMap`, `CgPdfViewer`, `CgRangeSelector`, `CgSlider`, `CgTooltip`, `CgStatusBadge`, `CgStatusBar`
-- `CgMenu`, `CgContextMenu`, `CgDropDownButton`, `CgSplitButton`, `CgToolbar`
+- `CgMenu`, `CgContextMenu`, `CgDropDownButton`, `CgSplitButton`, `CgToolbar`, `CgRibbon`
 - `CgLayoutBreakpoint`, `CgGridLayout`, `CgGridLayoutItem`, `CgTabs`, `CgStepper`, `CgAccordion`, `CgTreeView`, `CgTreeList`, `CgPivotTable`, `CgScheduler`, `CgFilterBuilder`, `CgPager`, `CgGrid`
 - `CgFormLayout`, `CgFormLayoutItem`, `CgFormLayoutGroup`, `CgFormLayoutTabs`
 - `CgRadio`, `CgRadioGroup`
@@ -1000,6 +1107,6 @@ Phase 25 verification on 2026-09-06 passed strict typecheck and lint, 69 Vitest 
 
 ## Packaging
 
-The library is ESM-only. Vite preserves modules for tree-shaking, keeps React external, emits declarations and declaration maps, and produces `dist/cashgear-ui.css`, exported only as `@cashgear/ui/styles.css`. Leaflet and the rich-text engine are emitted as lazy chunks. The PDF.js browser distribution is emitted unchanged under `dist/vendor/pdfjs` for host deployment. Their licenses, notices, images, pins, and integrity manifests ship with the package. `npm run verify:package` verifies exact hashes and copied bytes, rejects bare runtime vendor imports, and runs `npm pack --dry-run` so the publish allow-list is checked before release.
+The library is ESM-only. Vite preserves modules for tree-shaking, keeps React external, emits declarations and declaration maps, and produces `dist/cashgear-ui.css`, exported only as `@cashgear/ui/styles.css`. Leaflet and the rich-text engine are emitted as lazy chunks. The PDF.js browser distribution is emitted unchanged under `dist/vendor/pdfjs` for host deployment. Their licenses, notices, images, pins, and integrity manifests ship with the package, as do those of the Fluent icons. `npm run verify:package` verifies exact hashes and copied bytes, rejects bare runtime vendor imports, and runs `npm pack --dry-run` so the publish allow-list is checked before release. `.gitattributes` marks `src/vendor` as `-text`, so a Windows checkout with `core.autocrlf` leaves those bytes alone.
 
 See [the parity ledger](docs/cgcomplib-react-parity.md) for the original and current Razor snapshots, source/test/story paths, intentional differences, exact verification results, and capabilities deferred in both libraries.
