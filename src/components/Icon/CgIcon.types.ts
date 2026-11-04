@@ -5,4 +5,6 @@ export interface CgIconProps extends Omit<SVGAttributes<SVGSVGElement>, 'childre
   name: CgIconName;
   size?: number | string;
   label?: string;
+  /** Fills the colour bar of `text-color`, `fill-color` and `line-color`. Other icons have no bar to fill. */
+  accentColor?: string;
 }

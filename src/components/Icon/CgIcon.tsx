@@ -1,10 +1,14 @@
 import { forwardRef } from 'react';
 import type { ReactNode } from 'react';
+import { fluentIconAccentPaths, fluentIconPaths } from '../../vendor/fluent-icons/icons';
+import type { FluentAccentIconName, FluentIconName } from '../../vendor/fluent-icons/icons';
 import { cx } from '../../utils';
 import styles from './CgIcon.module.css';
 import type { CgIconProps } from './CgIcon.types';
 
-const paths: Record<CgIconProps['name'], ReactNode> = {
+type StrokeIconName = Exclude<CgIconProps['name'], FluentIconName>;
+
+const paths: Record<StrokeIconName, ReactNode> = {
   search: <><circle cx="10.5" cy="10.5" r="6.5" /><path d="m15.5 15.5 4.5 4.5" /></>,
   clear: <><circle cx="12" cy="12" r="9" /><path d="m9 9 6 6m0-6-6 6" /></>,
   close: <path d="M5 5l14 14M19 5 5 19" />,
@@ -25,29 +29,37 @@ const paths: Record<CgIconProps['name'], ReactNode> = {
   fullscreen: <><path d="M8 3H3v5m13-5h5v5M8 21H3v-5m13 5h5v-5" /></>,
 };
 
+function isFluentIcon(name: CgIconProps['name']): name is FluentIconName {
+  return Object.hasOwn(fluentIconPaths, name);
+}
+
 export const CgIcon = forwardRef<SVGSVGElement, CgIconProps>(function CgIcon(
-  { name, size = '1em', label, className, ...svgProps },
+  { name, size = '1em', label, accentColor, className, ...svgProps },
   ref,
 ) {
   const labelled = Boolean(label);
+  const shared = {
+    ...svgProps,
+    ref,
+    width: size,
+    height: size,
+    className: cx(styles.icon, (name === 'chevron-start' || name === 'chevron-end') && styles.logical, className),
+    'aria-hidden': labelled ? undefined : true,
+    'aria-label': label,
+    role: labelled ? 'img' : undefined,
+    focusable: 'false',
+  } as const;
+  if (isFluentIcon(name)) {
+    const accentPath = accentColor === undefined ? undefined : fluentIconAccentPaths[name as FluentAccentIconName];
+    return (
+      <svg {...shared} viewBox="0 0 20 20" fill="currentColor">
+        {accentPath ? <path d={accentPath} fill={accentColor} data-cg-icon-accent="" /> : null}
+        <path d={fluentIconPaths[name]} />
+      </svg>
+    );
+  }
   return (
-    <svg
-      {...svgProps}
-      ref={ref}
-      viewBox="0 0 24 24"
-      width={size}
-      height={size}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={cx(styles.icon, (name === 'chevron-start' || name === 'chevron-end') && styles.logical, className)}
-      aria-hidden={labelled ? undefined : true}
-      aria-label={label}
-      role={labelled ? 'img' : undefined}
-      focusable="false"
-    >
+    <svg {...shared} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       {paths[name]}
     </svg>
   );

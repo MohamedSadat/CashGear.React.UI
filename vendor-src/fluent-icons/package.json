@@ -1,0 +1,11 @@
+{
+  "name": "cashgear-fluent-icons-vendor",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "@fluentui/svg-icons": "1.1.345"
+  }
+}

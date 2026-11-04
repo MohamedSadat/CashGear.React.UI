@@ -26,6 +26,13 @@ function verifyIntegrity(directory) {
   }
   return integrity;
 }
+const fluentIntegrity = verifyIntegrity(join(root, 'src/vendor/fluent-icons'));
+assert.equal(fluentIntegrity.package, '@fluentui/svg-icons');
+assert.equal(fluentIntegrity.version, '1.1.345');
+const fluentInputs = JSON.parse(readFileSync(join(root, 'vendor-src/fluent-icons/package.json'), 'utf8'));
+assert.equal(fluentInputs.dependencies['@fluentui/svg-icons'], '1.1.345');
+const fluentLock = JSON.parse(readFileSync(join(root, 'vendor-src/fluent-icons/package-lock.json'), 'utf8'));
+assert.equal(fluentLock.packages['node_modules/@fluentui/svg-icons'].version, '1.1.345');
 const leafletIntegrity = verifyIntegrity(join(root, 'src/vendor/leaflet'));
 assert.equal(leafletIntegrity.version, '1.9.4');
 const leafletInputs = JSON.parse(readFileSync(join(root, 'vendor-src/leaflet/package.json'), 'utf8'));
@@ -84,6 +91,8 @@ assert.match(js, /from\s+["']react(?:\/jsx-runtime)?["']/, 'React imports should
 assert.doesNotMatch(js, /react\.production|minified React error/i, 'React implementation appears bundled');
 assert.doesNotMatch(js, /from\s+["'](?:leaflet|@tiptap(?:\/[^"']+)?|dompurify)["']/u, 'Vendor runtime import was left bare');
 const copiedVendorFiles = [
+  'fluent-icons/integrity-manifest.json',
+  'fluent-icons/LICENSE',
   'leaflet/integrity-manifest.json',
   'leaflet/LICENSE',
   'leaflet/package.json',
@@ -157,5 +166,7 @@ for (const file of [
   'dist/vendor/leaflet/images/marker-icon.png', 'dist/vendor/leaflet/images/marker-icon-2x.png',
   'dist/vendor/leaflet/images/marker-shadow.png', 'src/vendor/leaflet/LICENSE',
   'src/vendor/pdfjs/LICENSE', 'src/vendor/pdfjs/integrity-manifest.json',
+  'dist/vendor/fluent-icons/LICENSE', 'dist/vendor/fluent-icons/integrity-manifest.json',
+  'src/vendor/fluent-icons/LICENSE', 'src/vendor/fluent-icons/integrity-manifest.json',
 ]) assert.ok(packedPaths.has(file), `Tarball missing ${file}`);
 console.log(`Package verified: ${runtime.CgButton ? expected.length : 0} runtime exports, ${packedPaths.size} packed files.`);

@@ -5,6 +5,8 @@ import { defineConfig } from 'vitest/config';
 import dts from 'vite-plugin-dts';
 
 const vendorMetadata = [
+  'fluent-icons/integrity-manifest.json',
+  'fluent-icons/LICENSE',
   'leaflet/integrity-manifest.json',
   'leaflet/LICENSE',
   'leaflet/package.json',

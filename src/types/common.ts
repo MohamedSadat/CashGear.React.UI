@@ -1,4 +1,5 @@
 import type { CSSProperties, MouseEvent, ReactElement, ReactNode } from 'react';
+import type { FluentIconName } from '../vendor/fluent-icons/icons';
 
 export type CgSizeMode = 'small' | 'medium' | 'large';
 /** @deprecated Use CgSizeMode. */
@@ -28,6 +29,7 @@ export interface CgLookupErrorDetails<TValue = unknown, TContext = unknown> {
 }
 
 export type CgIconName =
+  | FluentIconName
   | 'search'
   | 'clear'
   | 'close'
