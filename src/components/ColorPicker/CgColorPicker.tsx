@@ -65,7 +65,9 @@ function themeRows(colors: ReadonlyArray<CgColorPickerThemeColor>, labels: CgCol
     if (keys.has(key)) throw new Error(`CgColorPicker contains duplicate theme color '${key}'.`);
     keys.add(key);
     const base = normalizeHexColor(color, `CgColorPicker theme color '${key}'`);
-    return [0, ...(tints ?? defaultTints(base))].map((tint): Swatch => {
+    const shades = [0, ...(tints ?? defaultTints(base))];
+    if (new Set(shades).size !== shades.length) throw new Error(`CgColorPicker theme color '${key}' repeats a tint. Its base color is already tint 0.`);
+    return shades.map((tint): Swatch => {
       if (!Number.isFinite(tint) || tint < -1 || tint > 1) throw new RangeError(`CgColorPicker theme color '${key}' has a tint outside -1 to 1.`);
       return { key: `theme:${key}:${tint}`, value: { kind: 'theme', key, tint, color: applyTint(base, tint) }, label: shadeLabel(name, tint, labels), source: 'theme' };
     });
@@ -95,22 +97,29 @@ export const CgColorPicker = forwardRef<HTMLDivElement, CgColorPickerProps>(func
   const text = useMemo(() => ({ ...DEFAULT_LABELS, ...labels }), [labels]);
 
   const theme = useMemo(() => themeRows(themeColors ?? [], text), [text, themeColors]);
-  const standard = useMemo(() => standardColors.map(({ name, color }): Swatch => {
-    const normalized = normalizeHexColor(color, `CgColorPicker standard color '${name}'`);
-    return { key: `standard:${normalized}`, value: { kind: 'rgb', color: normalized }, label: name, source: 'standard' };
-  }), [standardColors]);
+  const standard = useMemo(() => {
+    const seen = new Set<string>();
+    return standardColors.map(({ name, color }): Swatch => {
+      const normalized = normalizeHexColor(color, `CgColorPicker standard color '${name}'`);
+      if (seen.has(normalized)) throw new Error(`CgColorPicker repeats standard color '${normalized}'.`);
+      seen.add(normalized);
+      return { key: `standard:${normalized}`, value: { kind: 'rgb', color: normalized }, label: name, source: 'standard' };
+    });
+  }, [standardColors]);
   const recent = useMemo(() => {
-    const swatches: Swatch[] = [];
+    const swatches = new Map<string, Swatch>();
     for (const item of recents.slice(0, maxRecentColors)) {
       if (item.kind !== 'theme' && item.kind !== 'rgb') continue;
-      const color = normalizeHexColor(item.color, 'CgColorPicker recent color');
-      const named = item.kind === 'theme'
-        ? themeColors?.find((entry) => entry.key === item.key)?.name
-        : standard.find((entry) => entry.value.color === color)?.label;
+      // A recent theme color follows the theme, so it shows and reports what that reference means now.
+      const entry = item.kind === 'theme' ? themeColors?.find((candidate) => candidate.key === item.key) : undefined;
+      const color = entry ? applyTint(normalizeHexColor(entry.color, `CgColorPicker theme color '${entry.key}'`), (item as { tint: number }).tint) : normalizeHexColor(item.color, 'CgColorPicker recent color');
+      const named = item.kind === 'theme' ? entry?.name : standard.find((swatch) => swatch.value.color === color)?.label;
       const label = item.kind === 'theme' && named ? shadeLabel(named, item.tint, text) : named ?? color;
-      swatches.push({ key: `recent:${swatches.length}`, value: { ...item, color }, label, source: 'recent' });
+      // Keyed by the color and not its place, because choosing one moves it to the front.
+      const key = item.kind === 'theme' ? `recent:theme:${item.key}:${item.tint}` : `recent:rgb:${color}`;
+      if (!swatches.has(key)) swatches.set(key, { key, value: { ...item, color }, label, source: 'recent' });
     }
-    return swatches;
+    return [...swatches.values()];
   }, [maxRecentColors, recents, standard, text, themeColors]);
 
   const standardRows = useMemo(() => chunk(standard, PALETTE_COLUMNS), [standard]);

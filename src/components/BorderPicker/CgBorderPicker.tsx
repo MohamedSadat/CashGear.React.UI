@@ -45,6 +45,7 @@ const LINE_STYLE_NAMES: Readonly<Record<CgBorderLineStyle, string>> = { thin: 'T
 const PRESET_COLUMNS = 6;
 const LINE_STYLE_COLUMNS = 3;
 const AUTOMATIC: CgColorPickerValue = { kind: 'automatic' };
+const NO_RECENT_COLORS: ReadonlyArray<CgColorPickerValue> = [];
 
 const LINE_SAMPLES: Readonly<Record<CgBorderLineStyle, { y: readonly number[]; width: number; dash?: string }>> = {
   thin: { y: [6], width: 1 },
@@ -71,11 +72,15 @@ export const CgBorderPicker = forwardRef<HTMLDivElement, CgBorderPickerProps>(fu
     if (seen.has(key)) throw new Error(`CgBorderPicker contains duplicate preset '${key}'.`);
     seen.add(key);
   }
+  if (new Set(lineStyles).size !== lineStyles.length) throw new Error('CgBorderPicker repeats a line style.');
   const rootRef = useRef<HTMLDivElement>(null);
   const mergedRef = useMergedRefs(rootRef, forwardedRef);
   const resolvedDirection = useDirection(rootRef, direction);
   const [currentLineStyle, setLineStyle] = useControllableState<CgBorderLineStyle>(lineStyle, defaultLineStyle, 'CgBorderPicker line style');
   const [currentColor, setColor] = useControllableState<CgColorPickerValue>(color, defaultColor, 'CgBorderPicker color');
+  // Held here because the color picker unmounts each time its flyout closes.
+  const [recentColors, setRecentColors] = useControllableState<ReadonlyArray<CgColorPickerValue>>(colorPicker?.recentColors, colorPicker?.defaultRecentColors ?? NO_RECENT_COLORS, 'CgBorderPicker recent colors');
+  const lineTabStop = lineStyles.includes(currentLineStyle) ? currentLineStyle : lineStyles[0];
 
   const presetRows = useMemo(() => chunk(presets, PRESET_COLUMNS), [presets]);
   const lineRows = useMemo(() => chunk(lineStyles, LINE_STYLE_COLUMNS), [lineStyles]);
@@ -152,10 +157,10 @@ export const CgBorderPicker = forwardRef<HTMLDivElement, CgBorderPickerProps>(fu
                       title={lineStyleName(key)}
                       aria-label={lineStyleName(key)}
                       aria-checked={currentLineStyle === key}
-                      tabIndex={lineGrid.tabStopKey === key ? 0 : -1}
+                      tabIndex={lineTabStop === key ? 0 : -1}
                       disabled={disabled}
                       data-cg-border-line-style={key}
-                      onFocus={() => { lineGrid.setFocusedKey(key); chooseLineStyle(key); }}
+                      onFocus={() => chooseLineStyle(key)}
                       onKeyDown={(event) => lineGrid.handleKeyDown(event, key)}
                       onClick={() => chooseLineStyle(key)}
                     >
@@ -187,6 +192,11 @@ export const CgBorderPicker = forwardRef<HTMLDivElement, CgBorderPickerProps>(fu
             {...colorPicker}
             value={currentColor}
             direction={resolvedDirection}
+            recentColors={recentColors}
+            onRecentColorsChange={(next) => {
+              setRecentColors(next);
+              colorPicker?.onRecentColorsChange?.(next);
+            }}
             onValueChange={(next) => {
               setColor(next);
               onColorChange?.(next);

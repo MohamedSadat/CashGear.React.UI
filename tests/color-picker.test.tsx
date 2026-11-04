@@ -158,6 +158,28 @@ describe('CgColorPicker', () => {
     expect(within(recent).getAllByRole('gridcell').map((cell) => cell.getAttribute('aria-label'))).toEqual(['Accent 1, darker 25%', 'Red', '#123456', '#654321']);
   });
 
+  it('shows and reports a recent theme color as the current theme defines it', () => {
+    const change = vi.fn();
+    render(<CgColorPicker standardColors={[]} themeColors={[{ key: 'accent', name: 'Accent', color: '#222222', tints: [] }]} recentColors={[{ kind: 'theme', key: 'accent', tint: 0, color: '#111111' }]} onValueChange={change} />);
+    const recent = within(screen.getByRole('grid', { name: 'Recent colors' })).getByRole('gridcell');
+    expect(recent).toHaveAttribute('data-color', '#222222');
+    fireEvent.click(recent);
+    expect(change.mock.calls[0]![0]).toEqual({ kind: 'theme', key: 'accent', tint: 0, color: '#222222' });
+  });
+
+  it('keeps a recent color on its own swatch as choosing reorders them, and shows a repeat once', () => {
+    const change = vi.fn();
+    const repeated = { kind: 'rgb', color: '#333333' } as const;
+    render(<CgColorPicker standardColors={[]} defaultRecentColors={[{ kind: 'rgb', color: '#222222' }, repeated, repeated]} onValueChange={change} />);
+    const grid = screen.getByRole('grid', { name: 'Recent colors' });
+    expect(within(grid).getAllByRole('gridcell')).toHaveLength(2);
+    const swatch333 = within(grid).getByRole('gridcell', { name: '#333333' });
+    fireEvent.click(swatch333);
+    fireEvent.click(swatch333);
+    expect(change.mock.calls.map(([value]) => (value as { color: string }).color)).toEqual(['#333333', '#333333']);
+    expect(within(grid).getAllByRole('gridcell')[0]).toBe(swatch333);
+  });
+
   it('commits a custom color when the browser dialog reports its change', () => {
     const change = vi.fn();
     render(<CgColorPicker allowCustomColor defaultValue={{ kind: 'rgb', color: '#123456' }} onValueChange={change} />);
@@ -213,6 +235,8 @@ describe('CgColorPicker', () => {
     expect(() => render(<CgColorPicker themeColors={[{ key: ' ', name: 'A', color: '#000' }]} />)).toThrow(/nonempty key/);
     expect(() => render(<CgColorPicker themeColors={[{ key: 'a', name: 'A', color: '#000', tints: [2] }]} />)).toThrow(/outside -1 to 1/);
     expect(() => render(<CgColorPicker maxRecentColors={-1} />)).toThrow(/nonnegative integer/);
+    expect(() => render(<CgColorPicker themeColors={[{ key: 'a', name: 'A', color: '#000', tints: [0] }]} />)).toThrow(/repeats a tint/);
+    expect(() => render(<CgColorPicker standardColors={[{ name: 'A', color: '#000' }, { name: 'B', color: '#000000' }]} />)).toThrow(/repeats standard color/);
     silence.mockRestore();
   });
 

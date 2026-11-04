@@ -116,6 +116,25 @@ describe('CgBorderPicker', () => {
     expect(colorChanged).toHaveBeenCalledWith({ kind: 'rgb', color: '#ff0000' });
   });
 
+  it('keeps the tab stop on the checked line style when the host refuses a change', () => {
+    const changed = vi.fn();
+    render(<CgBorderPicker lineStyle="thin" onLineStyleChange={changed} />);
+    fireEvent.click(line('Thick'));
+    expect(changed).toHaveBeenCalledTimes(1);
+    expect(line('Thin').tabIndex).toBe(0);
+    expect(line('Thick').tabIndex).toBe(-1);
+  });
+
+  it('remembers recent line colors each time the nested picker opens', async () => {
+    render(<CgBorderPicker />);
+    const button = screen.getByRole('button', { name: 'Line color' });
+    await userEvent.click(button);
+    await userEvent.click(await screen.findByRole('gridcell', { name: 'Red' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await userEvent.click(button);
+    expect(await screen.findByRole('grid', { name: 'Recent colors' })).toBeInTheDocument();
+  });
+
   it('chooses a line color in a nested picker and keeps the border picker open', async () => {
     const apply = vi.fn<(details: CgBorderApplyDetails) => void>();
     render(<CgBorderPicker colorPicker={{ themeColors: [{ key: 'accent1', name: 'Accent 1', color: '#4472c4' }] }} onApply={apply} />);
@@ -166,6 +185,7 @@ describe('CgBorderPicker', () => {
     const silence = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     expect(() => render(<CgBorderPicker presets={['nope' as CgBorderPresetKey]} />)).toThrow(/doesn't know preset/);
     expect(() => render(<CgBorderPicker presets={['all', 'all']} />)).toThrow(/duplicate preset/);
+    expect(() => render(<CgBorderPicker lineStyles={['thin', 'thin']} />)).toThrow(/repeats a line style/);
     silence.mockRestore();
   });
 });
