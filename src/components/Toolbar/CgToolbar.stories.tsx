@@ -24,3 +24,19 @@ export const NarrowOverflow: Story = { render: () => <StoryFrame source={source}
 export const DarkCompact: Story = { globals: { theme: 'dark', density: 'compact' }, render: () => <StoryFrame source={source} difference={difference}><CgToolbar items={items} size="small" /></StoryFrame> };
 export const ArabicRtl: Story = { globals: { direction: 'rtl' }, render: () => <StoryFrame source={source} difference={difference}><CgToolbar title="أمر البيع" items={items} direction="rtl" /></StoryFrame> };
 export const NarrowPopup: Story = { render: () => <StoryFrame source={source} difference={difference}><CgPopup defaultOpen headerText="Toolbar in popup" width={460}><CgToolbar items={items} /></CgPopup></StoryFrame> };
+
+const columnItems: ReadonlyArray<CgToolbarItem> = [
+  { name: 'paste', text: 'Paste', icon: 'paste', stacked: true, onClick: () => undefined, children: [{ name: 'values', text: 'Paste values' }] },
+  { name: 'cut', text: 'Cut', icon: 'cut' },
+  { name: 'copy', text: 'Copy', icon: 'copy' },
+  { name: 'painter', text: 'Format painter', icon: 'format-painter' },
+];
+const rowItems: ReadonlyArray<CgToolbarItem> = [
+  { name: 'name', ownsKeyboard: true, render: () => <input aria-label="Name" defaultValue="Typing a space works here" style={{ inlineSize: '12rem' }} /> },
+  { name: 'bold', tooltip: 'Bold', icon: 'text-bold', checked: true },
+  { name: 'italic', tooltip: 'Italic', icon: 'text-italic', beginRow: true, checked: false },
+  { name: 'flyout', text: 'Flyout', icon: 'fill-color', renderFlyout: ({ close }) => <button type="button" onClick={close}>Close this flyout</button> },
+  { name: 'split', text: 'Split', icon: 'border-all', onClick: () => undefined, renderFlyout: () => <p style={{ margin: 0 }}>Any content</p> },
+];
+
+export const Layouts: Story = { render: () => <StoryFrame source={source} difference={difference}><div style={{ display: 'grid', gap: 12 }}><CgToolbar ariaLabel="Columns" size="small" layout="columns" autoOverflow={false} autoCollapseText={false} items={columnItems} /><CgToolbar ariaLabel="Rows" size="small" layout="rows" autoOverflow={false} autoCollapseText={false} items={rowItems} /></div></StoryFrame> };

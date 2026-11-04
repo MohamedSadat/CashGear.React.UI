@@ -1,11 +1,14 @@
 import type { HTMLAttributes, KeyboardEvent, MouseEvent, ReactNode, Ref } from 'react';
 import type { CgDirection, CgIconSource, CgSizeMode } from '../../types';
 import type { CgButtonAppearance } from '../Button';
+import type { CgButtonFlyoutContext } from '../DropDownButton';
 
 export type CgToolbarItemAlignment = 'start' | 'end';
 export type CgToolbarOverflowBehavior = 'auto' | 'never' | 'always';
 export type CgToolbarItemDisplayMode = 'full' | 'adaptive' | 'icon-only';
 export type CgToolbarActivationSource = 'pointer' | 'keyboard';
+/** `inline` is one row. `rows` starts a new row at each `beginRow` item. `columns` fills columns of `columnRows` items. */
+export type CgToolbarLayout = 'inline' | 'rows' | 'columns';
 
 export interface CgToolbarItem<TData = unknown> {
   name: string;
@@ -35,6 +38,18 @@ export interface CgToolbarItem<TData = unknown> {
   data?: TData;
   render?: (context: CgToolbarItemRenderContext<TData>) => ReactNode;
   children?: ReadonlyArray<CgToolbarItem<TData>>;
+  /** Starts a new row when the toolbar's `layout` is `rows`. */
+  beginRow?: boolean;
+  /** Puts the icon above the text. When the toolbar's `layout` is `columns`, the item also fills its column. */
+  stacked?: boolean;
+  /** Opens this content in a flyout: a split button with `onClick`, otherwise a drop-down button. The item never overflows, because a menu can't host it. */
+  renderFlyout?: (context: CgButtonFlyoutContext) => ReactNode;
+  /** Accessible name of the item's menu or flyout. */
+  menuAriaLabel?: string;
+  /** Accessible name of a split button's arrow. */
+  toggleAriaLabel?: string;
+  /** For a `render` item holding a text box or combo box: its content keeps its own tab stop and arrow keys, and arrow navigation passes over it. */
+  ownsKeyboard?: boolean;
 }
 
 export interface CgToolbarItemActivationDetails<TData = unknown> {
@@ -73,6 +88,10 @@ export interface CgToolbarProps<TData = unknown> extends NativeToolbarProps {
   onItemClick?: (details: CgToolbarItemActivationDetails<TData>) => void | PromiseLike<void>;
   onItemError?: (error: unknown, details: CgToolbarItemActivationDetails<TData>) => void;
   size?: CgSizeMode;
+  /** Defaults to `inline`. */
+  layout?: CgToolbarLayout;
+  /** Items per column when `layout` is `columns`. Defaults to `3`. */
+  columnRows?: number;
   defaultItemAppearance?: CgButtonAppearance;
   autoCollapseText?: boolean;
   autoOverflow?: boolean;

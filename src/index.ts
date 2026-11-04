@@ -116,7 +116,7 @@ export type { CgTabCloseDetails, CgTabCloseReason, CgTabDescriptor, CgTabRenderC
 export { CgTextBox } from './components/TextBox';
 export type { CgTextBoxProps, CgTextBoxType, CgTextChangeReason, CgTextValueChange } from './components/TextBox';
 export { CgToolbar } from './components/Toolbar';
-export type { CgToolbarActions, CgToolbarActivationSource, CgToolbarItem, CgToolbarItemActivationDetails, CgToolbarItemAlignment, CgToolbarItemDisplayMode, CgToolbarItemRenderContext, CgToolbarOverflowBehavior, CgToolbarProps } from './components/Toolbar';
+export type { CgToolbarActions, CgToolbarActivationSource, CgToolbarItem, CgToolbarItemActivationDetails, CgToolbarItemAlignment, CgToolbarItemDisplayMode, CgToolbarItemRenderContext, CgToolbarLayout, CgToolbarOverflowBehavior, CgToolbarProps } from './components/Toolbar';
 export { CgTooltip } from './components/Tooltip';
 export type { CgTooltipActions, CgTooltipHiddenDetails, CgTooltipPosition, CgTooltipProps, CgTooltipRenderContext, CgTooltipShownDetails, CgTooltipSurfaceAttributes, CgTooltipTrigger, CgTooltipVisibilityChangeDetails, CgTooltipVisibilityChangeReason } from './components/Tooltip';
 export { CgToastProvider, useCgToast } from './components/Toast';

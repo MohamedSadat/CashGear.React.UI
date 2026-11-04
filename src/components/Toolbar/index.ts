@@ -7,6 +7,7 @@ export type {
   CgToolbarItemAlignment,
   CgToolbarItemDisplayMode,
   CgToolbarItemRenderContext,
+  CgToolbarLayout,
   CgToolbarOverflowBehavior,
   CgToolbarProps,
 } from './CgToolbar.types';

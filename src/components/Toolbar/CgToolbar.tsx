@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { ForwardedRef, KeyboardEvent, MouseEvent, ReactElement, ReactNode, RefAttributes } from 'react';
+import type { CSSProperties, ForwardedRef, KeyboardEvent, MouseEvent, ReactElement, ReactNode, RefAttributes } from 'react';
 import { useDirection, useMergedRefs, useStableCallback } from '../../hooks';
 import {
   planToolbarLayout,
@@ -68,6 +68,13 @@ function normalizeToolbarItems<TData>(items: ReadonlyArray<CgToolbarItem<TData>>
     if (depth > 0 && children.length > 0 && item.onClick !== undefined) {
       throw new Error(`CgToolbar nested branch '${name}' cannot define a primary action.`);
     }
+    if (item.renderFlyout) {
+      if (depth > 0) throw new Error(`CgToolbar menu item '${name}' cannot open a flyout.`);
+      if (children.length > 0 || item.render) throw new Error(`CgToolbar item '${name}' cannot combine renderFlyout with children or render.`);
+      if (item.navigateUrl !== undefined) throw new Error(`CgToolbar flyout item '${name}' cannot navigate.`);
+      if (item.checked !== undefined && !item.onClick) throw new Error(`CgToolbar flyout item '${name}' needs onClick to be checkable.`);
+    }
+    if (item.ownsKeyboard && !item.render) throw new Error(`CgToolbar item '${name}' sets ownsKeyboard without render.`);
     const navigateUrl = validateMenuUrl(item.navigateUrl, 'CgToolbar');
     const node: ToolbarNode<TData> = Object.freeze({
       ...item,
@@ -76,7 +83,7 @@ function normalizeToolbarItems<TData>(items: ReadonlyArray<CgToolbarItem<TData>>
       disabled: item.disabled === true,
       alignment: depth === 0 ? item.alignment ?? 'start' : 'start',
       adaptivePriority: item.adaptivePriority ?? 0,
-      overflowBehavior: item.overflowBehavior ?? 'auto',
+      overflowBehavior: item.renderFlyout ? 'never' : item.overflowBehavior ?? 'auto',
       allowTextCollapse: item.allowTextCollapse !== false,
       ...(navigateUrl !== undefined ? { navigateUrl } : {}),
       declarationIndex: declarationIndex++,
@@ -145,6 +152,8 @@ function CgToolbarInner<TData>(
     onItemClick,
     onItemError,
     size = 'medium',
+    layout = 'inline',
+    columnRows = 3,
     defaultItemAppearance = 'ghost',
     autoCollapseText = true,
     autoOverflow = true,
@@ -163,6 +172,7 @@ function CgToolbarInner<TData>(
   if (!Number.isInteger(minimumVisibleItemCount) || minimumVisibleItemCount < 0) {
     throw new RangeError('CgToolbar minimumVisibleItemCount must be a nonnegative integer.');
   }
+  if (!Number.isInteger(columnRows) || columnRows < 1) throw new RangeError('CgToolbar columnRows must be a positive integer.');
   const rootRef = useRef<HTMLDivElement>(null);
   const mergedRef = useMergedRefs(rootRef, forwardedRef);
   const resolvedDirection = useDirection(rootRef, direction);
@@ -193,7 +203,7 @@ function CgToolbarInner<TData>(
   const focusOrder = useMemo(() => {
     const order = [...effectivePlan.start, ...effectivePlan.end]
       .map((placement) => placement.name)
-      .filter((name) => !byName.get(name)?.disabled && !byName.get(name)?.busy);
+      .filter((name) => !byName.get(name)?.disabled && !byName.get(name)?.busy && !byName.get(name)?.ownsKeyboard);
     if (effectivePlan.overflow.length > 0) order.push('__overflow');
     return order;
   }, [byName, effectivePlan]);
@@ -366,9 +376,9 @@ function CgToolbarInner<TData>(
       const defaultContent = <>{node.icon ? <span className={styles.icon}>{renderIcon(node.icon)}</span> : null}{label}</>;
       return <div
         key={node.name}
-        {...controlProps}
+        {...(node.ownsKeyboard ? { title: node.tooltip } : controlProps)}
         className={cx(styles.custom, node.className, busy && styles.busy)}
-        onKeyDown={(event) => {
+        onKeyDown={node.ownsKeyboard ? undefined : (event) => {
           if (event.key !== 'Enter' && event.key !== ' ') return;
           event.preventDefault(); void execute(node, 'keyboard', event, false, false, false);
         }}
@@ -393,16 +403,24 @@ function CgToolbarInner<TData>(
       >{node.icon ? <span className={styles.icon}>{renderIcon(node.icon)}</span> : null}{label}</a>;
     }
     const children = menuItems.get(node.name);
-    if (children && node.onClick) {
+    const hasMenu = children !== undefined || node.renderFlyout !== undefined;
+    const menuProps = node.renderFlyout
+      ? { renderFlyout: node.renderFlyout, menuMaxWidth: 'none', menuMaxHeight: 'none', menuAriaLabel: node.menuAriaLabel ?? node.text ?? node.tooltip ?? node.name }
+      : {
+        items: children,
+        renderItem: (context: CgButtonMenuRenderContext<ToolbarNode<TData>>) => renderMenuItem(context, false),
+        onItemClick: (details: CgButtonMenuItemClickDetails<ToolbarNode<TData>>) => activateMenuItem(details, false),
+        ...(node.menuAriaLabel !== undefined ? { menuAriaLabel: node.menuAriaLabel } : {}),
+      };
+    if (hasMenu && node.onClick) {
       return <CgSplitButton<ToolbarNode<TData>>
         key={node.name}
         {...controlProps}
         {...checkProps}
         ref={(element) => { if (element) itemElements.current.set(node.name, element); else itemElements.current.delete(node.name); }}
         actionsRef={(actions) => { if (actions) menuActions.current.set(node.name, actions); else menuActions.current.delete(node.name); }}
-        items={children}
-        renderItem={(context) => renderMenuItem(context, false)}
-        onItemClick={(details) => activateMenuItem(details, false)}
+        {...menuProps}
+        toggleAriaLabel={node.toggleAriaLabel}
         appearance={node.appearance ?? defaultItemAppearance}
         intent="neutral"
         size={size}
@@ -417,15 +435,13 @@ function CgToolbarInner<TData>(
         onClick={(event) => execute(node, event.detail === 0 ? 'keyboard' : 'pointer', event, false, false, false).then(() => undefined)}
       >{label}</CgSplitButton>;
     }
-    if (children) {
+    if (hasMenu) {
       return <CgDropDownButton<ToolbarNode<TData>>
         key={node.name}
         {...controlProps}
         ref={(element) => { if (element) itemElements.current.set(node.name, element); else itemElements.current.delete(node.name); }}
         actionsRef={(actions) => { if (actions) menuActions.current.set(node.name, actions); else menuActions.current.delete(node.name); }}
-        items={children}
-        renderItem={(context) => renderMenuItem(context, false)}
-        onItemClick={(details) => activateMenuItem(details, false)}
+        {...menuProps}
         appearance={node.appearance ?? defaultItemAppearance}
         size={size}
         icon={node.icon}
@@ -451,15 +467,29 @@ function CgToolbarInner<TData>(
     >{label}</CgButton>;
   };
 
-  const renderRail = (placements: ReadonlyArray<ToolbarPlacement>, railClass?: string) => <div className={cx(styles.rail, railClass)}>
-    {placements.map((placement, index) => {
-      const node = byName.get(placement.name)!;
-      return <span key={node.name} className={styles.custom}>
-        {index > 0 && node.beginGroup ? <span className={styles.separator} role="separator" aria-orientation="vertical" /> : null}
-        {renderPlacement(placement)}
-      </span>;
-    })}
-  </div>;
+  const renderCells = (placements: ReadonlyArray<ToolbarPlacement>) => placements.map((placement, index) => {
+    const node = byName.get(placement.name)!;
+    return <span key={node.name} className={styles.custom} data-stacked={node.stacked || undefined}>
+      {index > 0 && node.beginGroup ? <span className={styles.separator} role="separator" aria-orientation="vertical" /> : null}
+      {renderPlacement(placement)}
+    </span>;
+  });
+  const renderRail = (placements: ReadonlyArray<ToolbarPlacement>, railClass?: string) => {
+    if (layout === 'rows') {
+      const rows: ToolbarPlacement[][] = [];
+      for (const placement of placements) {
+        if (rows.length === 0 || byName.get(placement.name)?.beginRow) rows.push([]);
+        rows.at(-1)!.push(placement);
+      }
+      return <div className={cx(styles.rail, styles.rowsRail, railClass)}>
+        {rows.map((row, index) => <div key={index} className={styles.layoutRow}>{renderCells(row)}</div>)}
+      </div>;
+    }
+    if (layout === 'columns') {
+      return <div className={cx(styles.rail, styles.columnsRail, railClass)} style={{ '--cg-toolbar-rows': columnRows } as CSSProperties}>{renderCells(placements)}</div>;
+    }
+    return <div className={cx(styles.rail, railClass)}>{renderCells(placements)}</div>;
+  };
 
   return <div
     {...nativeProps}
@@ -469,6 +499,7 @@ function CgToolbarInner<TData>(
     dir={resolvedDirection}
     className={cx(styles.root, className)}
     data-cg-toolbar-stage={effectivePlan.stage}
+    data-layout={layout === 'inline' ? undefined : layout}
     onKeyDown={handleToolbarKeyDown}
   >
     {renderTitle ? <div className={styles.title}>{renderTitle()}</div> : title !== undefined ? <div className={styles.title}>{title}</div> : null}
