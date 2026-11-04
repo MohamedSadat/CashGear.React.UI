@@ -47,7 +47,7 @@ Theme and density are inherited through data attributes; direction uses native `
 - `data-cg-density`: `comfortable` or `compact`
 - `dir`: `ltr` or `rtl`
 
-Some controls write their own `dir`, including `CgSplitButton`, `CgDropDownButton`, `CgComboBox`, `CgTabs` and `CgToolbar`, and with `direction="auto"` they stay left to right inside an RTL parent. In RTL, pass them `direction="rtl"`. `CgRibbon`, `CgColorPicker`, `CgGallery`, `CgBorderPicker`, `CgStatusBar` and `CgSlider` follow an inherited direction.
+Controls follow the nearest `dir` above them, so setting it once on a container is enough, and a control follows when it changes. To set one control differently, pass `direction="ltr"` or `direction="rtl"`. `CgPivotTable` is the exception: without `direction`, it takes its direction from `locale`.
 
 The stylesheet exposes the source-aligned `--cg-surface`, `--cg-text`, `--cg-accent`, feedback, typography, spacing, editor-height, focus, and overlay tokens. The earlier `--cg-color-*` names remain aliases. Override tokens on a scoped container; no global reset is installed.
 
@@ -924,7 +924,7 @@ These are generic controlled components for an Excel-like command surface. They 
 />
 ```
 
-Items take the same options as toolbar items. `layout: 'columns'`, the default, fills columns of three small items beside any `size: 'large'` ones, and `layout: 'rows'` starts a row at each `beginRow`. A `render` item keeps its own tab stop and keyboard, so a font box still takes spaces and caret arrows. To set its direction, pass `direction` to the control you render.
+Items take the same options as toolbar items. `layout: 'columns'`, the default, fills columns of three small items beside any `size: 'large'` ones, and `layout: 'rows'` starts a row at each `beginRow`. A `render` item keeps its own tab stop and keyboard, so a font box still takes spaces and caret arrows. It follows the ribbon's direction unless you pass `direction` to the control you render.
 
 As width runs out, every group gives up large buttons, then every group gives up text, and only then do groups collapse one at a time into a single button whose flyout holds the group as declared. Within each round lower `priority` goes first, and among equals the later group does. Measuring ignores a re-render that only changes state, such as a toggled button. If even collapsed groups don't fit, the groups scroll. Call `actionsRef.current.recalculateLayout()` after a change the ribbon can't see, such as a font loading.
 

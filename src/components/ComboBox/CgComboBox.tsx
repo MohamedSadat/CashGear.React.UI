@@ -94,13 +94,14 @@ function CgComboBoxInner<TItem, TContext>(
   }
 
   const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
+  const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const controlRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const ref = useMergedRefs(inputRef, forwardedRef);
   const listboxId = `${useCgId(field.id)}-listbox`;
   const statusId = `${listboxId}-status`;
-  const resolvedDirection = useDirection(inputRef, direction);
+  const resolvedDirection = useDirection(rootRef, direction);
   const [selected, setSelected] = useControllableState<TItem | null>(value, defaultValue, 'CgComboBox');
   const [draft, setDraft] = useState(() => selected === null ? _unresolvedValueText ?? '' : getOptionLabel(selected));
   const [open, setOpen] = useState(false);
@@ -461,7 +462,7 @@ function CgComboBoxInner<TItem, TContext>(
   );
 
   return (
-    <div className={cx(styles.root, fullWidth && styles.fullWidth)} dir={resolvedDirection}>
+    <div ref={rootRef} className={cx(styles.root, fullWidth && styles.fullWidth)} dir={resolvedDirection}>
       <InputShell ref={controlRef} start={start} end={end} size={size} validationState={field.validationState} disabled={field.disabled} readOnly={field.readOnly} className={cx(styles.control, className)} style={style} data-testid={testId}>
         <input
           {...nativeProps}

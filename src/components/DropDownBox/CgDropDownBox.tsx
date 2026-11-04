@@ -156,13 +156,14 @@ function CgDropDownBoxInner<TValue>(
   if (!requiredErrorMessage.trim()) throw new Error('CgDropDownBox requiredErrorMessage cannot be empty.');
 
   const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
+  const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const controlRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const formProxyRef = useRef<HTMLSelectElement>(null);
   const ref = useMergedRefs(inputRef, forwardedRef);
   const popupId = `${useCgId(field.id)}-popup`;
-  const resolvedDirection = useDirection(inputRef, direction);
+  const resolvedDirection = useDirection(rootRef, direction);
   const [committedValue, setCommittedValue] = useControllableState<TValue | null>(value, defaultValue, 'CgDropDownBox');
   const [isOpen, setIsOpen] = useControllableState(open, defaultOpen, 'CgDropDownBox open');
   const [pendingSnapshot, setPendingSnapshot] = useState(() => ({ source: committedValue, value: committedValue }));
@@ -494,7 +495,7 @@ function CgDropDownBoxInner<TValue>(
   const canClear = clearable && !field.required && !field.disabled && !field.readOnly && !committedEmpty;
 
   return (
-    <div className={cx(styles.root, fullWidth && styles.fullWidth)} dir={resolvedDirection} data-density={density}>
+    <div ref={rootRef} className={cx(styles.root, fullWidth && styles.fullWidth)} dir={resolvedDirection} data-density={density}>
       <InputShell
         ref={controlRef}
         start={renderButtons(customStart)}

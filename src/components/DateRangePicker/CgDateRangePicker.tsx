@@ -97,6 +97,7 @@ function CgDateRangePickerInner(props: CgDateRangePickerProps, forwardedRef: Rea
   const effectiveFirstDay = weekdayName(effectiveFirstDayIndex);
 
   const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
+  const rootRef = useRef<HTMLDivElement>(null);
   const inputElementRef = useRef<HTMLInputElement>(null);
   const controlRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -107,7 +108,7 @@ function CgDateRangePickerInner(props: CgDateRangePickerProps, forwardedRef: Rea
   const popupId = `${baseId}-popup`;
   const errorId = `${baseId}-error`;
   const instructionsId = `${baseId}-instructions`;
-  const resolvedDirection = useDirection(inputElementRef, direction);
+  const resolvedDirection = useDirection(rootRef, direction);
   const [committed, setCommitted] = useControllableState<CgDateRangeValue>(value, defaultValue, 'CgDateRangePicker');
   const [isOpen, setIsOpen] = useControllableState(open, defaultOpen, 'CgDateRangePicker open');
   const isControlled = value !== undefined;
@@ -340,7 +341,7 @@ function CgDateRangePickerInner(props: CgDateRangePickerProps, forwardedRef: Rea
   const startValues = committed?.start === null || committed?.start === undefined ? [] : [committed.start];
   const endValues = committed?.end === null || committed?.end === undefined ? [] : [committed.end];
 
-  return <div className={cx(styles.root, fullWidth && styles.fullWidth)} dir={resolvedDirection} data-density={density}>
+  return <div ref={rootRef} className={cx(styles.root, fullWidth && styles.fullWidth)} dir={resolvedDirection} data-density={density}>
     <InputShell ref={controlRef} start={renderButtons(customStart)} end={<>
       {renderButtons(customEnd)}
       {showClearButton && allowClear && !required && committed !== null ? <EditorButton descriptor={{ key: 'range-clear', icon: 'clear', ariaLabel: text.clearRange, preventFocusLoss: true, onPress: ({ event }) => clear(event) }} value={committed} disabled={field.disabled} /> : null}

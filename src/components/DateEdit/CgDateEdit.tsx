@@ -169,6 +169,7 @@ function CgDateEditInner(
   if (minimum && maximum && compareCivilDates(minimum, maximum) > 0) throw new Error('CgDateEdit minDate must not be later than maxDate.');
 
   const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
+  const rootRef = useRef<HTMLDivElement>(null);
   const inputElementRef = useRef<HTMLInputElement>(null);
   const controlRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -177,7 +178,7 @@ function CgDateEditInner(
   const baseId = useCgId(field.id);
   const popupId = `${baseId}-calendar-popup`;
   const errorId = `${baseId}-date-error`;
-  const resolvedDirection = useDirection(inputElementRef, direction);
+  const resolvedDirection = useDirection(rootRef, direction);
   const [committedValue, setCommittedValue] = useControllableState<CgDateValue | null>(value, defaultValue, 'CgDateEdit');
   const [isOpen, setIsOpen] = useControllableState(open, defaultOpen, 'CgDateEdit open');
   const isControlled = value !== undefined;
@@ -493,7 +494,7 @@ function CgDateEditInner(
   const describedBy = joinIds(field.describedBy, effectiveError ? errorId : undefined);
 
   return (
-    <div className={cx(styles.root, fullWidth && styles.fullWidth)} dir={resolvedDirection} data-density={density}>
+    <div ref={rootRef} className={cx(styles.root, fullWidth && styles.fullWidth)} dir={resolvedDirection} data-density={density}>
       <InputShell
         ref={controlRef}
         start={renderButtons(customStart)}

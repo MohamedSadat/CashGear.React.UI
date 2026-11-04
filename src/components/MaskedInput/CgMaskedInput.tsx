@@ -133,10 +133,11 @@ export const CgMaskedInput = forwardRef<HTMLInputElement, CgMaskedInputProps>(fu
   const definition = useMemo(() => compileMask(mask), [mask]);
   const prompt = useMemo(() => validatePromptCharacter(promptCharacter), [promptCharacter]);
   const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
+  const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const proxyRef = useRef<HTMLSelectElement>(null);
   const mergedRef = useMergedRefs(inputRef, forwardedRef);
-  const resolvedDirection = useDirection(inputRef, direction);
+  const resolvedDirection = useDirection(rootRef, direction);
   const controlled = value !== undefined;
   const externalState = useMemo(() => normalizeMaskValue(definition, prompt, value), [definition, prompt, value]);
   const [uncontrolledState, setUncontrolledState] = useState<MaskState>(() => normalizeMaskValue(definition, prompt, defaultValue));
@@ -344,7 +345,7 @@ export const CgMaskedInput = forwardRef<HTMLInputElement, CgMaskedInputProps>(fu
   };
 
   return (
-    <div className={cx(styles.root, fullWidth && styles.fullWidth)} dir={resolvedDirection} data-density={density}>
+    <div ref={rootRef} className={cx(styles.root, fullWidth && styles.fullWidth)} dir={resolvedDirection} data-density={density}>
       <InputShell
         size={size}
         validationState={effectiveValidation}

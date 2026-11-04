@@ -17,7 +17,8 @@ function CgRadioGroupInner<TValue extends string | number>(
   const [selected, setSelected] = useControllableState(value, defaultValue, 'CgRadioGroup');
   const fieldsetRef = useRef<HTMLFieldSetElement>(null);
   const ref = useMergedRefs(fieldsetRef, forwardedRef);
-  const resolvedDirection = useDirection(fieldsetRef, direction);
+  const nativeDirection = nativeProps.dir === 'ltr' || nativeProps.dir === 'rtl' ? nativeProps.dir : undefined;
+  const resolvedDirection = useDirection(fieldsetRef, direction === 'auto' ? nativeDirection : direction);
   useFormReset(fieldsetRef, () => {
     setSelected(defaultValue);
     if (value !== undefined) {

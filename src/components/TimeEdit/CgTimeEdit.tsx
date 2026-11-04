@@ -134,6 +134,7 @@ function CgTimeEditInner(
   if (minimum && maximum && compareClockTimes(minimum, maximum) > 0) throw new Error('CgTimeEdit minTime must not be later than maxTime.');
 
   const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
+  const rootRef = useRef<HTMLDivElement>(null);
   const inputElementRef = useRef<HTMLInputElement>(null);
   const controlRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -142,7 +143,7 @@ function CgTimeEditInner(
   const baseId = useCgId(field.id);
   const popupId = `${baseId}-time-popup`;
   const errorId = `${baseId}-time-error`;
-  const resolvedDirection = useDirection(inputElementRef, direction);
+  const resolvedDirection = useDirection(rootRef, direction);
   const [committedValue, setCommittedValue] = useControllableState<CgTimeValue | null>(value, defaultValue, 'CgTimeEdit');
   const [isOpen, setIsOpen] = useControllableState(open, defaultOpen, 'CgTimeEdit open');
   const isControlled = value !== undefined;
@@ -384,7 +385,7 @@ function CgTimeEditInner(
   const pickerNumber = new Intl.NumberFormat(resolvedLocale, { useGrouping: false, minimumIntegerDigits: 2, maximumFractionDigits: 0 });
   const describedBy = joinIds(field.describedBy, effectiveError ? errorId : undefined);
 
-  return <div className={cx(styles.root, fullWidth && styles.fullWidth)} dir={resolvedDirection} data-density={density} onBlurCapture={handleControlBlur}>
+  return <div ref={rootRef} className={cx(styles.root, fullWidth && styles.fullWidth)} dir={resolvedDirection} data-density={density} onBlurCapture={handleControlBlur}>
     <InputShell
       ref={controlRef}
       start={renderButtons(customStart)}

@@ -144,11 +144,12 @@ function CgListBoxInner<TItem>(
     return columns.filter((column) => column.visible !== false);
   }, [columns]);
   const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
+  const rootRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const formProxyRef = useRef<HTMLSelectElement>(null);
   const ref = useMergedRefs(listRef, forwardedRef);
-  const resolvedDirection = useDirection(listRef, direction);
+  const resolvedDirection = useDirection(rootRef, direction);
   const [selected, setSelected] = useControllableState<ReadonlyArray<TItem>>(value, defaultValue, 'CgListBox');
   const [committedSearch, setCommittedSearch] = useControllableState(searchQuery, defaultSearchQuery, 'CgListBox searchQuery');
   const [searchDraft, setSearchDraft] = useState(committedSearch);
@@ -601,7 +602,7 @@ function CgListBoxInner<TItem>(
   };
 
   return (
-    <div className={cx(styles.root, styles[size], fullWidth && styles.fullWidth, className)} style={rootStyle} dir={resolvedDirection} data-disabled={field.disabled || undefined} data-readonly={field.readOnly || undefined} data-validation={field.validationState} data-testid={testId}>
+    <div ref={rootRef} className={cx(styles.root, styles[size], fullWidth && styles.fullWidth, className)} style={rootStyle} dir={resolvedDirection} data-disabled={field.disabled || undefined} data-readonly={field.readOnly || undefined} data-validation={field.validationState} data-testid={testId}>
       {searchable ? (
         <CgSearchBox
           query={searchDraft}

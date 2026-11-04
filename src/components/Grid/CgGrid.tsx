@@ -91,7 +91,7 @@ function CgGridInner<TItem>(props: CgGridProps<TItem>, forwardedRef: ForwardedRe
   validateGridEditingConfiguration(editMode, props.editing?.navigationPolicy, Boolean(props.editing?.commitBatch));
   const localData = props.data;
   const dataProvider = props.dataProvider;
-  const rootRef = useRef<HTMLDivElement>(null); const mergedRef = useMergedRefs(rootRef, forwardedRef); const inheritedDirectionRef = useMemo(() => ({ get current() { return rootRef.current?.parentElement ?? null; } }), []); const direction = useDirection(inheritedDirectionRef, props.direction ?? 'auto'); const id = useCgId(props.id);
+  const rootRef = useRef<HTMLDivElement>(null); const mergedRef = useMergedRefs(rootRef, forwardedRef); const direction = useDirection(rootRef, props.direction ?? 'auto'); const id = useCgId(props.id);
   const labels = { ...DEFAULT_LABELS, ...props.labels }; const controlled = props.state !== undefined;
   const tableStyleLabels: CgGridTableStyleLabels = { ...DEFAULT_GRID_TABLE_STYLE_LABELS, ...props.tableStyleLabels };
   const summaryDescriptors = useMemo(() => [...props.totalSummaries ?? [], ...props.groupSummaries ?? []], [props.groupSummaries, props.totalSummaries]);

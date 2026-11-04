@@ -129,7 +129,10 @@ function CgContextMenuInner<TContext, TData>(
   const mounted = useRef(true);
   const actualOpen = useRef(false);
   const executing = useRef(false);
-  const resolvedDirection = useDirection(surfaceRef, direction);
+  // The surface is portaled to the body and keeps its anchor's direction in its
+  // own `dir`, so resolve from inside it rather than from the body.
+  const surfaceContentRef = useMemo(() => ({ get current() { return surfaceRef.current?.firstElementChild as HTMLElement | null ?? null; } }), []);
+  const resolvedDirection = useDirection(surfaceContentRef, direction);
 
   const setCurrentInvocation = useStableCallback((value: CgContextMenuInvocation<TContext> | undefined) => {
     invocationRef.current = value;

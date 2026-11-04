@@ -95,6 +95,7 @@ function CgTagBoxInner<TItem>(
   }
 
   const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
+  const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const controlRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -103,7 +104,7 @@ function CgTagBoxInner<TItem>(
   const listboxId = `${useCgId(field.id)}-listbox`;
   const statusId = `${listboxId}-status`;
   const liveId = `${listboxId}-live`;
-  const resolvedDirection = useDirection(inputRef, direction);
+  const resolvedDirection = useDirection(rootRef, direction);
   const [selected, setSelected] = useControllableState<ReadonlyArray<TItem>>(value, defaultValue, 'CgTagBox');
   const [query, setQuery] = useControllableState(searchQuery, defaultSearchQuery, 'CgTagBox searchQuery');
   const [draft, setDraft] = useState(query);
@@ -516,7 +517,7 @@ function CgTagBoxInner<TItem>(
   );
 
   return (
-    <div className={cx(styles.root, fullWidth && styles.fullWidth)} dir={resolvedDirection}>
+    <div ref={rootRef} className={cx(styles.root, fullWidth && styles.fullWidth)} dir={resolvedDirection}>
       <InputShell ref={controlRef} end={end} size={size} validationState={invalid ? 'error' : field.validationState} disabled={field.disabled} readOnly={field.readOnly} className={cx(styles.control, className)} style={style} data-testid={testId}>
         <div className={styles.editor}>
           {normalizedSelection.map((item, index) => {

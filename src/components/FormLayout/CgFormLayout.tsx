@@ -80,7 +80,7 @@ export const CgFormLayoutGroup = forwardRef<HTMLDivElement, CgFormLayoutGroupPro
   const heading = collapsible
     ? <button type="button" className={styles.groupToggle} aria-label={captionAriaLabel} aria-expanded={shownExpanded} aria-controls={contentId} onClick={request}>{renderedCaption}<span aria-hidden="true">{shownExpanded ? '−' : '+'}</span></button>
     : renderedCaption !== undefined && renderedCaption !== null ? <div role="heading" aria-level={2} className={styles.groupCaption}>{renderedCaption}</div> : null;
-  return <section {...nativeProps} id={groupId} ref={ref} className={cx(styles.cell, styles.group, beginRow && styles.beginRow, className)} style={spanStyle({ xs, sm, md, lg, xl, xxl }, false, style)} dir={inherited.direction}>
+  return <section {...nativeProps} id={groupId} ref={ref} className={cx(styles.cell, styles.group, beginRow && styles.beginRow, className)} style={spanStyle({ xs, sm, md, lg, xl, xxl }, false, style)} dir={inherited.direction === 'auto' ? undefined : inherited.direction}>
     {heading}
     <div id={contentId} className={cx(styles.grid, styles.groupBody)} hidden={!shownExpanded}>{children}</div>
   </section>;

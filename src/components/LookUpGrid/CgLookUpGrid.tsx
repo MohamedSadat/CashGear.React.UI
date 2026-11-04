@@ -246,12 +246,13 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
 
   const labels = useMemo<CgLookUpGridLabels>(() => ({ ...DEFAULT_LABELS, ...labelOverrides }), [labelOverrides]);
   const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
+  const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const controlRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const formProxyRef = useRef<HTMLSelectElement>(null);
   const ref = useMergedRefs(inputRef, forwardedRef);
-  const resolvedDirection = useDirection(inputRef, direction);
+  const resolvedDirection = useDirection(rootRef, direction);
   const baseId = useCgId(field.id);
   const gridId = `${baseId}-grid`;
   const liveId = `${baseId}-live`;
@@ -1095,7 +1096,7 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
   const canClear = clearable && !field.disabled && !field.readOnly && !isEmptyValue(committedValue);
 
   return (
-    <div className={cx(styles.root, fullWidth && styles.fullWidth)} dir={resolvedDirection} data-density={density}>
+    <div ref={rootRef} className={cx(styles.root, fullWidth && styles.fullWidth)} dir={resolvedDirection} data-density={density}>
       <InputShell
         ref={controlRef}
         end={(
