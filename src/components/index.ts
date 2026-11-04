@@ -40,6 +40,7 @@ export * from './Popup';
 export * from './ProgressBar';
 export * from './Radio';
 export * from './RadioGroup';
+export * from './Ribbon';
 export * from './RichTextEditor';
 export * from './RangeSelector';
 export * from './SearchBox';

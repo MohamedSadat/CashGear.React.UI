@@ -75,6 +75,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'CgProgressBar',
   'CgRadio',
   'CgRadioGroup',
+  'CgRibbon',
   'CgRichTextEditor',
   'CgRangeSelector',
   'CgSearchBox',

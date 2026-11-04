@@ -134,7 +134,7 @@ expected.push('CG_TREE_LIST_DEFAULT_MAXIMUM_DEPTH', 'CG_TREE_LIST_MAXIMUM_DEPTH_
 expected.push('CG_PIVOT_LAYOUT_VERSION', 'CgPivotBrowserLayoutStore', 'CgPivotCalculatedMeasures', 'CgPivotError', 'CgPivotLimitError', 'CgPivotTable', 'createPivotAggregate', 'createPivotCalculatedState', 'createPivotExport', 'createPivotMember', 'createPivotQuery', 'downloadPivotExport', 'getPivotDistinctValues', 'getPivotDrillDown', 'normalizePivotLayout', 'pivotPathKey', 'pivotValueKey', 'processPivotData', 'validatePivotResult');
 expected.push('CgPdfViewer', 'CgEditorCommitProvider', 'CgDecimalEdit', 'useCgEditorCommit');
 expected.push('CgSlider', 'CgStatusBar');
-expected.push('CgBorderPicker', 'CgColorPicker', 'CgGallery');
+expected.push('CgBorderPicker', 'CgColorPicker', 'CgGallery', 'CgRibbon');
 assert.deepEqual(Object.keys(runtime).sort(), expected.sort());
 
 const npmCli = process.env.npm_execpath;

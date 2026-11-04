@@ -87,6 +87,8 @@ export { CgRadio } from './components/Radio';
 export type { CgRadioProps } from './components/Radio';
 export { CgRadioGroup } from './components/RadioGroup';
 export type { CgRadioGroupProps, CgRadioOption, CgRadioRenderContext } from './components/RadioGroup';
+export { CgRibbon } from './components/Ribbon';
+export type { CgRibbonActions, CgRibbonActiveKeyChangeDetails, CgRibbonCollapseDetails, CgRibbonCollapseSource, CgRibbonGroup, CgRibbonGroupLayout, CgRibbonItem, CgRibbonItemSize, CgRibbonLabels, CgRibbonProps, CgRibbonTab } from './components/Ribbon';
 export { CgRichTextEditor } from './components/RichTextEditor';
 export type { CgRichTextEditorActions, CgRichTextEditorChangeDetails, CgRichTextEditorChangeReason, CgRichTextEditorCommand, CgRichTextEditorErrorDetails, CgRichTextEditorErrorPhase, CgRichTextEditorLabelOverrides, CgRichTextEditorLabels, CgRichTextEditorProps } from './components/RichTextEditor';
 export { CgRangeSelector, normalizeCgDecimalValue, normalizeCgInstantValue, normalizeCgLocalDateTimeValue } from './components/RangeSelector';

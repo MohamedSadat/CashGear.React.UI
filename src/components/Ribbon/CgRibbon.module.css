@@ -1,0 +1,126 @@
+/* A flyout renders in a body portal, so its content takes this class as well as the root does. */
+.scope {
+  --cg-control-height-small: 1.625rem;
+  --cg-control-padding-x: 0.375rem;
+  --cg-control-gap: 0.25rem;
+  /* The groups clip their overflow, so a control's focus ring is drawn inside it. */
+  --cg-focus-ring-width: 0.125rem;
+  --cg-focus-ring-offset: -0.125rem;
+  --cg-ribbon-row-gap: 0.0625rem;
+  color: var(--cg-text);
+  font-family: var(--cg-font-family);
+  font-size: var(--cg-font-size-sm);
+}
+
+:global([data-cg-density='compact']) .scope {
+  --cg-control-height-small: 1.375rem;
+  --cg-control-padding-x: 0.25rem;
+}
+
+.root { min-inline-size: 0; }
+
+.root .tabs {
+  background: var(--cg-surface);
+  border: 0;
+  border-block-end: var(--cg-border-width) solid var(--cg-border);
+  border-radius: 0;
+}
+
+.root .panel { padding: 0; }
+.root .emptyPanel { display: none; }
+
+.collapseButton { inline-size: var(--cg-control-height-small); padding-inline: 0; }
+.collapseButton > span:empty { display: none; }
+.collapseButton:hover:not(:disabled) { background: var(--cg-hover); filter: none; }
+
+.groups { min-inline-size: 0; padding-block: 0.1875rem; overflow: auto hidden; scrollbar-width: thin; }
+.groupsContent { display: flex; align-items: stretch; inline-size: max-content; }
+
+.group {
+  display: grid;
+  flex: none;
+  grid-template-rows: minmax(0, 1fr) auto;
+  padding-inline: 0.25rem;
+  border-inline-end: var(--cg-border-width) solid var(--cg-border);
+}
+
+.group:last-child { border-inline-end: 0; }
+.flyoutGroup { padding-inline: 0; border-inline-end: 0; }
+
+.groupBody {
+  display: flex;
+  align-items: center;
+  min-block-size: calc(var(--cg-control-height-small) * 3 + var(--cg-ribbon-row-gap) * 2);
+}
+
+.groupFooter {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 1.0625rem;
+  padding-inline: 1rem;
+  color: var(--cg-text-secondary);
+  font-size: 0.6875rem;
+  line-height: 1;
+}
+
+.groupLabel { white-space: nowrap; }
+
+.launcher {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  display: inline-grid;
+  place-items: center;
+  inline-size: 1rem;
+  margin: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: var(--cg-radius-sm);
+  cursor: pointer;
+}
+
+.launcher svg { inline-size: 0.625rem; block-size: 0.625rem; fill: none; stroke: currentColor; stroke-width: 1; }
+.launcher:hover { background: var(--cg-hover); }
+.launcher:focus-visible { outline: var(--cg-focus-ring-width) solid var(--cg-focus-ring-color); outline-offset: var(--cg-focus-ring-offset); }
+
+/* Two classes, so these win over the toolbar's own single-class rules wherever the bundle orders them. */
+.group .toolbar {
+  gap: 0;
+  align-self: stretch;
+  inline-size: max-content;
+  padding: 0;
+  overflow: visible;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.group .toolbar [data-layout] { row-gap: var(--cg-ribbon-row-gap); }
+
+.toolbar button { padding-block: var(--cg-space-1); font-weight: var(--cg-font-weight-regular); white-space: nowrap; }
+.toolbar button > span:empty { display: none; }
+.toolbar button[data-appearance='ghost']:hover:not(:disabled) { background: var(--cg-hover); filter: none; }
+.toolbar button[aria-pressed='true'] { background: var(--cg-selected); box-shadow: inset 0 0 0 var(--cg-border-width) var(--cg-accent); }
+.toolbar button[aria-expanded='true'] { background: var(--cg-selected); }
+.toolbar [role='group'] > button:last-of-type { padding-inline: 0.1875rem; }
+
+/* A drop-down button says it opens something, as a split button's arrow already does. */
+.toolbar span:not([role='group']) > button[aria-haspopup]::after { content: '▾'; font-size: 0.75em; }
+
+.toolbar svg { inline-size: 1.125rem; block-size: 1.125rem; }
+
+.toolbar [data-stacked] button { gap: 0.125rem; justify-content: flex-start; max-inline-size: 4.75rem; padding-block: 0.125rem; line-height: 1.15; white-space: normal; }
+.toolbar [data-stacked] svg { inline-size: 1.875rem; block-size: 1.875rem; }
+.toolbar [data-stacked] span:not([role='group']) > button[aria-haspopup] { justify-content: center; }
+.toolbar [data-stacked] [role='group'] > button:last-of-type { min-block-size: 0; padding-block: 0; line-height: 1; }
+
+.peek > div { padding: 0; }
+.peek .groups { padding-block: 0.25rem; }
+
+@media (forced-colors: active) {
+  .toolbar button[aria-pressed='true'] { outline: 0.125rem solid Highlight; outline-offset: -0.125rem; }
+}
