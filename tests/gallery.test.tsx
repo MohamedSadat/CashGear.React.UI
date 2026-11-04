@@ -66,6 +66,22 @@ describe('CgGallery', () => {
     expect(cell('Style B')).toHaveAttribute('title', 'Style B');
   });
 
+  it('names a group whose key contains a space', () => {
+    render(<CgGallery display="inline" items={[{ key: 'a', text: 'A', group: 'two words' }]} groups={[{ key: 'two words', text: 'Named' }]} />);
+    expect(screen.getByRole('grid', { name: 'Named' })).toBeInTheDocument();
+  });
+
+  it('brings the selected swatch into view when it opens', async () => {
+    const scrolled = vi.fn();
+    // jsdom has no scrollIntoView to spy on.
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, value: scrolled });
+    render(<CgGallery items={items} groups={groups} triggerText="Styles" defaultValue="e" />);
+    await userEvent.click(screen.getByRole('button', { name: 'Styles' }));
+    await waitFor(() => expect(cell('Style E')).toHaveFocus());
+    expect(scrolled).toHaveBeenCalledWith({ block: 'nearest' });
+    Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+  });
+
   it('wraps swatches into rows of the column count', () => {
     render(<CgGallery display="inline" columns={2} ariaLabel="Styles" items={items.map(({ key, text }) => ({ key, text }))} />);
     const rows = within(screen.getByRole('grid', { name: 'Styles' })).getAllByRole('row');

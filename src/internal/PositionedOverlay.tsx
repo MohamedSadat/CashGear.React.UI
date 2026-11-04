@@ -105,7 +105,7 @@ function clamp(value: number, minimum: number, maximum: number): number {
 }
 
 function constrainedMaximum(value: CSSProperties['maxWidth'], available: number): CSSProperties['maxWidth'] {
-  if (value === undefined) return available;
+  if (value === undefined || value === 'none') return available;
   if (typeof value === 'number') return Math.min(value, available);
   return `min(${available}px, ${value})`;
 }

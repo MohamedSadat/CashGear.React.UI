@@ -1,6 +1,7 @@
 import { forwardRef, useMemo, useRef } from 'react';
 import type { CSSProperties, ForwardedRef, MouseEvent, ReactElement, ReactNode, RefAttributes } from 'react';
 import { useCgId, useControllableState, useDirection, useMergedRefs } from '../../hooks';
+import { stableKeyToken } from '../../internal/keyedCollection';
 import { useRovingGrid } from '../../internal/rovingGrid';
 import { toCssLength } from '../../internal/listBox';
 import { cx } from '../../utils';
@@ -75,7 +76,7 @@ function GalleryPanel<TData>({ items, groups, value, onChoose, renderItem, colum
     <div className={styles.panel} style={style} data-cg-gallery-panel="">
       <div className={styles.scroller}>
         {sections.map((section) => {
-          const headingId = `${baseId}-${section.key}`;
+          const headingId = `${baseId}-${stableKeyToken(section.key)}`;
           return (
             <div key={section.key} className={styles.section}>
               {section.text !== undefined ? <div id={headingId} className={styles.heading}>{section.text}</div> : null}
