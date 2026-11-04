@@ -499,16 +499,20 @@ test.describe('CgRibbon', () => {
   });
 
   test('keeps a flyout wider than the window on screen, scrolling inside it', async ({ page }) => {
-    await page.setViewportSize({ width: 360, height: 500 });
+    // The Font flyout is about 318px wide, so only a window narrower than that makes it scroll.
+    await page.setViewportSize({ width: 280, height: 500 });
     await openStory(page, 'phase-34-ribbon--very-narrow');
     await group(page, 'font').getByRole('button', { name: 'Font' }).click();
     const flyout = page.getByRole('dialog', { name: 'Font' });
     await expect(flyout).toBeVisible();
     const surface = page.locator('[data-cg-overlay-surface="flyout"]').filter({ has: flyout });
     await expect(surface).toBeInViewport({ ratio: 1 });
-    expect((await box(surface)).width).toBeLessThanOrEqual(360);
-    const scrolls = await surface.evaluate((element) => [...element.querySelectorAll('*')].some((node) => node.scrollWidth > node.clientWidth + 1 && getComputedStyle(node).overflowX !== 'visible'));
-    expect(scrolls).toBe(true);
+    expect((await box(surface)).width).toBeLessThanOrEqual(280);
+    const lastCommand = flyout.getByRole('toolbar').getByRole('button').last();
+    await expect(lastCommand).not.toBeInViewport({ ratio: 1 });
+    await lastCommand.focus();
+    await expect(lastCommand).toBeInViewport({ ratio: 1 });
+    await expect(surface).toBeInViewport({ ratio: 1 });
   });
 
   test('scrolls instead of losing commands when even collapsed groups do not fit', async ({ page }) => {
