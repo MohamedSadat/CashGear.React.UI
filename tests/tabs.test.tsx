@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createRef, useState } from 'react';
+import { createRef, Profiler, useState } from 'react';
 import { renderToString } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { CgTabs } from '../src';
@@ -109,5 +109,14 @@ describe('CgTabs header slots', () => {
     expect(file.compareDocumentPosition(tab) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(share.compareDocumentPosition(tab) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
     expect(within(screen.getByRole('tabpanel')).queryByRole('button')).toBeNull();
+  });
+
+  it('settles when a parent passes a new list of the same tabs on every render', () => {
+    const commits = vi.fn();
+    const list = () => <Profiler id="tabs" onRender={commits}><CgTabs tabs={[...tabs]} defaultActiveKey="one" /></Profiler>;
+    const view = render(list());
+    commits.mockClear();
+    view.rerender(list());
+    expect(commits).toHaveBeenCalledTimes(1);
   });
 });

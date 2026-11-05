@@ -224,7 +224,10 @@ function CgTabsInner<TData>(
     const offset = vertical ? viewport.scrollTop : viewport.scrollLeft;
     const extent = vertical ? viewport.scrollHeight : viewport.scrollWidth;
     const sizeValue = vertical ? viewport.clientHeight : viewport.clientWidth;
-    setScrollState({ previous: Math.abs(offset) > 1, next: Math.abs(offset) + sizeValue < extent - 1 });
+    const previous = Math.abs(offset) > 1;
+    const next = Math.abs(offset) + sizeValue < extent - 1;
+    // The same answer keeps the same state, so a parent that passes a new list each render settles.
+    setScrollState((state) => (state.previous === previous && state.next === next ? state : { previous, next }));
   }, [position]);
   useEffect(() => {
     const viewport = viewportRef.current;
