@@ -278,3 +278,20 @@ Stories are under `Phase 35/Chart document`.
 | Firefox | Not attempted; it cannot launch on this host. |
 
 Only the 28 new `phase-35-chart-*` images (14 per engine) were added; no existing baseline changed. WebKit has no `OffscreenCanvas` here, so text widths there come from the estimate and spacing differs slightly from Chromium.
+
+## Pivot field list (2026-11-07)
+
+Added `CgPivotFieldList`, the spreadsheet PivotTable Fields pane, for CashGear Sheet, and the runtime export `CG_PIVOT_FIELD_LIST_VALUES_KEY`. It is a new controlled component with no Razor source and no new dependency. `CgPivotTable` keeps its own popup field list; switching it to the new pane was left out to avoid changing its behaviour and baselines.
+
+Stories are under `Phase 36/PivotFieldList`.
+
+| Gate | Recorded result |
+| --- | --- |
+| Typecheck, lint, cycles | Passed; 383 source modules have no relative-import cycles. |
+| Full unit suite | 1,013 tests in 91 files passed with two workers. With default parallelism, the first run timed out once in a long new menu test and once in the existing rich-text editor test; the new pane's longer tests now allow 20 s. |
+| Production and Storybook builds | Passed. |
+| New semantic and Axe cases | 14 of 14 passed in Chromium and in WebKit. |
+| New visual cases | 16 cases, 8 per engine, against baselines generated and inspected on this host. |
+| Package verification | Passed: 212 runtime exports and 2,465 packed files. |
+| Existing browser suites | Not rerun. The change adds files and exports and touches no existing component. |
+| Firefox | Not attempted; it cannot launch on this host. |

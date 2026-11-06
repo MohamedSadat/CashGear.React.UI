@@ -1018,6 +1018,22 @@ The host keeps the last color: the main part reapplies it, the arrow opens the p
 
 `CgToolbar` gains what the ribbon needs, all opt-in: `layout` and `columnRows`, and items with `stacked`, `iconOnly`, `beginRow`, `renderFlyout`, `menuAriaLabel`, `toggleAriaLabel` and `ownsKeyboard`. `CgTabs` gains `startContent` and `endContent` in its header.
 
+## PivotFieldList
+
+`CgPivotFieldList` is the spreadsheet "PivotTable Fields" pane: a searchable checklist of source fields and the Filters, Columns, Rows and Σ Values areas. It is controlled and holds no pivot logic. The host passes `layout`, and the pane proposes the next one through `onLayoutChange(next, change)`, where `change` is an `add`, `move` or `remove`, or a `batch` of them.
+
+```tsx
+<CgPivotFieldList
+  fields={[{ key: 'region', caption: 'Region' }, { key: 'sales', caption: 'Sales', defaultArea: 'values' }]}
+  layout={layout}
+  onLayoutChange={(next) => setLayout(next)}
+  getValueCaption={(field) => `Sum of ${field.caption}`}
+  onValueFieldSettings={openValueFieldSettings}
+/>
+```
+
+Fields and items can be dragged with the pointer, with an insertion marker, and every drag has a keyboard path through the field and item menus. The pane enforces the spreadsheet rules: a field sits in one of Filters, Columns and Rows, Values can repeat a field, and the Σ Values item (`fieldKey: CG_PIVOT_FIELD_LIST_VALUES_KEY`) stays in Columns or Rows. `canDrop` lets the host veto more. `onFieldToggle` hands field checking to the host. Defer Layout Update holds edits until Update, `readOnly` shows without changing, and `labels` covers Arabic. See [its README](src/components/PivotFieldList/README.md) for the rules, generated ids and keyboard. `CgPivotTable` keeps its own popup field list.
+
 ## MaskedInput
 
 `CgMaskedInput` follows TextBox's `value`, `defaultValue`, and `onValueChange` convention, uses `''` as empty, and forwards its `HTMLInputElement` ref plus native events and attributes. Masks are Unicode-aware: `0`, `L`, `A`, and `*` are required digit/letter/alphanumeric slots; `9`, `l`, `a`, and `?` are optional; backslash escapes the next code point. Empty masks and trailing escapes are configuration errors.
@@ -1078,7 +1094,7 @@ Components:
 - `CgSplitter`, `CgDrawer`
 - `CgChart`, `CgMap`, `CgPdfViewer`, `CgRangeSelector`, `CgSlider`, `CgTooltip`, `CgStatusBadge`, `CgStatusBar`
 - `CgMenu`, `CgContextMenu`, `CgDropDownButton`, `CgSplitButton`, `CgToolbar`, `CgRibbon`
-- `CgLayoutBreakpoint`, `CgGridLayout`, `CgGridLayoutItem`, `CgTabs`, `CgStepper`, `CgAccordion`, `CgTreeView`, `CgTreeList`, `CgPivotTable`, `CgScheduler`, `CgFilterBuilder`, `CgPager`, `CgGrid`
+- `CgLayoutBreakpoint`, `CgGridLayout`, `CgGridLayoutItem`, `CgTabs`, `CgStepper`, `CgAccordion`, `CgTreeView`, `CgTreeList`, `CgPivotTable`, `CgPivotFieldList`, `CgScheduler`, `CgFilterBuilder`, `CgPager`, `CgGrid`
 - `CgFormLayout`, `CgFormLayoutItem`, `CgFormLayoutGroup`, `CgFormLayoutTabs`
 - `CgRadio`, `CgRadioGroup`
 - `CgNumericEdit`, `CgDecimalEdit`, `CgSpinEdit`, `CgSearchBox`
