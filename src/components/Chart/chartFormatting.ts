@@ -54,8 +54,22 @@ export function chartMessage(template: string, values: Readonly<Record<string, s
   ));
 }
 
+const NUMBER_FORMATTERS = new Map<string, ExactIntlNumberFormat>();
+
+/** Intl formatters are costly to build and every point formats at least twice, so reuse them. */
 function numberFormatter(locale: string, options: Readonly<Intl.NumberFormatOptions>): ExactIntlNumberFormat {
-  return new Intl.NumberFormat(locale, { ...options });
+  let key: string;
+  try {
+    key = `${locale}\u0000${JSON.stringify(options)}`;
+  } catch {
+    return new Intl.NumberFormat(locale, { ...options });
+  }
+  const cached = NUMBER_FORMATTERS.get(key);
+  if (cached) return cached;
+  const created = new Intl.NumberFormat(locale, { ...options });
+  if (NUMBER_FORMATTERS.size >= 256) NUMBER_FORMATTERS.clear();
+  NUMBER_FORMATTERS.set(key, created);
+  return created;
 }
 
 function dateAtUtc(parts: ReturnType<typeof temporalParts>): Date {
