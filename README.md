@@ -733,7 +733,7 @@ Client extensions, sizes, MIME types, names, hashes, metadata, stored IDs, and r
 
 ## Chart
 
-`CgChart<TItem>` renders bar, line, area, pie, and donut series as dependency-free SVG from immutable descriptors. Accessors retain the original item, argument, and value for callbacks and formatting. Source construction is separate from visibility projection and pixel layout, so ResizeObserver bucket changes do not rerun accessors or `customizePoint`; hiding a series deliberately recalculates stacks, domains, and geometry.
+`CgChart<TItem>` renders bar, line, area, scatter, pie, and donut series as dependency-free SVG from immutable descriptors. Accessors retain the original item, argument, and value for callbacks and formatting. Source construction is separate from visibility projection and pixel layout, so ResizeObserver bucket changes do not rerun accessors or `customizePoint`; hiding a series deliberately recalculates stacks, domains, and geometry.
 
 ```tsx
 import { CgChart } from '@cashgear/ui';
@@ -767,6 +767,36 @@ import { CgChart } from '@cashgear/ui';
 Numeric public values are finite `number`, native `bigint`, or normalized `CgDecimalValue`; temporal arguments reuse canonical `CgDateValue`, `CgLocalDateTimeValue`, and `CgInstantValue`. Public values never expose JavaScript `Date`. Set `argumentAxis.valueType` to `numeric` or `date` for branded strings, because automatic inference treats runtime strings as categories. A date axis rejects mixed civil-date, local-date-time, and instant representations. Exact comparison, stacking, domains, and relative distances use BigInt-backed decimal arithmetic; conversion to `number` is limited to bounded pixel ratios.
 
 Selection and series visibility support controlled and uncontrolled state. Controlled props stay authoritative after rejected proposals. `CgChartActions` synchronously focuses, refreshes, serializes or downloads standalone SVG, changes visibility, changes selection, and reports the active point; DOM-unavailable operations return `false` or `null`. Keyboard navigation uses one roving chart-point tab stop, physical RTL arrows, cross-series movement, Enter/Space activation, and Escape dismissal. Disabling keyboard navigation changes the SVG to accessible image semantics. The accessible data table can be hidden, visually hidden, collapsed, or visible and remains available during loading and too-small states.
+
+### Document charts
+
+`appearance` draws a chart as a document object, for example a spreadsheet chart, instead of a dashboard card. The host works out every scale, colour and font; the chart draws exactly what it is given. With `appearance` set, the title, legend and axis titles are drawn inside the SVG, the card border, radius and background are dropped, the chart is drawn at the exact pixel size, and the data table defaults to `visuallyHidden`. Unset colours come from the theme tokens, so they follow `data-cg-theme`.
+
+```tsx
+<CgChart
+  data={rows}
+  width={480}
+  height={288}
+  interactive={false}
+  palette={['#4472C4', '#ED7D31', '#A5A5A5']}
+  title="Chart Title"
+  appearance={{
+    fontFamily: 'Calibri, sans-serif',
+    chartArea: { fill: '#FFFFFF', border: { color: '#D9D9D9', width: 1 } },
+    title: { fontSize: 18.67, color: '#595959' },
+    axisLabels: { fontSize: 12, color: '#595959' },
+    legend: { fontSize: 12, color: '#595959' },
+  }}
+  argumentAxis={{ categoryPlacement: 'betweenTicks', axisLineStyle: { color: '#D9D9D9' }, majorTickMarks: 'none' }}
+  valueAxes={[{ minimum: 0, maximum: 6, tickInterval: 1, barGapWidth: 219, barOverlap: -27, majorGridLineStyle: { color: '#D9D9D9' } }]}
+  series={[{ type: 'bar', name: 'Series 1', argument: (row) => row.category, value: (row) => row.value }]}
+/>
+```
+
+- `scatter` series take a numeric x per point, keep their own points in data order, and share a chart only with other scatter series. `lineStyle: 'smooth'` draws a Catmull-Rom spline for line, area and scatter series.
+- Value axes take `barGapWidth` and `barOverlap` with spreadsheet meaning, explicit `ticks` (`{ value, text }`), `reversed`, `minorTickInterval` and `argumentAxisCrossesAt`. The argument axis takes `reversed`, `labelInterval`, `tickMarkInterval`, `categoryPlacement` and `valueAxisCrossesAt`.
+- Bars, areas and slices take separate fill and outline colours; markers take fill and outline colours; `customizePoint` can set `color`, `outlineColor`, `outlineWidth` and `explosion` per point. Point labels take spreadsheet positions and a `pointLabelContent` list.
+- `onElementPointerDown` reports the element under the pointer (chart area, plot area, title, legend or entry, axis, axis title, gridlines, series, point or point labels), and `highlightedElement` outlines one with corner handles.
 
 `getSvg` and `exportSvg` clone only the chart SVG, inline computed paint/font properties, and remove hit targets, focus state, and interactive metadata. They do not include surrounding application markup or fetch remote assets. Descriptor callbacks, CSS classes/colors, formatter output, titles, annotations, and data are trusted application inputs: React escapes rendered text, but hosts must not treat charts, hidden series, disabled legends, exported files, or shortened labels as authorization or confidentiality boundaries. Enforce access and tenant isolation before supplying data. Large sources are intentionally bounded by `maxPointsPerSeries` (5,000 by default); pre-aggregate application data when thousands of individually navigable points are not useful.
 

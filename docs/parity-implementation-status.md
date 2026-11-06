@@ -254,3 +254,27 @@ The gates ran on `0bc9722` plus these baselines, in a clean export under the ign
 `npm run verify` as a single command still stops on this host, because its browser step includes Firefox. Every other gate above was run separately, in the same order.
 
 An earlier run of these gates on `7e43699` found a race in the Phase 14 LookUpGrid browser test. `ITM-0002` is also in the unfiltered list, so the test could click before the 300 ms debounced filter moved the rows. The unchanged test failed 5 of 8 WebKit runs on `d9296d5` and 5 of 8 on `7e43699`: eight of those failures landed on `ITM-0022`, one left the typed text in the field, and one was a page timeout. It now waits for the filter, and passed 12 of 12 runs before the full suite above.
+
+## Chart document layout (2026-11-06)
+
+`CgChart` gains a document layout for spreadsheet charts (CashGear Sheet). The host works out every scale, colour and font, and the chart draws exactly what it is given. Every new prop is optional, and charts that don't use them draw as before.
+
+- `appearance` draws the title, legend and axis titles inside the SVG at the exact pixel size, with chart and plot area fill and border, a manual plot rectangle and per-element fonts. Unset colours come from the theme tokens.
+- `scatter` series, `lineStyle: 'smooth'` (Catmull-Rom), per-axis `barGapWidth` and `barOverlap`, explicit ticks, reversed axes, minor ticks and gridlines, tick-mark styles, crossings, category placement and label and tick intervals.
+- Separate fill and outline colours, slice explosion, spreadsheet point-label positions and composed label content.
+- `interactive={false}`, `onElementPointerDown` and `highlightedElement` for editors.
+- Intl number formatters are now reused across points: 20 series of 5,000 points model in about 1 s instead of 13 s.
+
+Stories are under `Phase 35/Chart document`.
+
+| Gate | Recorded result |
+| --- | --- |
+| Typecheck, lint, cycles | Passed; 379 source modules have no relative-import cycles. |
+| Full unit suite | 984 tests in 89 files passed with two workers. |
+| Production and Storybook builds | Passed sequentially. |
+| Chromium semantic and Axe suite | 330 of 330 passed, including 18 new chart cases. |
+| Chromium visual suite | 366 of 366 passed against committed baselines, including 14 new `phase-35-chart-*` images. All 14 existing `phase-20-chart-*` images match unchanged. |
+| WebKit | The 18 new semantic cases, the three Phase 20 chart cases, the 14 `phase-20-chart-*` visual cases and the 14 new visual cases passed. The rest of the WebKit suite was not rerun. |
+| Firefox | Not attempted; it cannot launch on this host. |
+
+Only the 28 new `phase-35-chart-*` images (14 per engine) were added; no existing baseline changed. WebKit has no `OffscreenCanvas` here, so text widths there come from the estimate and spacing differs slightly from Chromium.

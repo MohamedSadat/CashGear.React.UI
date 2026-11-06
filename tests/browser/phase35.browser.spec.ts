@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { openStory } from './storybook';
 
 const LIGHT = 'theme:light;density:comfortable;direction:ltr';
@@ -41,6 +41,15 @@ for (const [story, globals] of [
   });
 }
 
+/** Clicks the centre of the box the page reports. In WebKit, Playwright places SVG text at the SVG origin, so its own box and click checks miss the text. */
+async function clickCentre(page: Page, locator: Locator) {
+  const box = await locator.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  });
+  await page.mouse.click(box.x, box.y);
+}
+
 test.describe('CgChart document layout', () => {
   test('draws at the exact size without the card frame', async ({ page }) => {
     await openStory(page, 'phase-35-chart-document--excel-clustered-column', LIGHT);
@@ -70,13 +79,13 @@ test.describe('CgChart document layout', () => {
     await openStory(page, 'phase-35-chart-document--element-hit-testing', LIGHT);
     const output = page.getByLabel('Selected chart element');
     await expect(output).toHaveText('kind: plotArea');
-    await page.locator('[data-cg-element="legendEntry"][data-cg-series-name="Cost"] text').click();
+    await clickCentre(page, page.locator('[data-cg-element="legendEntry"][data-cg-series-name="Cost"] text'));
     await expect(output).toHaveText('kind: legendEntry, seriesName: Cost');
-    await page.locator('[data-cg-chart-point][data-cg-series-name="Revenue"][data-cg-point-index="2"]').click();
+    await clickCentre(page, page.locator('[data-cg-chart-point][data-cg-series-name="Revenue"][data-cg-point-index="2"]'));
     await expect(output).toHaveText('kind: point, seriesName: Revenue, pointIndex: 2');
-    await page.locator('[data-cg-element="title"] text').click();
+    await clickCentre(page, page.locator('[data-cg-element="title"] text'));
     await expect(output).toHaveText('kind: title');
-    await page.locator('[data-cg-element="axisTitle"][data-cg-axis-name="ratio"] text').click();
+    await clickCentre(page, page.locator('[data-cg-element="axisTitle"][data-cg-axis-name="ratio"] text'));
     await expect(output).toHaveText('kind: axisTitle, axis: value, axisName: ratio');
     await expect(page.locator('[data-cg-chart-selection] path')).toHaveCount(2);
   });
