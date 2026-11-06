@@ -64,6 +64,18 @@
 .hits [data-cg-chart-point]:focus-visible { stroke: var(--cg-focus-ring-color, var(--cg-chart-accent)); stroke-width: 4; opacity: .28; }
 .hits [data-cg-selected="true"] { stroke: var(--cg-chart-accent); stroke-width: 5; opacity: .24; }
 
+/* Document layout: the chart is drawn as an embedded object at its exact size. */
+.document { gap: 0; }
+.documentSurface { border: 0; border-radius: 0; background: transparent; }
+.documentLayer text { white-space: pre; }
+.hitBox { fill: transparent; stroke: none; }
+.hitStroke { fill: none; }
+.selection { pointer-events: none; }
+.static .series { transition: none; }
+.static .hits [data-cg-chart-point] { cursor: default; }
+.static .hits [data-cg-chart-point]:focus-visible,
+.static .hits [data-cg-selected="true"] { stroke: transparent; opacity: 0; }
+
 .tooltip {
   position: absolute;
   z-index: 2;

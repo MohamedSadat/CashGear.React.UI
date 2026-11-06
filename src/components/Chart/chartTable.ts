@@ -45,6 +45,31 @@ export function projectChartTable<TItem>(
     return Object.freeze({ seriesNames: Object.freeze([series.name]), rows: Object.freeze(rows), pie: true });
   }
 
+  if (model.visibleSeries.some((series) => series.descriptor.type === 'scatter')) {
+    // Scatter points are not aligned by index, so rows match each series' first point at that x.
+    const lookups = model.visibleSeries.map((series) => {
+      const byKey = new Map<string, (typeof series.points)[number]>();
+      for (const point of series.points) if (!byKey.has(point.argument.key)) byKey.set(point.argument.key, point);
+      return byKey;
+    });
+    const rows = model.arguments.map((argument) => Object.freeze<ChartTableRow>({
+      argument: formatter.formatArgument(argument),
+      cells: Object.freeze(model.visibleSeries.map((series, seriesIndex) => {
+        const point = lookups[seriesIndex]!.get(argument.key);
+        return Object.freeze({
+          seriesName: series.name,
+          text: point?.formattedValue ?? formatter.strings.noValue,
+          missing: point === undefined || point.exactValue === null,
+        });
+      })),
+    }));
+    return Object.freeze({
+      seriesNames: Object.freeze(model.visibleSeries.map((series) => series.name)),
+      rows: Object.freeze(rows),
+      pie: false,
+    });
+  }
+
   const rows = model.arguments.map((argument, pointIndex) => Object.freeze<ChartTableRow>({
     argument: model.visibleSeries[0]?.points[pointIndex]?.formattedArgument
       ?? formatter.formatArgument(argument),

@@ -12,6 +12,8 @@ import type {
 import type { ChartFormatter } from './chartFormatting';
 import {
   compareArguments,
+  exactAdd,
+  exactDivide,
   exactFromNumeric,
   normalizeArgument,
 } from './chartValues';
@@ -46,6 +48,9 @@ export interface ChartPoint<TItem> {
   readonly opacity?: number;
   readonly markerSymbol?: CgChartMarkerSymbol;
   readonly markerSize?: number;
+  readonly outlineColor?: string;
+  readonly outlineWidth?: number;
+  readonly explosion?: number;
   readonly className?: string;
 }
 
@@ -109,13 +114,16 @@ function collectRawSeries<TItem>(
     const data = descriptor.data === undefined ? props.data ?? [] : descriptor.data ?? [];
     const points: RawPoint<TItem>[] = [];
     const seen = new Set<string>();
+    const scatter = descriptor.type === 'scatter';
     for (let sourceIndex = 0; sourceIndex < data.length; sourceIndex++) {
       const dataItem = data[sourceIndex]!;
       const originalArgument = descriptor.argument(dataItem);
       const originalValue = descriptor.value(dataItem);
       if (originalArgument === null) continue;
-      const argument = normalizeArgument(originalArgument, axisType);
-      if (seen.has(argument.key)) continue;
+      if (scatter && (typeof originalArgument === 'number' && !Number.isFinite(originalArgument))) continue;
+      const argument = normalizeArgument(originalArgument, scatter ? 'numeric' : axisType);
+      // Scatter series keep every point in data order; the others keep the first per argument.
+      if (!scatter && seen.has(argument.key)) continue;
       seen.add(argument.key);
       let exactValue = numericValue(originalValue);
       const substitutedZero = exactValue === null && (descriptor.missingValueMode ?? 'gap') === 'zero';
@@ -189,6 +197,7 @@ function buildPoint<TItem>(
   pointIndex: number,
   raw: RawPoint<TItem> | undefined,
   argument: NormalizedArgument,
+  percentageRatio?: number,
 ): ChartPoint<TItem> {
   if (!raw) {
     const substitutedZero = (descriptor.missingValueMode ?? 'gap') === 'zero';
@@ -234,12 +243,21 @@ function buildPoint<TItem>(
     ?? descriptor.showPointLabels
     ?? props.pointLabels?.visible
     ?? false;
-  const labelText = customization?.labelText ?? (
-    raw.exactValue && showLabel
-      ? descriptor.pointLabelFormatter?.(valueForFormatting!, raw.dataItem, pointIndex)
-        ?? formatter.formatPointLabel(valueForFormatting!, reference, props.pointLabels)
-      : undefined
-  );
+  const valueLabel = raw.exactValue && showLabel
+    ? descriptor.pointLabelFormatter?.(valueForFormatting!, raw.dataItem, pointIndex)
+      ?? formatter.formatPointLabel(valueForFormatting!, reference, props.pointLabels)
+    : undefined;
+  const formattedArgument = formatter.formatArgument(argument, props.argumentAxis);
+  const content = descriptor.pointLabelContent;
+  const composedLabel = content && raw.exactValue && showLabel
+    ? content.map((part) => {
+      if (part === 'seriesName') return descriptor.name;
+      if (part === 'argument') return formattedArgument;
+      if (part === 'value') return valueLabel ?? '';
+      return percentageRatio === undefined ? '' : formatter.formatPercentage(percentageRatio);
+    }).filter((part) => part.length > 0).join(descriptor.pointLabelSeparator ?? ', ')
+    : valueLabel;
+  const labelText = customization?.labelText ?? composedLabel;
   return Object.freeze({
     seriesName: descriptor.name,
     pointIndex,
@@ -249,7 +267,7 @@ function buildPoint<TItem>(
     originalValue: raw.originalValue,
     exactValue: raw.exactValue,
     substitutedZero: raw.substitutedZero,
-    formattedArgument: formatter.formatArgument(argument, props.argumentAxis),
+    formattedArgument,
     formattedValue,
     formattedTooltipValue,
     tooltipEnabled: descriptor.tooltipEnabled ?? true,
@@ -262,6 +280,9 @@ function buildPoint<TItem>(
     ...(customization?.opacity === undefined ? {} : { opacity: customization.opacity }),
     ...(customization?.markerSymbol === undefined ? {} : { markerSymbol: customization.markerSymbol }),
     ...(customization?.markerSize === undefined ? {} : { markerSize: customization.markerSize }),
+    ...(customization?.outlineColor === undefined ? {} : { outlineColor: customization.outlineColor }),
+    ...(customization?.outlineWidth === undefined ? {} : { outlineWidth: customization.outlineWidth }),
+    ...(customization?.explosion === undefined ? {} : { explosion: customization.explosion }),
     ...(customization?.className === undefined ? {} : { className: customization.className }),
   });
 }
@@ -273,16 +294,26 @@ function resolveSeries<TItem>(
   argumentsUnion: ReadonlyArray<NormalizedArgument>,
 ): ChartSeries<TItem> {
   const descriptor = raw.descriptor;
-  const byKey = new Map(raw.points.map((point) => [point.argument.key, point]));
-  const pointArguments = descriptor.type === 'pie' || descriptor.type === 'donut'
-    ? raw.points.map((point) => point.argument)
-    : argumentsUnion;
-  const points = pointArguments.map((argument, pointIndex) => (
-    buildPoint(props, formatter, descriptor, pointIndex, byKey.get(argument.key), argument)
-  ));
+  let points: ChartPoint<TItem>[];
+  if (descriptor.type === 'scatter') {
+    points = raw.points.map((point, pointIndex) => buildPoint(props, formatter, descriptor, pointIndex, point, point.argument));
+  } else if (descriptor.type === 'pie' || descriptor.type === 'donut') {
+    let total = exactFromNumeric(0);
+    for (const point of raw.points) if (point.exactValue && point.exactValue.coefficient > 0n) total = exactAdd(total, point.exactValue);
+    points = raw.points.map((point, pointIndex) => buildPoint(
+      props, formatter, descriptor, pointIndex, point, point.argument,
+      total.coefficient > 0n && point.exactValue && point.exactValue.coefficient > 0n ? exactDivide(point.exactValue, total) : undefined,
+    ));
+  } else {
+    const byKey = new Map(raw.points.map((point) => [point.argument.key, point]));
+    points = argumentsUnion.map((argument, pointIndex) => (
+      buildPoint(props, formatter, descriptor, pointIndex, byKey.get(argument.key), argument)
+    ));
+  }
   const palette = props.palette?.length ? props.palette : DEFAULT_COLORS;
-  const marker = descriptor.type === 'line' || descriptor.type === 'area' ? descriptor.markerSymbol : undefined;
-  const dash = descriptor.type === 'line' || descriptor.type === 'area' ? descriptor.dashStyle : undefined;
+  const markers = descriptor.type === 'line' || descriptor.type === 'area' || descriptor.type === 'scatter';
+  const marker = markers ? descriptor.markerSymbol : undefined;
+  const dash = markers ? descriptor.dashStyle : undefined;
   return Object.freeze({
     descriptor,
     name: descriptor.name,
@@ -290,8 +321,11 @@ function resolveSeries<TItem>(
     points: Object.freeze(points),
     color: descriptor.color ?? palette[raw.declarationIndex % palette.length]!,
     opacity: descriptor.opacity ?? 1,
-    markerSymbol: marker && marker !== 'auto' ? marker : MARKERS[raw.declarationIndex % MARKERS.length]!,
-    dashStyle: dash ?? DASHES[raw.declarationIndex % DASHES.length]!,
+    // Scatter series default to solid lines and circle markers, as spreadsheets draw them; the
+    // older series types keep rotating through markers and dashes.
+    markerSymbol: marker && marker !== 'auto' ? marker
+      : descriptor.type === 'scatter' ? 'circle' : MARKERS[raw.declarationIndex % MARKERS.length]!,
+    dashStyle: dash ?? (descriptor.type === 'scatter' ? 'solid' : DASHES[raw.declarationIndex % DASHES.length]!),
     valueAxisName: descriptor.valueAxisName ?? 'primary',
   });
 }

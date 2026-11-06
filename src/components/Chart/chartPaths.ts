@@ -71,6 +71,38 @@ export function monotonePath(points: ReadonlyArray<SvgPoint>, primary: 'x' | 'y'
   return commands.join(' ');
 }
 
+/**
+ * A uniform Catmull-Rom spline through every point, written as cubic Béziers. Each control point
+ * sits one sixth of the neighbouring chord away, which is how spreadsheet "smoothed lines" are
+ * usually approximated. The end segments reuse their end point as the missing neighbour.
+ * With `moveTo` false the path continues with a line to the first point, for joining paths.
+ */
+export function smoothPath(points: ReadonlyArray<SvgPoint>, moveTo = true): string {
+  if (!points.length) return '';
+  const first = points[0]!;
+  const commands: string[] = [`${moveTo ? 'M' : 'L'}${svgNumber(first.x)} ${svgNumber(first.y)}`];
+  if (points.length === 2) {
+    commands.push(`L${svgNumber(points[1]!.x)} ${svgNumber(points[1]!.y)}`);
+    return commands.join(' ');
+  }
+  for (let index = 0; index < points.length - 1; index++) {
+    const before = points[Math.max(0, index - 1)]!;
+    const start = points[index]!;
+    const end = points[index + 1]!;
+    const after = points[Math.min(points.length - 1, index + 2)]!;
+    const c1x = start.x + (end.x - before.x) / 6;
+    const c1y = start.y + (end.y - before.y) / 6;
+    const c2x = end.x - (after.x - start.x) / 6;
+    const c2y = end.y - (after.y - start.y) / 6;
+    commands.push(`C${svgNumber(c1x)} ${svgNumber(c1y)} ${svgNumber(c2x)} ${svgNumber(c2y)} ${svgNumber(end.x)} ${svgNumber(end.y)}`);
+  }
+  return commands.join(' ');
+}
+
+export function rectPath(x: number, y: number, width: number, height: number): string {
+  return `M${svgNumber(x)} ${svgNumber(y)}H${svgNumber(x + width)}V${svgNumber(y + height)}H${svgNumber(x)}Z`;
+}
+
 export function roundedRectPath(
   x: number,
   y: number,

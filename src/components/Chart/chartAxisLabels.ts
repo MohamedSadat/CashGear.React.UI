@@ -52,10 +52,11 @@ export function planAxisLabels(
   explicitRotation: number,
   maximumCharacters: number,
   fontSize = 13,
+  measure?: (text: string) => number,
 ): AxisLabelPlan {
   if (!labels.length) return Object.freeze({ items: Object.freeze([]), rotation: 0, staggered: false, thickness: 0 });
   const slot = availableLength / labels.length;
-  const widths = labels.map((label) => estimateTextWidth(label, fontSize));
+  const widths = labels.map((label) => measure ? measure(label) : estimateTextWidth(label, fontSize));
   const fitsFlat = widths.every((width) => width <= slot * 0.92);
   const fitCount = Math.max(2, Math.floor(availableLength / Math.max(1, Math.max(...widths) + 8)));
   let resolvedMode = mode;
