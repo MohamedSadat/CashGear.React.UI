@@ -135,6 +135,7 @@ expected.push('CG_PIVOT_LAYOUT_VERSION', 'CgPivotBrowserLayoutStore', 'CgPivotCa
 expected.push('CgPdfViewer', 'CgEditorCommitProvider', 'CgDecimalEdit', 'useCgEditorCommit');
 expected.push('CgSlider', 'CgStatusBar');
 expected.push('CgBorderPicker', 'CgColorPicker', 'CgGallery', 'CgRibbon');
+expected.push('CG_PIVOT_FIELD_LIST_VALUES_KEY', 'CgPivotFieldList');
 assert.deepEqual(Object.keys(runtime).sort(), expected.sort());
 
 const npmCli = process.env.npm_execpath;

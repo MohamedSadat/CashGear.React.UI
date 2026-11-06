@@ -71,6 +71,8 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'CgNumericEdit',
   'CgPager',
   'CgPdfViewer',
+  'CgPivotFieldList',
+  'CG_PIVOT_FIELD_LIST_VALUES_KEY',
   'CgPopup',
   'CgProgressBar',
   'CgRadio',

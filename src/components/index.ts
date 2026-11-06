@@ -64,5 +64,6 @@ export * from './TreeList';
 export * from './Window';
 export * from './WaitIndicator';
 export * from './PivotTable';
+export * from './PivotFieldList';
 export * from './Scheduler';
 export * from './DateRangePresetSelect';

@@ -176,6 +176,8 @@ export { cx } from './utils';
 export type { CgClassValue } from './utils';
 export * from './filter';
 export * from './components/PivotTable';
+export { CgPivotFieldList, CG_PIVOT_FIELD_LIST_VALUES_KEY } from './components/PivotFieldList';
+export type { CgPivotFieldListArea, CgPivotFieldListChange, CgPivotFieldListChangeBatch, CgPivotFieldListField, CgPivotFieldListFieldOrder, CgPivotFieldListItem, CgPivotFieldListItemChange, CgPivotFieldListLabels, CgPivotFieldListLayout, CgPivotFieldListPosition, CgPivotFieldListProps, CgPivotFieldListSectionLayout } from './components/PivotFieldList';
 
 export { CgEditorCommitProvider, useCgEditorCommit } from './components/EditorCommit';
 export type { CgEditorActions, CgEditorCommitApi } from './components/EditorCommit';
