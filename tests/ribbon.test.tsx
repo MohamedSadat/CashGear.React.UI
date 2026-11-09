@@ -512,3 +512,19 @@ describe('key tips', () => {
     });
   });
 });
+
+describe('key tips on a rendered item', () => {
+  beforeEach(() => { vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(flyoutSize); });
+  afterEach(() => vi.restoreAllMocks());
+
+  it('focuses the input of an item that keeps its own keyboard', async () => {
+    render(<CgRibbon keyTips tabs={[{ key: 'home', text: 'Home', keyTip: 'H', groups: [{ key: 'font', text: 'Font', items: [{ name: 'font-name', keyTip: 'FF', ownsKeyboard: true, render: () => <input aria-label="Font" /> }] }] }]} />);
+    fireEvent.keyDown(window, { key: 'Alt', code: 'AltLeft', altKey: true });
+    fireEvent.keyUp(window, { key: 'Alt', code: 'AltLeft' });
+    fireEvent.keyDown(window, { key: 'h', code: 'KeyH' });
+    await waitFor(() => expect(document.querySelector('[data-cg-keytip-badge="FF"]')).not.toBeNull());
+    fireEvent.keyDown(window, { key: 'f', code: 'KeyF' });
+    fireEvent.keyDown(window, { key: 'f', code: 'KeyF' });
+    expect(screen.getByRole('textbox', { name: 'Font' })).toHaveFocus();
+  });
+});

@@ -302,4 +302,6 @@ Added Office's key tips to `CgRibbon` for CashGear Sheet, left out of Phase 34.1
 
 | Gate | Recorded result |
 | --- | --- |
-| Ribbon unit suite | 40 tests passed, 5 of them new: tip assignment, a tap of Alt through a tab to a command, two-letter tips, Esc and a click, Alt chords and reserved letters, and nothing without the prop. |
+| Ribbon unit suite | 41 tests passed, 6 of them new: tip assignment, a tap of Alt through a tab to a command, two-letter tips, Esc and a click, Alt chords and reserved letters, a rendered input taking focus, and nothing without the prop. |
+| Toolbar | A rendered item is now marked `data-cg-toolbar-item` with its name, even when it keeps its own keyboard, so a key tip can find it. Toolbar suites pass. |
+| Full unit suite | 1,019 tests in 91 files passed with two workers. |

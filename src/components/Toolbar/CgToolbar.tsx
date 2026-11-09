@@ -377,6 +377,7 @@ function CgToolbarInner<TData>(
       return <div
         key={node.name}
         {...(node.ownsKeyboard ? { title: node.tooltip } : controlProps)}
+        data-cg-toolbar-item={node.name}
         className={cx(styles.custom, node.className, busy && styles.busy)}
         onKeyDown={node.ownsKeyboard ? undefined : (event) => {
           if (event.key !== 'Enter' && event.key !== ' ') return;

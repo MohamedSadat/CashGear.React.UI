@@ -119,10 +119,11 @@ export function useKeyTips<TData>({ enabled, rootRef, tabs, activeKey, reservedA
         if (tip && usable(button)) out.push({ tip, element: button, tab: false });
         continue;
       }
-      const named = [...frame.querySelectorAll<HTMLElement>('[data-cg-toolbar-name]')];
+      // A rendered item that keeps its own keyboard is marked apart from the toolbar's own items.
+      const named = [...frame.querySelectorAll<HTMLElement>('[data-cg-toolbar-name], [data-cg-toolbar-item]')];
       for (const item of group.items) {
         const tip = tips.get(`item:${group.key}:${item.name}`);
-        const element = named.find((entry) => entry.dataset.cgToolbarName === item.name) ?? null;
+        const element = named.find((entry) => (entry.dataset.cgToolbarName ?? entry.dataset.cgToolbarItem) === item.name) ?? null;
         if (tip && usable(element)) out.push({ tip, element, tab: false });
       }
       const launcher = frame.querySelector<HTMLElement>('[data-cg-ribbon-launcher]');
