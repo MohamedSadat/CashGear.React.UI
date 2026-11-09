@@ -12,6 +12,7 @@ import type { CgToolbarItem, CgToolbarItemActivationDetails } from '../Toolbar';
 import styles from './CgRibbon.module.css';
 import type { CgRibbonActions, CgRibbonCollapseSource, CgRibbonGroup, CgRibbonItem, CgRibbonLabels, CgRibbonProps, CgRibbonTab } from './CgRibbon.types';
 import { planRibbonLayout, ribbonLayoutSteps } from './ribbonLayout';
+import { useKeyTips } from './useKeyTips';
 import type { RibbonGroupMode, RibbonLayoutGroup } from './ribbonLayout';
 
 const DEFAULT_LABELS: CgRibbonLabels = {
@@ -214,7 +215,7 @@ function RibbonPanel<TData>({ tab, stage, layoutRevision, cacheRef, onStageChang
 }
 
 function CgRibbonInner<TData>(
-  { tabs, activeKey, defaultActiveKey, onActiveKeyChange, collapsed, defaultCollapsed = false, onCollapsedChange, collapsible = true, startContent, endContent, onItemClick, onItemError, direction = 'auto', ariaLabel, labels, actionsRef, className, onKeyDown, 'aria-label': nativeAriaLabel, ...nativeProps }: CgRibbonProps<TData>,
+  { tabs, activeKey, defaultActiveKey, onActiveKeyChange, collapsed, defaultCollapsed = false, onCollapsedChange, collapsible = true, startContent, endContent, onItemClick, onItemError, direction = 'auto', ariaLabel, labels, actionsRef, keyTips = false, reservedAltKeys, onKeyTipsChange, className, onKeyDown, 'aria-label': nativeAriaLabel, ...nativeProps }: CgRibbonProps<TData>,
   forwardedRef: ForwardedRef<HTMLDivElement>,
 ) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -249,6 +250,8 @@ function CgRibbonInner<TData>(
   }, []);
   const closePeek = useStableCallback(() => setPeeking(false));
   const events = useMemo<GroupEvents<TData>>(() => ({ direction: resolvedDirection, labels: text, onItemClick, onItemError }), [onItemClick, onItemError, resolvedDirection, text]);
+  const tips = useKeyTips({ enabled: keyTips, rootRef, tabs, activeKey: currentKey, reservedAltKeys, onChange: onKeyTipsChange });
+  const showTips = tips.show;
 
   useImperativeHandle(actionsRef, (): CgRibbonActions => ({
     focus: () => tabsActions.current?.focusActive(),
@@ -260,7 +263,9 @@ function CgRibbonInner<TData>(
       setStages({});
       setLayoutRevision((revision) => revision + 1);
     },
-  }), [isCollapsed, requestCollapsed]);
+    showKeyTips: () => showTips('tabs'),
+    hideKeyTips: () => showTips(null),
+  }), [isCollapsed, requestCollapsed, showTips]);
 
   useEffect(() => {
     if (!peekOpen) return undefined;
@@ -281,6 +286,7 @@ function CgRibbonInner<TData>(
     contentClassName: isCollapsed ? styles.emptyPanel : styles.panel,
     ...(isCollapsed ? {} : { content: panelFor(tab, undefined) }),
     headerAttributes: {
+      ...({ 'data-cg-ribbon-tab': tab.key } as Record<string, string>),
       onClick: () => { if (isCollapsed) setPeeking((open) => (tab.key === currentKey ? !open : true)); },
       onDoubleClick: () => { if (collapsible) requestCollapsed(!isCollapsed, 'tab'); },
       onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => {
@@ -357,6 +363,7 @@ function CgRibbonInner<TData>(
           data-cg-ribbon-peek=""
         ><div role="group" aria-label={activeTab.text}>{panelFor(activeTab, closePeek)}</div></CgFlyout>
       ) : null}
+      {tips.layer}
     </div>
   );
 }

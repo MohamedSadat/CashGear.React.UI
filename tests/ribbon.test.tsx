@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CgRibbon } from '../src';
 import type { CgRibbonActions, CgRibbonGroup, CgRibbonTab } from '../src';
 import { planRibbonLayout, ribbonLayoutSteps } from '../src/components/Ribbon/ribbonLayout';
+import { assignKeyTips, matchKeyTip } from '../src/components/Ribbon/keyTips';
 import type { RibbonLayoutGroup } from '../src/components/Ribbon/ribbonLayout';
 
 const flyoutSize = { x: 20, y: 20, left: 20, top: 20, right: 140, bottom: 60, width: 120, height: 40, toJSON: () => ({}) };
@@ -399,6 +400,115 @@ describe('CgRibbon', () => {
       available = 1000;
       rerender(<CgRibbon tabs={[{ key: 'home', text: 'Home', groups: [groups[0]!] }]} />);
       expect(stage()).toBe('0');
+    });
+  });
+});
+
+describe('key tips', () => {
+  it('keeps the tips asked for and makes the rest from the text, none starting another', () => {
+    const tips = assignKeyTips([
+      { id: 'home', text: 'Home', keyTip: 'H' },
+      { id: 'help', text: 'Help' },
+      { id: 'insert', text: 'Insert' },
+      { id: 'ink', text: 'Ink' },
+      { id: 'group', text: 'Font', prefix: 'Z' },
+    ], ['Z']);
+    expect(tips.get('home')).toBe('H');
+    expect(tips.get('help')).toBe('E');
+    expect(tips.get('insert')).toBe('I');
+    expect(tips.get('ink')).not.toMatch(/^I/);
+    expect(tips.get('group')).toBe('ZF');
+    const all = [...tips.values()];
+    for (const tip of all) expect(all.filter((other) => other !== tip && other.startsWith(tip))).toEqual([]);
+    expect(matchKeyTip('H', all)).toEqual({ exact: 'H', more: false });
+    expect(matchKeyTip('Z', all)).toEqual({ exact: null, more: true });
+    expect(matchKeyTip('Q', all)).toEqual({ exact: null, more: false });
+  });
+
+  describe('in the ribbon', () => {
+    beforeEach(() => { vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(flyoutSize); });
+    afterEach(() => vi.restoreAllMocks());
+
+    const tapAlt = () => {
+      fireEvent.keyDown(window, { key: 'Alt', code: 'AltLeft', altKey: true });
+      fireEvent.keyUp(window, { key: 'Alt', code: 'AltLeft' });
+    };
+    const press = (letter: string, init: Partial<KeyboardEventInit> = {}) =>
+      fireEvent.keyDown(window, { key: letter.toLowerCase(), code: /\d/.test(letter) ? 'Digit' + letter : 'Key' + letter, ...init });
+    const badges = () => [...document.querySelectorAll('[data-cg-keytip-badge]')].map((badge) => badge.textContent);
+
+    const keyed = (onBold: () => void, onLaunch: () => void): ReadonlyArray<CgRibbonTab> => [
+      {
+        key: 'home',
+        text: 'Home',
+        keyTip: 'H',
+        groups: [{
+          key: 'font',
+          text: 'Font',
+          onLauncherClick: onLaunch,
+          launcherKeyTip: 'FN',
+          items: [
+            { name: 'bold', text: 'Bold', icon: 'text-bold', hideText: true, keyTip: '1', onClick: onBold },
+            { name: 'cut', text: 'Cut', icon: 'cut' },
+          ],
+        }],
+      },
+      { key: 'insert', text: 'Insert', keyTip: 'N', groups: [{ key: 'charts', text: 'Charts', items: [{ name: 'pie', text: 'Pie', icon: 'chart-pie' }] }] },
+    ];
+
+    it('shows the tabs’ tips on a tap of Alt, then a tab’s commands, and runs one', async () => {
+      const bold = vi.fn();
+      const changes: boolean[] = [];
+      render(<CgRibbon tabs={keyed(bold, () => undefined)} defaultActiveKey="insert" keyTips onKeyTipsChange={(shown) => changes.push(shown)} startContent={<button type="button" data-cg-keytip="F">File</button>} />);
+      tapAlt();
+      await waitFor(() => expect(badges()).toEqual(['F', 'H', 'N']));
+      press('H');
+      await waitFor(() => expect(badges()).toEqual(['1', 'C', 'FN']));
+      expect(screen.getByRole('tab', { name: 'Home' })).toHaveAttribute('aria-selected', 'true');
+      press('1');
+      expect(bold).toHaveBeenCalledTimes(1);
+      expect(badges()).toEqual([]);
+      expect(changes).toEqual([true, false]);
+    });
+
+    it('waits for a second letter, goes back a level on Esc, and ends on a click', async () => {
+      const launch = vi.fn();
+      render(<CgRibbon tabs={keyed(() => undefined, launch)} keyTips />);
+      tapAlt();
+      press('H');
+      await waitFor(() => expect(badges()).toContain('FN'));
+      press('F');
+      expect(badges()).toEqual(['FN']);
+      press('N');
+      expect(launch).toHaveBeenCalledTimes(1);
+      tapAlt();
+      press('H');
+      await waitFor(() => expect(badges()).toContain('1'));
+      fireEvent.keyDown(window, { key: 'Escape', code: 'Escape' });
+      await waitFor(() => expect(badges()).toEqual(['H', 'N']));
+      fireEvent.pointerDown(document.body);
+      expect(badges()).toEqual([]);
+    });
+
+    it('goes straight to a tab with Alt and its letter, but not for a reserved letter', async () => {
+      render(<CgRibbon tabs={keyed(() => undefined, () => undefined)} keyTips reservedAltKeys={['h']} />);
+      fireEvent.keyDown(window, { key: 'Alt', code: 'AltLeft', altKey: true });
+      press('N', { altKey: true });
+      fireEvent.keyUp(window, { key: 'Alt', code: 'AltLeft' });
+      await waitFor(() => expect(badges()).toEqual(['P']));
+      expect(screen.getByRole('tab', { name: 'Insert' })).toHaveAttribute('aria-selected', 'true');
+      fireEvent.keyDown(window, { key: 'Escape', code: 'Escape' });
+      fireEvent.keyDown(window, { key: 'Escape', code: 'Escape' });
+      fireEvent.keyDown(window, { key: 'Alt', code: 'AltLeft', altKey: true });
+      press('H', { altKey: true });
+      expect(badges()).toEqual([]);
+      expect(screen.getByRole('tab', { name: 'Insert' })).toHaveAttribute('aria-selected', 'true');
+    });
+
+    it('stays quiet without the prop', () => {
+      render(<CgRibbon tabs={keyed(() => undefined, () => undefined)} />);
+      tapAlt();
+      expect(badges()).toEqual([]);
     });
   });
 });

@@ -20,6 +20,8 @@ export interface CgRibbonItem<TData = unknown> extends Omit<CgToolbarItem<TData>
   size?: CgRibbonItemSize;
   /** Shows only the icon, with `text` as the accessible name and tooltip. */
   hideText?: boolean;
+  /** Its key tip, such as `1` for Bold. Without one, it gets one from its text. */
+  keyTip?: string;
 }
 
 export interface CgRibbonGroup<TData = unknown> {
@@ -39,6 +41,10 @@ export interface CgRibbonGroup<TData = unknown> {
   launcherLabel?: string;
   /** `false` leaves the group out entirely. Defaults to `true`. */
   visible?: boolean;
+  /** The key tip of the group's button once it collapses. Without one, it gets one from its text. */
+  keyTip?: string;
+  /** The launcher's key tip. Without one, it gets one from the group's text. */
+  launcherKeyTip?: string;
 }
 
 export interface CgRibbonTab<TData = unknown> {
@@ -49,6 +55,8 @@ export interface CgRibbonTab<TData = unknown> {
   disabled?: boolean;
   /** `false` leaves the tab out entirely, for tabs that only apply sometimes. Defaults to `true`. */
   visible?: boolean;
+  /** Its key tip, such as `H` for Home. Without one, it gets one from its text. */
+  keyTip?: string;
 }
 
 export interface CgRibbonLabels {
@@ -75,6 +83,9 @@ export interface CgRibbonActions {
   toggleCollapsed: () => void;
   /** Measures again from scratch, for a change the ribbon can't see, such as a new font. */
   recalculateLayout: () => void;
+  /** Shows the tabs' key tips, as tapping Alt does. */
+  showKeyTips: () => void;
+  hideKeyTips: () => void;
 }
 
 type NativeRibbonProps = Omit<HTMLAttributes<HTMLDivElement>, 'children' | 'className' | 'dangerouslySetInnerHTML' | 'dir' | 'role' | 'style'>;
@@ -101,4 +112,15 @@ export interface CgRibbonProps<TData = unknown> extends NativeRibbonProps, CgBas
   ariaLabel?: string;
   labels?: Partial<CgRibbonLabels>;
   actionsRef?: Ref<CgRibbonActions>;
+  /**
+   * Office's key tips. Tapping Alt shows a badge on each tab, and on anything in `startContent` or
+   * `endContent` with a `data-cg-keytip` attribute; typing a tab's letters opens it and shows its
+   * commands' badges, and typing a command's runs it. Esc goes back a level. Holding Alt and
+   * typing a tab's letter goes straight to it. Defaults to `false`.
+   */
+  keyTips?: boolean;
+  /** Letters that Alt plus the letter leaves alone, such as a browser's own menus. Tapping Alt first still reaches them. */
+  reservedAltKeys?: ReadonlyArray<string>;
+  /** Called when key tips show or go. */
+  onKeyTipsChange?: (shown: boolean) => void;
 }

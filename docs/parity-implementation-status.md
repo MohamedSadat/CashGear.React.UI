@@ -295,3 +295,11 @@ Stories are under `Phase 36/PivotFieldList`.
 | Package verification | Passed: 212 runtime exports and 2,465 packed files. |
 | Existing browser suites | Not rerun. The change adds files and exports and touches no existing component. |
 | Firefox | Not attempted; it cannot launch on this host. |
+
+## Ribbon key tips (2026-11-09)
+
+Added Office's key tips to `CgRibbon` for CashGear Sheet, left out of Phase 34.1: `keyTips`, `reservedAltKeys` and `onKeyTipsChange` on the ribbon, `keyTip` on tabs and items, `keyTip` and `launcherKeyTip` on groups, and `showKeyTips()` and `hideKeyTips()` on its actions. They are off unless asked for, so existing ribbons behave as before. No new dependency.
+
+| Gate | Recorded result |
+| --- | --- |
+| Ribbon unit suite | 40 tests passed, 5 of them new: tip assignment, a tap of Alt through a tab to a command, two-letter tips, Esc and a click, Alt chords and reserved letters, and nothing without the prop. |
