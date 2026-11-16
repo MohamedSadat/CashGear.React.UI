@@ -137,6 +137,8 @@ expected.push('CgSlider', 'CgStatusBar');
 expected.push('CgBorderPicker', 'CgColorPicker', 'CgGallery', 'CgRibbon');
 expected.push('CG_PIVOT_FIELD_LIST_VALUES_KEY', 'CgPivotFieldList');
 expected.push('CgLiveAnnouncer', 'CgAvatar', 'CgAvatarStack', 'CgFilePicker', 'CgBreadcrumb', 'CgInlineNumberEditor', 'CgInlineTextEditor');
+expected.push('CgCommandMenu', 'CgSelectionToolbar', 'CgMenuPanel', 'CgMenuPanelGroup', 'CgMenuPanelHeader', 'CgMenuPanelItem', 'CgMenuPanelSeparator', 'CgMenuPanelSwitch', 'CgSortableList', 'CgItemPicker', 'CgOptionPicker', 'CgMentionArea', 'CgEmojiPicker', 'cgPageIcons');
+expected.push('CG_DRAG_THRESHOLD', 'CgDragHandle', 'CgDropIndicator', 'cgEdgeScrollStep', 'cgStartsDrag', 'cgTrackDrag');
 assert.deepEqual(Object.keys(runtime).sort(), expected.sort());
 
 const npmCli = process.env.npm_execpath;
