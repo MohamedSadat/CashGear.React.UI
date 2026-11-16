@@ -201,7 +201,7 @@ describe('Workspace notices and sidebar actions', () => {
 
   it('keeps tree row actions out of the accessibility tree until the row is hovered or focused', async () => {
     const { CgTreeView } = await import('../src');
-    render(<CgTreeView aria-label="الصفحات" nodes={[{ key: 'a', text: 'أ' }, { key: 'b', text: 'ب' }]} renderActions={(context) => <button type="button">إجراءات {String(context.text)}</button>} />);
+    render(<CgTreeView aria-label="الصفحات" nodes={[{ key: 'a', text: 'أ' }, { key: 'b', text: 'ب' }]} renderActions={(context) => <button type="button">إجراءات {typeof context.text === 'string' ? context.text : ''}</button>} />);
     const actions = screen.getByText('إجراءات أ').parentElement!;
     expect(getComputedStyle(actions).visibility).toBe('hidden');
     expect(screen.queryByRole('button', { name: /إجراءات/u })).toBeNull();
