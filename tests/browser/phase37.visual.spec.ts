@@ -30,6 +30,8 @@ for (const [name, story, globals] of [
   ['phase-37-month-calendar-ltr', 'phase-37-monthcalendar--sunday-first-english', LIGHT],
   ['phase-37-kanban-rtl', 'phase-37-kanbanboard--arabic-board', RTL],
   ['phase-37-kanban-dark', 'phase-37-kanbanboard--arabic-board-dark', DARK_RTL],
+  ['phase-37-page-tree-rtl', 'phase-12-treeview--page-tree-arabic', RTL],
+  ['phase-37-virtual-tree-ltr', 'phase-12-treeview--virtual-five-thousand', LIGHT],
 ] as const) {
   test(name, async ({ page }) => {
     await openStory(page, story, globals);

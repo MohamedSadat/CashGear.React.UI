@@ -20,6 +20,11 @@ export type CgTreeViewContextMenuAreas = 'none' | 'node' | 'empty' | 'all';
 export type CgTreeViewContextMenuArea = 'node' | 'empty';
 export type CgTreeViewChangeSource = 'pointer' | 'keyboard' | 'action' | 'context-menu' | 'collection';
 export type CgTreeViewCancelableResult = void | boolean | PromiseLike<void | boolean>;
+/** Where a moved node lands next to another: before it, inside it as its last child, or after it. */
+export type CgTreeViewDropPosition = 'before' | 'inside' | 'after';
+export type CgTreeViewMoveSource = 'pointer' | 'keyboard';
+/** ArrowRight and ArrowLeft: `physical` (the default) expands with ArrowRight in both directions; `logical` follows the reading direction, so ArrowLeft expands in right to left. */
+export type CgTreeViewArrowKeys = 'physical' | 'logical';
 
 export interface CgTreeViewTextFragment { readonly text: string; readonly matched: boolean }
 
@@ -38,6 +43,14 @@ export interface CgTreeViewNodeDescriptor<TItem = unknown> {
   nodeRenderer?: (context: CgTreeViewNodeRenderContext<TItem>) => ReactNode;
   className?: string;
   data?: unknown;
+  /** The node has children that `children` does not hold yet: it can be expanded, and expanding it calls `loadChildren`. */
+  hasChildren?: boolean;
+  /** False: the node cannot be dragged or moved by keys (with `onNodeMove`). */
+  allowDrag?: boolean;
+  /** False: the node cannot be renamed (with `onNodeRename`). */
+  allowRename?: boolean;
+  /** The text a rename starts from, when `text` is not that string (rich content, or an empty title shown as a placeholder). */
+  renameText?: string;
 }
 
 export interface CgTreeViewFilterMatch {
@@ -153,6 +166,73 @@ export interface CgTreeViewLabels {
   copyKeyCommand: string;
   expandAllCommand: string;
   collapseAllCommand: string;
+  /** The context menu's accessible name. Default "Tree view context menu". */
+  contextMenu?: string;
+}
+
+/** A place a node could move to, offered to `canDrop` before its line is shown or a move is made. */
+export interface CgTreeViewDropCandidate<TItem = unknown> {
+  /** The node being moved. */
+  readonly key: string;
+  readonly item: TItem | undefined;
+  /** The node the place is next to, and where: before it, inside it (as its last child), or after it. */
+  readonly targetKey: string;
+  readonly targetItem: TItem | undefined;
+  readonly position: CgTreeViewDropPosition;
+  /** The parent after the move; null at the top level. */
+  readonly parentKey: string | null;
+  readonly parentItem: TItem | undefined;
+  /** The place among the parent's children after the move. Every child in `nodes` counts, hidden or filtered out too. */
+  readonly index: number;
+  /** The sibling it follows after the move, or null when it comes first. */
+  readonly previousKey: string | null;
+  /** The sibling that follows it after the move, or null when it comes last. */
+  readonly nextKey: string | null;
+  readonly source: CgTreeViewMoveSource;
+}
+
+/** A move asked for by a drop or by keys. The tree changes nothing: the caller moves the node in `nodes`. */
+export interface CgTreeViewMoveDetails<TItem = unknown> extends CgTreeViewDropCandidate<TItem> {
+  readonly node: CgTreeViewNodeRenderContext<TItem>;
+  readonly oldParentKey: string | null;
+  readonly oldIndex: number;
+}
+
+/** The words of moving, required with `onNodeMove`. */
+export interface CgTreeViewMoveLabels<TItem = unknown> {
+  /** Each movable row's description, such as "Drag, or press Alt+Shift with an arrow key, to move". */
+  instructions: string;
+  /** Spoken after a move, such as "Budget moved into Finance". */
+  moved: (details: CgTreeViewMoveDetails<TItem>) => string;
+}
+
+/** A rename asked for: Enter, Tab or leaving the field with changed text. The caller renames the node in `nodes`. */
+export interface CgTreeViewRenameDetails<TItem = unknown> {
+  readonly key: string;
+  readonly node: CgTreeViewNodeRenderContext<TItem>;
+  /** The text as typed. */
+  readonly text: string;
+  /** The text the rename started from. */
+  readonly previousText: string;
+  readonly end: 'enter' | 'tab' | 'shiftTab' | 'blur';
+}
+
+export interface CgTreeViewLoadChildrenDetails<TItem = unknown> {
+  readonly key: string;
+  readonly node: CgTreeViewNodeRenderContext<TItem>;
+  /** Aborted when the node is collapsed, retried, or the tree unmounts. */
+  readonly signal: AbortSignal;
+  readonly source: 'expand' | 'retry';
+}
+
+/** The words of lazy children, required with `loadChildren`. */
+export interface CgTreeViewLoadLabels<TItem = unknown> {
+  /** The row shown under a node while its children load. */
+  loading: string;
+  /** The row shown, and spoken, when a load failed. */
+  loadError: string | ((error: unknown, node: CgTreeViewNodeRenderContext<TItem>) => string);
+  /** The button on that row that loads again. */
+  retry: string;
 }
 
 export interface CgTreeViewActions {
@@ -167,6 +247,10 @@ export interface CgTreeViewActions {
   checkAll: () => Promise<boolean>;
   clearChecks: () => Promise<boolean>;
   scrollToKey: (key: string) => Promise<void>;
+  /** Opens the rename field on a drawn node (with `onNodeRename`), as F2 does: for a menu's Rename command. */
+  startRename: (key: string) => Promise<void>;
+  /** Opens the node's context menu (with `contextMenuAreas` 'node' or 'all') near `anchor`, such as a row's More button, or at the row. */
+  showContextMenu: (key: string, anchor?: HTMLElement) => Promise<boolean>;
 }
 
 type NativeTreeViewProps = Omit<HTMLAttributes<HTMLDivElement>, 'children' | 'onChange' | 'onSelect'>;
@@ -215,4 +299,44 @@ export interface CgTreeViewProps<TItem = unknown> extends NativeTreeViewProps {
   onContextMenuItemActivate?: (details: CgContextMenuCommandDetails<CgTreeViewContext<TItem>>) => void | PromiseLike<void>;
   onContextMenuCommandFailure?: (details: CgContextMenuCommandFailureDetails<CgTreeViewContext<TItem>>) => void | PromiseLike<void>;
   actionsRef?: Ref<CgTreeViewActions>;
+  /**
+   * Turns moving on: a row dragged before, after or inside another (the pointer's place in the row,
+   * and its distance from the inline start below the end of a branch, decide which), or moved by
+   * Alt+Shift with an arrow key. Reports the move; the caller changes `nodes`. Needs `moveLabels`.
+   */
+  onNodeMove?: (details: CgTreeViewMoveDetails<TItem>) => void;
+  /** Vetoes a place before its line shows. A node never goes inside itself or its descendants. */
+  canDrop?: (candidate: CgTreeViewDropCandidate<TItem>) => boolean;
+  /** Required with `onNodeMove`. */
+  moveLabels?: CgTreeViewMoveLabels<TItem>;
+  /**
+   * Turns inline rename on: F2, a double click or `actions.startRename` opens a field in the row;
+   * Enter, Tab or leaving it reports changed text, Escape puts the text back. Needs `renameLabel`.
+   */
+  onNodeRename?: (details: CgTreeViewRenameDetails<TItem>) => void;
+  /** The rename field's accessible name, such as "Page title". Required with `onNodeRename`. */
+  renameLabel?: string | ((node: CgTreeViewNodeRenderContext<TItem>) => string);
+  /**
+   * Loads a `hasChildren` node's children when it is expanded: the caller adds them to `nodes` and
+   * resolves. A loading row shows meanwhile, and a failure shows a row with a retry button.
+   * Collapsing aborts the signal. Needs `loadLabels`.
+   */
+  loadChildren?: (details: CgTreeViewLoadChildrenDetails<TItem>) => PromiseLike<void>;
+  /** Required with `loadChildren`. */
+  loadLabels?: CgTreeViewLoadLabels<TItem>;
+  /** Buttons at each row's end, such as Add inside and More, shown on hover, focus and selection. Clicks there do not select the row. */
+  renderActions?: (context: CgTreeViewNodeRenderContext<TItem>) => ReactNode;
+  /**
+   * Draws only the rows in view, for thousands of nodes: rows get one height (`rowHeight`) and do
+   * not wrap, and the tree scrolls in its own box. Give it a height (`height`, or a sized root).
+   */
+  virtualize?: boolean;
+  /** Pixels per row with `virtualize`. Default 28, 32 or 40 by `size`. */
+  rowHeight?: number;
+  /** Rows drawn beyond each end of the view with `virtualize`. Default 8. */
+  overscan?: number;
+  /** The scrolling box's block size with `virtualize`, in pixels or a CSS length. Default: what the root leaves it. */
+  height?: number | string;
+  /** How ArrowRight and ArrowLeft read in right to left. Default `physical`. */
+  arrowKeys?: CgTreeViewArrowKeys;
 }

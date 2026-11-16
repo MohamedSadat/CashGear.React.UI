@@ -44,7 +44,8 @@
   user-select: none;
 }
 
-.node:not(.nodeDisabled):hover > .row { background: var(--cg-tree-hover); }
+/* The hovered row only: a nested row sits inside its ancestors' nodes. */
+.node:not(.nodeDisabled) > .row:hover { background: var(--cg-tree-hover); }
 .node:focus-visible > .row { box-shadow: inset 0 0 0 2px var(--cg-tree-accent), 0 0 0 0.1875rem color-mix(in srgb, var(--cg-tree-accent) 30%, transparent); }
 .selected > .row { color: var(--cg-tree-accent); background: var(--cg-tree-accent-soft); }
 .nodeDisabled > .row, .readOnly .row { cursor: default; }
@@ -72,8 +73,9 @@
 .toggle:disabled, .check:disabled { cursor: default; }
 .toggle > span { inline-size: 0.45rem; block-size: 0.45rem; border-block-end: 1.5px solid currentcolor; border-inline-end: 1.5px solid currentcolor; transform: rotate(-45deg); transition: transform 120ms ease; }
 .expanded > .row .toggle > span { transform: rotate(45deg); }
-[dir='rtl'] .toggle > span { transform: rotate(135deg); }
-[dir='rtl'] .expanded > .row .toggle > span { transform: rotate(45deg); }
+/* Right to left, the chevron's box is drawn mirrored: collapsed it points left (the line's end), open it points down. */
+[dir='rtl'] .toggle > span { transform: rotate(45deg); }
+[dir='rtl'] .expanded > .row .toggle > span { transform: rotate(-45deg); }
 
 .check { background: var(--cg-tree-surface); border: 1px solid var(--cg-tree-border); }
 .checked, .mixed { color: #fff; background: var(--cg-tree-accent); border-color: var(--cg-tree-accent); }
@@ -86,6 +88,72 @@
 .filter { display: block; margin-block-end: 0.5rem; }
 .empty { padding: 0.75rem; color: var(--cg-tree-muted); text-align: center; }
 .content mark { color: inherit; background: color-mix(in srgb, #facc15 55%, transparent); }
+
+/* Moving: the drop line's box, the dragged row, the row a drop goes inside, the copy that follows the pointer. */
+.dropContainer { position: relative; }
+.row[data-cg-dragging] { opacity: 0.45; }
+.row[data-cg-drop-inside] { background: var(--cg-accent-soft); box-shadow: inset 0 0 0 1px var(--cg-accent); }
+.ghost { color: var(--cg-text); background: var(--cg-surface); border-radius: var(--cg-radius-sm); }
+.ghost > .row { cursor: grabbing; }
+[data-cg-tree-dragging] .row { cursor: grabbing; }
+
+/* Row actions: shown on hover, on the focused or selected row, and always where there is no hover. */
+.actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: var(--cg-space-1);
+  align-items: center;
+  margin-inline-start: auto;
+  opacity: 0;
+}
+.row:hover > .actions, .actions:focus-within, .node:focus > .row > .actions, .selected > .row > .actions { opacity: 1; }
+@media (hover: none) { .actions { opacity: 1; } }
+
+/* Rename. */
+.rename { display: flex; flex: 1 1 auto; min-inline-size: 0; }
+.rename > input { min-block-size: 1.5rem; padding-block: 0; }
+
+/* The loading and failure rows under a lazy node. */
+.status > .row { color: var(--cg-text-secondary); cursor: default; }
+.statusError > .row { color: var(--cg-danger-text); }
+.spinner {
+  flex: 0 0 auto;
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  border: 2px solid color-mix(in srgb, currentcolor 25%, transparent);
+  border-block-start-color: currentcolor;
+  border-radius: 50%;
+  animation: cg-tree-spin 0.8s linear infinite;
+}
+@keyframes cg-tree-spin { to { transform: rotate(1turn); } }
+.retry {
+  flex: 0 0 auto;
+  min-block-size: 1.5rem;
+  min-inline-size: 1.5rem;
+  padding-block: 0;
+  padding-inline: var(--cg-space-2);
+  color: var(--cg-text);
+  font: inherit;
+  background: var(--cg-surface);
+  border: var(--cg-border-width) solid var(--cg-border-strong);
+  border-radius: var(--cg-radius-sm);
+  cursor: pointer;
+}
+.retry:hover { background: var(--cg-hover); }
+.retry:focus-visible { outline: var(--cg-focus-ring-width) solid var(--cg-focus-ring-color); outline-offset: 1px; }
+
+/* Virtual rows: one height, placed by index in a box that scrolls. */
+.virtual { display: flex; flex-direction: column; }
+.viewport { position: relative; flex: 1 1 auto; min-block-size: 0; overflow: auto; }
+.sizer { position: relative; inline-size: 100%; }
+.flatNode { position: absolute; inset-inline: 0; overflow: hidden; }
+.flatNode > .row {
+  box-sizing: border-box;
+  block-size: 100%;
+  min-block-size: 0;
+  padding-inline: calc(0.25rem + var(--cg-tree-indent) * var(--cg-tree-depth, 0)) 0.5rem;
+}
+.flatNode > .row .content { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .visuallyHidden {
   position: absolute !important;
@@ -103,9 +171,12 @@
   .root { --cg-tree-surface: var(--cg-surface, #111827); --cg-tree-text: var(--cg-text, #f3f4f6); --cg-tree-hover: var(--cg-hover, #1f2937); --cg-tree-accent-soft: var(--cg-accent-soft, #1e3a5f); }
 }
 
-@media (prefers-reduced-motion: reduce) { .toggle > span { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .toggle > span { transition: none; } .spinner { animation: none; } }
 
 @media (forced-colors: active) {
   .selected > .row { color: HighlightText; background: Highlight; }
   .checked, .mixed { color: HighlightText; background: Highlight; border-color: Highlight; forced-color-adjust: none; }
+  .extended .node:focus-visible > .row { outline: 2px solid Highlight; outline-offset: -2px; }
+  .row[data-cg-drop-inside] { outline: 2px dashed Highlight; outline-offset: -2px; }
+  .retry { border-color: ButtonText; }
 }
