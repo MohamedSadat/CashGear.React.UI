@@ -115,17 +115,21 @@
 .ghost > .row { cursor: grabbing; }
 [data-cg-tree-dragging] .row { cursor: grabbing; }
 
-/* Row actions: shown on hover, on the focused or selected row, and always where there is no hover. */
+/*
+ * Row actions: shown on hover, on the focused or selected row, and always where there is no hover.
+ * Hidden, they are out of the accessibility tree and the tab order too, so a page-wide button's
+ * name does not match every row's; Tab from a focused row reaches them.
+ */
 .actions {
   display: inline-flex;
   flex: 0 0 auto;
   gap: var(--cg-space-1);
   align-items: center;
   margin-inline-start: auto;
-  opacity: 0;
+  visibility: hidden;
 }
-.row:hover > .actions, .actions:focus-within, .node:focus > .row > .actions, .selected > .row > .actions { opacity: 1; }
-@media (hover: none) { .actions { opacity: 1; } }
+.row:hover > .actions, .actions:focus-within, .node:focus > .row > .actions, .selected > .row > .actions { visibility: visible; }
+@media (hover: none) { .actions { visibility: visible; } }
 
 /* Rename. */
 .rename { display: flex; flex: 1 1 auto; min-inline-size: 0; }

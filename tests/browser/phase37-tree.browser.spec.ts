@@ -100,8 +100,11 @@ test.describe('CgTreeView page tree', () => {
     await expect(output(page)).toHaveText('load:shared:loaded', { timeout: 5000 });
   });
 
-  test('opens the page menu from its button and adds a page inside', async ({ page }) => {
+  test('shows row buttons on hover only, and adds a page inside', async ({ page }) => {
     await openStory(page, 'phase-12-treeview--page-tree-arabic', RTL);
+    await expect(page.getByRole('button', { name: 'إضافة صفحة داخل «المشاريع»' })).toHaveCount(0);
+    // Row buttons appear on hover or focus, as for a person.
+    await row(page, 'projects').hover();
     await page.getByRole('button', { name: 'إضافة صفحة داخل «المشاريع»' }).click();
     await expect(output(page)).toHaveText('add:projects:new-1');
   });

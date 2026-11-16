@@ -179,3 +179,31 @@ describe('Workspace editor follow-ups', () => {
     expect(fluentIconRtlPaths['indent-decrease']).toMatch(/^[Mm]/u);
   });
 });
+
+describe('Workspace notices and sidebar actions', () => {
+  it('draws a toast action as a link when it has an address, and still runs onAction', async () => {
+    const { CgToastProvider, useCgToast } = await import('../src');
+    const onAction = vi.fn();
+    let show: ReturnType<typeof useCgToast>['show'] | undefined;
+    function Capture() { show = useCgToast().show; return null; }
+    render(<CgToastProvider><Capture /></CgToastProvider>);
+    act(() => { show!({ content: 'استُعيدت الصفحة', persistent: true, action: { label: 'فتح الصفحة', href: '#/p/123', onAction } }); });
+    const link = screen.getByRole('link', { name: 'فتح الصفحة' });
+    expect(link).toHaveAttribute('href', '#/p/123');
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true });
+    act(() => { link.dispatchEvent(click); });
+    expect(click.defaultPrevented).toBe(false);
+    expect(onAction).toHaveBeenCalledTimes(1);
+    act(() => { show!({ content: 'في سلة المحذوفات', persistent: true, action: { label: 'سلة المحذوفات', href: 'https://example.test/trash', target: '_blank' } }); });
+    expect(screen.getByRole('link', { name: 'سلة المحذوفات' })).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(() => act(() => { show!({ content: 'x', action: { label: 'y' } }); })).toThrow(/onAction or href/u);
+  });
+
+  it('keeps tree row actions out of the accessibility tree until the row is hovered or focused', async () => {
+    const { CgTreeView } = await import('../src');
+    render(<CgTreeView aria-label="الصفحات" nodes={[{ key: 'a', text: 'أ' }, { key: 'b', text: 'ب' }]} renderActions={(context) => <button type="button">إجراءات {String(context.text)}</button>} />);
+    const actions = screen.getByText('إجراءات أ').parentElement!;
+    expect(getComputedStyle(actions).visibility).toBe('hidden');
+    expect(screen.queryByRole('button', { name: /إجراءات/u })).toBeNull();
+  });
+});

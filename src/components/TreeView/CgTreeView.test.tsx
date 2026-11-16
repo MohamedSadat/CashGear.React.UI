@@ -407,10 +407,10 @@ describe('CgTreeView row actions', () => {
     const onSelected = vi.fn();
     const onAdd = vi.fn();
     render(<CgTreeView nodes={pages} onSelectedKeyChange={onSelected} renderActions={(context) => <button type="button" tabIndex={-1} onClick={() => { onAdd(context.key); }}>Add inside {typeof context.text === 'string' ? context.text : ''}</button>} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Add inside Gamma' }));
+    await userEvent.click(screen.getByText('Add inside Gamma'));
     expect(onAdd).toHaveBeenCalledWith('gamma');
     expect(onSelected).not.toHaveBeenCalled();
-    screen.getByRole('button', { name: 'Add inside Gamma' }).focus();
+    screen.getByText('Add inside Gamma').focus();
     await userEvent.keyboard('{Enter}');
     expect(onAdd).toHaveBeenCalledTimes(2);
     expect(onSelected).not.toHaveBeenCalled();
@@ -493,8 +493,9 @@ describe('CgTreeView item names', () => {
     expect(onExpanded).toHaveBeenLastCalledWith(new Set(['alpha']), expect.objectContaining({ expanded: true, source: 'pointer' }));
     expect(item('alpha')).toHaveAccessibleName('Alpha');
     expect(item('beta')).toHaveAccessibleName('Beta');
-    // The row actions are still there, focusable and clickable, outside the name.
-    const more = within(item('gamma')).getByRole('button', { name: 'More Gamma' });
+    // The row actions are still there, focusable and clickable, outside the name (hidden from
+    // assistive technology until the row is hovered or focused, so found by their text).
+    const more = within(item('gamma')).getByText('More Gamma');
     act(() => more.focus());
     expect(more).toHaveFocus();
     expect(item('gamma').getAttribute('aria-labelledby')).toBe(item('gamma').querySelector('[class*=content]')!.id);
@@ -651,7 +652,7 @@ describe('CgTreeView keys it leaves to the app', () => {
       renderActions={() => <button type="button" tabIndex={-1}>More</button>}
     />);
     const { seen, stop } = listen();
-    const more = within(item('delta')).getByRole('button', { name: 'More' });
+    const more = within(item('delta')).getByText('More');
     expect(fireEvent.keyDown(more, { key: 'k', ctrlKey: true })).toBe(true);
     expect(seen).toHaveBeenCalledTimes(1);
     // A plain key on an action stays with the action: no row takes it.

@@ -7,7 +7,12 @@ export type CgToastPosition = 'top-start' | 'top-center' | 'top-end' | 'bottom-s
 
 export interface CgToastAction {
   label: ReactNode;
-  onAction: () => void | PromiseLike<void>;
+  /** Runs when the action is chosen. Needed unless `href` is given. */
+  onAction?: () => void | PromiseLike<void>;
+  /** Draws the action as a link to this address, such as the page a notice is about. `onAction` also runs, if given. */
+  href?: string;
+  /** The link's target; `_blank` opens it with `rel="noopener noreferrer"`. */
+  target?: string;
   dismissOnAction?: boolean;
 }
 

@@ -77,12 +77,13 @@ function ToastItem({ entry, dismiss, onActionError }: ToastItemProps) {
     };
   }, [dismiss, entry.exiting, entry.id, entry.persistent, paused]);
 
-  const runAction = async (event: MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault();
+  const runAction = async (event: MouseEvent<HTMLElement>) => {
+    // A link action follows its address; a button action only runs.
+    if (!entry.action?.href || actionExecutedRef.current || entry.exiting) event.preventDefault();
     if (!entry.action || actionExecutedRef.current || entry.exiting) return;
     actionExecutedRef.current = true; setActionExecuted(true); setActionRunning(true);
     let succeeded = false;
-    try { await entry.action.onAction(); succeeded = true; }
+    try { await entry.action.onAction?.(); succeeded = true; }
     catch (error) {
       try { if (onActionError) onActionError(error, entry.id, entry.metadata); else console.error(`CgToast action failed for ${entry.id}.`, error); } catch { /* Error reporting is terminal. */ }
     }
@@ -104,7 +105,9 @@ function ToastItem({ entry, dismiss, onActionError }: ToastItemProps) {
     <span className={styles.accent} aria-hidden="true" />
     <span className={styles.icon} aria-hidden="true">{icon(entry.variant)}</span>
     <div className={styles.body}>{entry.title !== undefined ? <div className={styles.title}>{entry.title}</div> : null}<div className={styles.content}>{entry.content}</div>
-      {entry.action ? <button type="button" className={styles.action} disabled={actionExecuted || entry.exiting} onClick={(event) => { void runAction(event); }}>{entry.action.label}</button> : null}
+      {entry.action?.href !== undefined
+        ? <a className={styles.action} href={entry.action.href} target={entry.action.target} rel={entry.action.target === '_blank' ? 'noopener noreferrer' : undefined} aria-disabled={actionExecuted || entry.exiting || undefined} onClick={(event) => { void runAction(event); }}>{entry.action.label}</a>
+        : entry.action ? <button type="button" className={styles.action} disabled={actionExecuted || entry.exiting} onClick={(event) => { void runAction(event); }}>{entry.action.label}</button> : null}
     </div>
     {entry.showCloseButton ? <button type="button" className={styles.close} aria-label={entry.closeButtonAriaLabel} disabled={entry.exiting} onClick={() => dismiss(entry.id)}>×</button> : null}
     {!entry.persistent ? <span className={styles.progress} aria-hidden="true" style={{ animationDuration: `${entry.duration}ms`, animationPlayState: paused ? 'paused' : 'running' }} /> : null}
@@ -157,7 +160,7 @@ export function CgToastProvider({
       const existing = entriesRef.current.find((entry) => entry.duplicateKey === duplicateKey && !entry.exiting);
       if (existing) return existing.id;
     }
-    if (options.action && (options.action.label === null || options.action.label === undefined || typeof options.action.onAction !== 'function')) throw new Error('CgToast action requires both label and onAction.');
+    if (options.action && (options.action.label === null || options.action.label === undefined || (typeof options.action.onAction !== 'function' && !options.action.href?.trim()))) throw new Error('CgToast action requires a label and onAction or href.');
     const sequence = ++sequenceRef.current;
     const id = `cg-toast-${sequence}`;
     const entry: ToastEntry = {
