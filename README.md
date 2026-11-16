@@ -1098,6 +1098,22 @@ live.current?.announce('نُقلت البطاقة إلى «قيد التنفيذ
 
 `CgEmojiPicker` is a searchable grid of emoji in named groups, with `recent` ones first and an optional remove button. Arrows walk it along the line (mirrored in right to left), and ArrowUp from the first row returns to the search box. It takes any emoji list; `cgPageIcons('ar' | 'en')` gives the curated page-icon set (about 130 emoji named in Arabic and English, written for this library, so no third-party emoji data is bundled).
 
+### DragDrop
+
+`cgTrackDrag(pointerDown, element, options)` follows a press and, past a 4 px threshold, drags outside React: a copy follows the pointer once a frame, the element is marked `data-cg-dragging`, a `scroller` scrolls near its edges, Escape or a cancelled pointer ends it without a drop, and the click after a drop is swallowed. `onMove(x, y)` and `onDrop(x, y)` get viewport points. `cgStartsDrag` tells a press on the item from one on a control inside it. `CgDragHandle` is the grip (ArrowUp and ArrowDown through `onKeyboardMove`), and `CgDropIndicator` is the drop line, moved through its ref with logical offsets so a drag draws nothing in React.
+
+### KanbanBoard
+
+`CgKanbanBoard` draws `columns` of `cards` with the caller's `renderCard` and reports each move through `onCardMove(cardKey, toColumnKey, toIndex, details)`; it never reorders its own data. A card is dragged with the pointer (a copy, edge scrolling and one drop line, nothing re-rendered while it moves), carried with the keyboard (Space picks it up, the arrows carry it, mirrored in right to left, and Space drops it), or moved from its handle's menu. `canMove` vetoes places and `fixedOrder` allows moves between columns only. Long columns draw only the cards in view; columns can collapse or be hidden. Every string, announcements included, comes from `labels`.
+
+### MonthCalendar
+
+`CgMonthCalendar` is a month grid for items with a `start` and an inclusive `end`: an item with no end, or an end on its start, is one day. Items spanning days are laid in lanes across week rows; a day with more than `maxItemRows` shows "+N more", which lists them all. Dates may be `YYYY-MM-DD`, a date-time without a zone, or an instant placed in `timeZone`. It has no editor: `onItemOpen`, `onCreate` and `onItemMove` (a new start and end, keeping the length and time of day) are the caller's. Days are one tab stop walked by the arrows (mirrored in right to left), PageUp and PageDown change the month, and items move by drag or Alt+arrows. Month and weekday names come from `Intl` in `locale`, and the first day of the week from `firstDayOfWeek` or the locale.
+
+### TreeView additions
+
+`CgTreeView` gains, all opt-in: `onNodeMove` with `canDrop` and `moveLabels` (rows dragged before, after or inside another, or moved with Alt+Shift and the arrows), `onNodeRename` with `renameLabel` (F2, a double click or `actions.startRename(key)` opens an inline editor; Enter or leaving commits, Escape reverts), `loadChildren` with `loadLabels` for nodes marked `hasChildren` (loading, error and retry rows; collapsing aborts), `virtualize` with `rowHeight`, `overscan` and `height` (only rows in view are drawn, with their level and position kept), `renderActions` for buttons at a row's end, `actions.showContextMenu`, and `arrowKeys="logical"` to mirror the arrows in right to left. Existing trees render as before; right-to-left toggle chevrons now point the right way.
+
 ### Fixes to existing components
 
 These change no prop's meaning:
@@ -1177,6 +1193,7 @@ Components:
 - `CgLoadingPanel`, `CgWaitIndicator`, `CgProgressBar`
 - `CgLiveAnnouncer`, `CgAvatar`, `CgAvatarStack`, `CgFilePicker`, `CgBreadcrumb`, `CgInlineTextEditor`, `CgInlineNumberEditor`
 - `CgCommandMenu`, `CgSelectionToolbar`, `CgMenuPanel` (with `CgMenuPanelItem`, `CgMenuPanelSwitch`, `CgMenuPanelGroup`, `CgMenuPanelSeparator`, `CgMenuPanelHeader`), `CgSortableList`, `CgOptionPicker`, `CgItemPicker`, `CgMentionArea`, `CgEmojiPicker` and `cgPageIcons`
+- `CgDragHandle`, `CgDropIndicator`, `cgTrackDrag`, `cgStartsDrag`, `cgEdgeScrollStep`, `CG_DRAG_THRESHOLD`, `CgKanbanBoard`, `CgMonthCalendar`
 - `CgToastProvider`, `CgConfirmationProvider`, `CgEditorCommitProvider`
 
 Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, canonical `CgDateValue`/`CgDateRangeValue`/`CgTimeValue`, the Filter Core AST/registry/persistence contracts, the DateEdit/TimeEdit/Calendar/DateRangePicker contracts and CgDateRangePresetKey, Scheduler recurrence/resource/reminder/action/iCalendar contracts, the FileUploader item/transport/event/render/action contracts, the PDF source/state/event/render/action contracts, the Chart descriptor/axis/selection/action/localization contracts, the GridLayout descriptors, the TreeList binding/column/node/provider/mutation/output/state/render/action contracts, the Splitter versioned-state/descriptor/detail contracts, the Drawer lifecycle/render/action contracts, WaitIndicator, MessageBox, Toast and Confirmation APIs, the shared overlay contracts, and each descriptor component's props, actions, lifecycle details, and render/state contexts. Private PDF controller/model modules, chart model/layout/browser modules, endpoint-session tokens, menu, adaptive-layout, TreeView normalization/check/filter engines, and TreeList hierarchy/projection internals are not exported. There is intentionally no universal component-state interface.

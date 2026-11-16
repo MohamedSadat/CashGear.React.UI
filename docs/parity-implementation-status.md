@@ -305,3 +305,20 @@ Added Office's key tips to `CgRibbon` for CashGear Sheet, left out of Phase 34.1
 | Ribbon unit suite | 41 tests passed, 6 of them new: tip assignment, a tap of Alt through a tab to a command, two-letter tips, Esc and a click, Alt chords and reserved letters, a rendered input taking focus, and nothing without the prop. |
 | Toolbar | A rendered item is now marked `data-cg-toolbar-item` with its name, even when it keeps its own keyboard, so a key tip can find it. Toolbar suites pass. |
 | Full unit suite | 1,019 tests in 91 files passed with two workers. |
+
+## Phase 37: document workspace components and fixes (2026-11-16)
+
+Built for CashGear Workspace's Track U on `claude/cashgear-react-ui-library-xq8tsz`, in pushed commits `699b136` (U13, U7, U8, U16, U5, U12), `0ab6883` (the eleven defects), `e20f701` (U1, U2, U10, U11, U9, U17, U6, U3), `bffe090` (docs), `fca2da4` (follow-up fixes), `25c861b` (U14, U15) and `cc62c8b` (U4). Every new component takes its visible and accessible strings from props; stories are under `Phase 37` in Arabic and right to left, plus dark and left-to-right ones. The defect fixes change no prop's meaning.
+
+| Gate | Recorded result |
+| --- | --- |
+| Typecheck, lint, cycles | Passed; 447 source modules have no relative-import cycles. |
+| Full unit suite | 1,213 tests in 109 files with two workers. One existing PDF viewer test (external links) timed out once under load and passed alone three times out of three; with default parallelism the existing rich-text editor test can time out the same way and passes alone. |
+| Production and Storybook builds | Passed. |
+| Package verification | Passed: 241 runtime exports and 2,770 packed files. |
+| New semantic and Axe cases | 104 per engine (Axe on every Phase 37 story, plus keyboard, pointer and RTL behaviour), all passed in Chromium and in WebKit. |
+| Existing semantic and Axe suites | Chromium 448 of 448 passed. WebKit: 446 of 448 passed; the two failures were load timing (the Phase 13 Grid test's navigation timeout, and preload warnings on the narrow Arabic ribbon story), and the one rerun alone passed. |
+| Visual | 16 existing cases per engine changed with the fixes and were reviewed and re-recorded: dark menus, toolbars, accordion, PDF viewer and analysis views now follow the dark tokens, and the charts' data toggle is 24 px high. 29 new Phase 37 cases per engine, recorded and inspected on this host. Final full runs: not rerun after the last Flyout focus-scroll fix (fca2da4); the tree visual cases were rerun and pass. |
+| Firefox | Not attempted; it cannot launch on this host. |
+
+The defect fixes: `CgSplitter` content fills its pane and scrolls under a fixed header, and `separatorAriaLabel` names separators; dark-theme solid buttons draw dark text (6.3:1 or more) and soft buttons read at 4.5:1 or more; the `--cg-color-*` names menus and toolbars read are set on every themed element; `CgDrawer` sizes take CSS math functions; a reorderable `CgTabs` selects on click and drops right-to-left drags where the pointer is; `CgFlyout` keeps an explicit width, focuses from `onAfterOpen` once drawn (and gains `autoFocus`), and watches its anchor only while open; `CgChart`'s data toggle is 24 px high. Found and fixed on the way: right-to-left `CgTreeView` chevrons pointed the wrong way, hovering a nested tree row lit its ancestors, and `focusFirst()` before placement scrolled the page.
