@@ -127,4 +127,16 @@ export interface CgSplitterProps extends NativeSplitterProps {
   readOnly?: boolean;
   direction?: CgDirection;
   actionsRef?: Ref<CgSplitterActions>;
+  /**
+   * Names each separator for assistive technology, given the panes on either side. Default: the
+   * English "Resize {start} and {end}" over the panes' `ariaLabel` (else their keys).
+   */
+  separatorAriaLabel?: (details: CgSplitterSeparatorLabelDetails) => string;
+}
+
+export interface CgSplitterSeparatorLabelDetails {
+  /** The pane before the separator, in reading order. */
+  readonly start: CgSplitterPaneDescriptor;
+  /** The pane after it. */
+  readonly end: CgSplitterPaneDescriptor;
 }

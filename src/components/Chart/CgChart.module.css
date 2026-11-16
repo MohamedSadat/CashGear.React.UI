@@ -116,7 +116,9 @@
 .legendPieSwatch { width: .75rem; height: .75rem; border: 1px solid CanvasText; border-radius: 50%; }
 
 .tableDetails { min-width: 0; }
-.tableDetails summary { cursor: pointer; font-weight: 600; }
+/* At least 24 px high, the smallest pointer target WCAG 2.2 allows (2.5.8). */
+.tableDetails summary { box-sizing: border-box; min-block-size: 1.5rem; padding-block: .125rem; line-height: 1.25rem; cursor: pointer; font-weight: 600; }
+.tableDetails summary:focus-visible { outline: var(--cg-focus-ring-width, 3px) solid var(--cg-focus-ring-color, var(--cg-chart-accent)); outline-offset: 1px; }
 .tableWrap { max-width: 100%; overflow: auto; }
 .table { width: 100%; margin-top: .5rem; border-collapse: collapse; font-size: inherit; }
 .table caption { padding: .25rem; font-weight: 600; text-align: start; }

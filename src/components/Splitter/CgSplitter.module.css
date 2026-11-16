@@ -17,11 +17,13 @@
 .root[data-orientation='vertical'] { flex-direction: column; }
 
 .pane {
+  display: flex;
   flex: var(--cg-splitter-pane-grow, 0) 1 var(--cg-splitter-pane-size, 0px);
+  flex-direction: column;
   box-sizing: border-box;
   min-inline-size: 0;
   min-block-size: 0;
-  overflow: auto;
+  overflow: hidden;
   background: var(--cg-surface);
 }
 
@@ -46,6 +48,7 @@
 .root[data-orientation='vertical'] > .collapsedPane { min-block-size: 0; max-block-size: none; }
 
 .header {
+  flex: none;
   padding: var(--cg-space-2) var(--cg-space-3);
   color: var(--cg-text);
   background: var(--cg-surface-subtle);
@@ -53,7 +56,8 @@
   font-weight: var(--cg-font-weight-medium);
 }
 
-.content { min-inline-size: 0; min-block-size: 0; padding: var(--cg-space-3); }
+/* The content fills the pane under its header and scrolls on its own, so a header stays put. */
+.content { flex: 1 1 auto; box-sizing: border-box; min-inline-size: 0; min-block-size: 0; overflow: auto; padding: var(--cg-space-3); }
 
 .collapsedContent {
   position: absolute;

@@ -176,24 +176,29 @@ function CgTabsInner<TData>(
   useEffect(() => cancelDrag, [cancelDrag]);
   const pointerDown = (event: PointerEvent<HTMLDivElement>, tab: CgTabDescriptor<TData>, index: number) => {
     if (!reorderable || tab.disabled || event.button !== 0 || (event.target as Element).closest('[data-cg-tabs-close]')) return;
+    // The pointer is captured only once a drag starts: captured from the press, a plain click
+    // would go to this wrapper instead of the tab and never select it.
     dragRef.current = { key: tab.key, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, fromIndex: index, toIndex: index, dragging: false };
-    event.currentTarget.setPointerCapture?.(event.pointerId);
   };
   const pointerMove = (event: PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
+    if (!drag.dragging && event.pointerType === 'mouse' && (event.buttons & 1) === 0) { cancelDrag(); return; }
     const distance = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY);
     if (!drag.dragging && distance < 4) return;
+    if (!drag.dragging) event.currentTarget.setPointerCapture?.(event.pointerId);
     drag.dragging = true;
     event.preventDefault();
     const vertical = position === 'left' || position === 'right';
-    const coordinate = vertical ? event.clientY : event.clientX;
+    // Measured along the reading direction, so right to left tabs drop where the pointer is.
+    const rtl = !vertical && getComputedStyle(event.currentTarget).direction === 'rtl';
+    const coordinate = vertical ? event.clientY : rtl ? -event.clientX : event.clientX;
     let target = drag.fromIndex;
     for (const [key, element] of headerElements.current) {
       const index = tabsRef.current.findIndex((tab) => tab.key === key);
       if (index < 0 || key === drag.key) continue;
       const rect = element.getBoundingClientRect();
-      const midpoint = vertical ? rect.top + rect.height / 2 : rect.left + rect.width / 2;
+      const midpoint = vertical ? rect.top + rect.height / 2 : rtl ? -(rect.left + rect.width / 2) : rect.left + rect.width / 2;
       if (coordinate >= midpoint) target = index;
       else if (target === drag.fromIndex) { target = index; break; }
     }

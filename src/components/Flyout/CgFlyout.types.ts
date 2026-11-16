@@ -73,6 +73,11 @@ export interface CgFlyoutProps extends NativeFlyoutProps {
   closeOnScroll?: boolean;
   closeOnFocusLoss?: boolean;
   returnFocusOnClose?: boolean;
+  /**
+   * Focuses the first `[data-cg-initial-focus]` element, else the first focusable one, else the
+   * surface, once the flyout is open and placed. Default false.
+   */
+  autoFocus?: boolean;
   exclusiveGroup?: string;
   zIndex?: number;
   actionsRef?: Ref<CgFlyoutActions>;

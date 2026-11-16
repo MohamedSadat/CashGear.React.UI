@@ -315,7 +315,8 @@ export const PositionedOverlay = forwardRef<HTMLDivElement, PositionedOverlayPro
         inset: 'auto',
         left,
         top,
-        width: widthMode === 'editor' ? measuredWidth : undefined,
+        // An explicit width is the caller's: positioning keeps it rather than clearing it.
+        ...(widthMode === 'editor' ? { width: measuredWidth } : widthMode === 'explicit' ? {} : { width: undefined }),
         minWidth:
           widthMode === 'contentOrEditor'
             ? typeof minWidth === 'number'

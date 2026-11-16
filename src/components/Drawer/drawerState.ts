@@ -10,12 +10,34 @@ function formatNumber(value: number): string {
   return Number(value.toFixed(3)).toString();
 }
 
+const EXPRESSION = /^(?:min|max|clamp|calc)\([-+*/(),.%\s0-9a-z]*\)$/u;
+
+/**
+ * A CSS math function over lengths (`min(20rem, 90vw)`, `clamp(…)`, `calc(…)`), kept as written;
+ * its size is the browser's to resolve, so it is not compared with the other size. `null` when
+ * the text is not one.
+ */
+function cssLengthExpression(text: string): string | null {
+  const css = text.trim().toLowerCase();
+  if (!EXPRESSION.test(css)) return null;
+  let depth = 0;
+  for (const character of css) {
+    if (character === '(') depth += 1;
+    else if (character === ')' && --depth < 0) return null;
+  }
+  if (depth !== 0) return null;
+  if (typeof CSS !== 'undefined' && typeof CSS.supports === 'function' && !CSS.supports('inline-size', css)) return null;
+  return css;
+}
+
 export function parseDrawerLength(value: number | string | undefined, name: string, fallback: string): ParsedDrawerLength {
   const candidate = value === undefined || (typeof value === 'string' && !value.trim()) ? fallback : value;
   if (typeof candidate === 'number') {
     if (!Number.isFinite(candidate) || candidate < 0) throw new Error(`CgDrawer ${name} must be a finite nonnegative CSS length.`);
     return Object.freeze({ value: candidate, unit: 'px', css: `${formatNumber(candidate)}px` });
   }
+  const expression = cssLengthExpression(candidate);
+  if (expression !== null) return Object.freeze({ value: Number.NaN, unit: 'expression', css: expression });
   const match = PATTERN.exec(candidate.trim().toLowerCase());
   if (!match) throw new Error(`CgDrawer ${name} must be a nonnegative CSS length.`);
   const number = Number(match[1]);

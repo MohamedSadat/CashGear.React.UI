@@ -102,7 +102,7 @@ export type { CgSpinEditProps } from './components/SpinEdit';
 export { CgSplitButton } from './components/SplitButton';
 export type { CgSplitButtonProps, CgSplitButtonTogglePosition } from './components/SplitButton';
 export { CgSplitter } from './components/Splitter';
-export type { CgSplitterActions, CgSplitterInteractionReason, CgSplitterOrientation, CgSplitterPaneCollapsedDetails, CgSplitterPaneDescriptor, CgSplitterPaneExpandedDetails, CgSplitterPaneRenderContext, CgSplitterPaneResizedDetails, CgSplitterPaneResizingDetails, CgSplitterPaneState, CgSplitterProps, CgSplitterResizeMode, CgSplitterState, CgSplitterStateChangeDetails } from './components/Splitter';
+export type { CgSplitterActions, CgSplitterInteractionReason, CgSplitterOrientation, CgSplitterPaneCollapsedDetails, CgSplitterPaneDescriptor, CgSplitterPaneExpandedDetails, CgSplitterPaneRenderContext, CgSplitterPaneResizedDetails, CgSplitterPaneResizingDetails, CgSplitterPaneState, CgSplitterProps, CgSplitterResizeMode, CgSplitterSeparatorLabelDetails, CgSplitterState, CgSplitterStateChangeDetails } from './components/Splitter';
 export { CgStepper } from './components/Stepper';
 export type { CgStepDescriptor, CgStepRenderContext, CgStepperActions, CgStepperCancelableResult, CgStepperChangeSource, CgStepperGuardDetails, CgStepperLabels, CgStepperProps, CgStepperSelectionChangeDetails } from './components/Stepper';
 export { CgStatusBadge } from './components/StatusBadge';

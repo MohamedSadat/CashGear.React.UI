@@ -124,6 +124,7 @@ export const CgSplitter = forwardRef<HTMLDivElement, CgSplitterProps>(function C
     onStateChange,
     onPaneResizing,
     onPaneResized,
+    separatorAriaLabel,
     onPaneCollapsed,
     onPaneExpanded,
     disabled = false,
@@ -770,7 +771,7 @@ export const CgSplitter = forwardRef<HTMLDivElement, CgSplitterProps>(function C
                 role="separator"
                 className={styles.separator}
                 tabIndex={canResize || canCollapse ? 0 : -1}
-                aria-label={`Resize ${pane.descriptor.ariaLabel ?? pane.key} and ${next.descriptor.ariaLabel ?? next.key}`}
+                aria-label={separatorAriaLabel ? separatorAriaLabel({ start: pane.descriptor, end: next.descriptor }) : `Resize ${pane.descriptor.ariaLabel ?? pane.key} and ${next.descriptor.ariaLabel ?? next.key}`}
                 aria-orientation={orientation === 'horizontal' ? 'vertical' : 'horizontal'}
                 aria-controls={`${paneId} ${next.descriptor.id?.trim() || `${resolvedId}-pane-${normalizedPanes.indexOf(next) + 1}`}`}
                 aria-disabled={!(canResize || canCollapse)}

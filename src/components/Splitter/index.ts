@@ -12,6 +12,7 @@ export type {
   CgSplitterPaneState,
   CgSplitterProps,
   CgSplitterResizeMode,
+  CgSplitterSeparatorLabelDetails,
   CgSplitterState,
   CgSplitterStateChangeDetails,
 } from './CgSplitter.types';

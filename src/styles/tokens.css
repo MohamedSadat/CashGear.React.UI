@@ -115,6 +115,30 @@
   --cg-disabled-text: #68758a;
   --cg-disabled-border: #303b4b;
   --cg-shadow-color: rgb(0 0 0 / 38%);
+  /* White on the dark theme's light accents reads under 2.6:1; the page's own dark reads 6.3:1 or more. */
+  --cg-color-fg-on-accent: #0f141c;
+}
+
+/*
+ * Names components read that the theme blocks above never set; until these existed, those
+ * components drew their light fallbacks in the dark theme (CgContextMenu's dark text on its dark
+ * surface). Set on every themed element, so a dark container inside a light page resolves them
+ * from its own theme.
+ */
+:root,
+[data-cg-theme] {
+  --cg-color-text: var(--cg-text);
+  --cg-color-text-muted: var(--cg-text-secondary);
+  --cg-color-text-disabled: var(--cg-disabled-text);
+  --cg-color-surface: var(--cg-surface);
+  --cg-color-surface-subtle: var(--cg-surface-subtle);
+  --cg-color-surface-raised: var(--cg-surface-raised);
+  --cg-color-surface-muted: var(--cg-surface-subtle);
+  --cg-color-surface-hover: var(--cg-hover);
+  --cg-color-border: var(--cg-border);
+  --cg-color-focus: var(--cg-accent);
+  --cg-color-danger: var(--cg-danger-text);
+  --cg-color-on-primary: var(--cg-color-fg-on-accent);
 }
 
 [data-cg-density='compact'] {

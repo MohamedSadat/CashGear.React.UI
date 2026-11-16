@@ -93,6 +93,7 @@ export const CgFlyout = forwardRef<HTMLDivElement, CgFlyoutProps>(function CgFly
     closeOnScroll = false,
     closeOnFocusLoss = false,
     returnFocusOnClose = false,
+    autoFocus = false,
     exclusiveGroup,
     zIndex,
     actionsRef,
@@ -112,6 +113,8 @@ export const CgFlyout = forwardRef<HTMLDivElement, CgFlyoutProps>(function CgFly
   const [positionRevision, setPositionRevision] = useState(0);
   const [placedSide, setPlacedSide] = useState<'top' | 'bottom' | 'left' | 'right'>('bottom');
   const [hasOpened, setHasOpened] = useState(defaultOpen || open === true);
+  const [surfaceReady, setSurfaceReady] = useState(false);
+  const pendingFocusRef = useRef(false);
   const anchorBoundaryRefs = useMemo(() => [resolvedAnchorRef], []);
 
   const lifecycle = useOverlayLifecycle<{ reason: 'programmatic'; event?: Event }, CgFlyoutCloseDetails>({
@@ -123,6 +126,7 @@ export const CgFlyout = forwardRef<HTMLDivElement, CgFlyoutProps>(function CgFly
     onBeforeOpen,
     onAfterOpen: (details) => {
       setHasOpened(true);
+      if (autoFocus) focusFirst();
       return onAfterOpen?.(details);
     },
     onBeforeClose,
@@ -156,6 +160,7 @@ export const CgFlyout = forwardRef<HTMLDivElement, CgFlyoutProps>(function CgFly
     return () => document.removeEventListener('focusin', onFocusIn, true);
   }, [closeOnFocusLoss, lifecycle.open, requestClose, stack.id]);
 
+  const isOpen = lifecycle.open;
   useLayoutEffect(() => {
     const resolve = () => {
       if (isElementAnchor(anchor)) resolvedAnchorRef.current = anchor;
@@ -165,11 +170,13 @@ export const CgFlyout = forwardRef<HTMLDivElement, CgFlyoutProps>(function CgFly
       setPositionRevision((revision) => revision + 1);
     };
     resolve();
-    if ((typeof anchor !== 'string' && !isElementAnchor(anchor) && !isRefAnchor(anchor)) || typeof MutationObserver === 'undefined') return undefined;
+    // The document is watched for the anchor coming and going only while open: a closed flyout
+    // resolves its anchor again when it opens, and costs nothing until then.
+    if (!isOpen || (typeof anchor !== 'string' && !isElementAnchor(anchor) && !isRefAnchor(anchor)) || typeof MutationObserver === 'undefined') return undefined;
     const observer = new MutationObserver(resolve);
     observer.observe(document.documentElement, { childList: true, subtree: true });
     return () => observer.disconnect();
-  }, [anchor]);
+  }, [anchor, isOpen]);
 
   useEffect(() => {
     if (!lifecycle.open || typeof anchor !== 'string' && !isElementAnchor(anchor) && !isRefAnchor(anchor)) return;
@@ -197,10 +204,18 @@ export const CgFlyout = forwardRef<HTMLDivElement, CgFlyoutProps>(function CgFly
   const focusFirst = useStableCallback(() => {
     const marked = surfaceRef.current?.querySelector<HTMLElement>('[data-cg-initial-focus]:not(:disabled)');
     const first = marked ?? surfaceRef.current?.querySelector<HTMLElement>('button:not(:disabled),[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])');
-    (first ?? surfaceRef.current)?.focus({ preventScroll: true });
+    const target = first ?? surfaceRef.current;
+    target?.focus({ preventScroll: true });
     // A marked element can sit below a scroller's fold, as a selected swatch in a long gallery does.
     marked?.scrollIntoView?.({ block: 'nearest' });
+    // Just opened, the surface stays hidden until it is placed, and a hidden element takes no
+    // focus: the focus is given again once the placed surface is drawn.
+    pendingFocusRef.current = target !== null && target !== undefined && target.ownerDocument.activeElement !== target;
   });
+  useLayoutEffect(() => {
+    if (!lifecycle.open) { pendingFocusRef.current = false; return; }
+    if (surfaceReady && pendingFocusRef.current) focusFirst();
+  }, [focusFirst, lifecycle.open, surfaceReady]);
   const focusAnchor = useStableCallback(() => resolvedAnchorRef.current?.focus({ preventScroll: true }));
   const reposition = useStableCallback(() => setPositionRevision((revision) => revision + 1));
   const actions = useMemo<CgFlyoutActions>(() => ({
@@ -263,6 +278,7 @@ export const CgFlyout = forwardRef<HTMLDivElement, CgFlyoutProps>(function CgFly
         data-cg-overlay-owner={stack.ownerId}
         data-cg-flyout-placed={placedSide}
         onPlacementChange={setPlacedSide}
+        onReadyChange={setSurfaceReady}
         onAnchorLost={() => { if (lifecycle.open) void requestClose('anchorLost'); }}
         onAnchorScroll={closeOnScroll ? () => { void requestClose('scroll'); } : undefined}
         style={{ zIndex: zIndex ?? `calc(var(--cg-z-${stack.rootKind === 'modal' ? 'modal' : 'popover'}) + ${stack.order * 2 + 1})`, ...style }}
