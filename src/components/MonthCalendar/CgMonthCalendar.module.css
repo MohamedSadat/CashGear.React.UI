@@ -119,9 +119,10 @@
   inset-inline: 0;
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  grid-template-rows: repeat(var(--cg-month-calendar-rows), var(--cg-month-calendar-lane));
+  grid-template-rows: repeat(var(--cg-month-calendar-rows), var(--cg-month-calendar-lane)) var(--cg-month-calendar-more);
   pointer-events: none;
 }
+.moreInWeek { position: relative; inset: auto; align-self: end; justify-self: start; margin-block-end: 1px; margin-inline-start: var(--cg-space-1); pointer-events: auto; }
 
 .item {
   --cg-month-calendar-item-color: var(--cg-accent);

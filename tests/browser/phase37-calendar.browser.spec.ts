@@ -50,7 +50,7 @@ test.describe('CgMonthCalendar in Arabic', () => {
   test('lists a full day in a dialog, opens items, and creates on a day', async ({ page }) => {
     await openStory(page, 'phase-37-monthcalendar--arabic-month', RTL);
     const day24 = await fullDate(page, 'ar', '2026-11-24');
-    await page.getByRole('button', { name: `2 عناصر أخرى في ${day24}` }).click();
+    await page.getByRole('button', { name: '+2 أخرى', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: `عناصر ${day24}` });
     await expect(dialog.getByRole('button')).toHaveCount(5);
     await dialog.getByRole('button').last().click();
@@ -100,3 +100,13 @@ test.describe('CgMonthCalendar in English', () => {
     await expect(grid.getByRole('gridcell', { name: await fullDate(page, 'en-US', '2026-11-17'), exact: true })).toBeFocused();
   });
 });
+
+test('CgMonthCalendar week cells pass label-content-name-mismatch', async ({ page }) => {
+  for (const [story, globals] of [['phase-37-monthcalendar--arabic-month', RTL], ['phase-37-monthcalendar--sunday-first-english', LIGHT]] as const) {
+    await openStory(page, story, globals);
+    await expect(page.getByTestId('month-calendar')).toBeVisible();
+    const { violations } = await new AxeBuilder({ page }).withRules(['label-content-name-mismatch']).analyze();
+    expect(violations.flatMap((violation) => violation.nodes.map((node) => `${violation.id}: ${node.target.join(" ")} ${node.html.slice(0, 160)}`)), story).toEqual([]);
+  }
+});
+

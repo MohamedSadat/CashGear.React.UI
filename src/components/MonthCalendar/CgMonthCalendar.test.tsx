@@ -97,7 +97,7 @@ describe('CgMonthCalendar', () => {
     expect(grid.querySelectorAll('[data-cg-month-day][tabindex="0"]')).toHaveLength(1);
     expect(cell('2026-10-31')).toHaveAttribute('data-outside');
     expect(cell('2026-11-01')).not.toHaveAttribute('data-outside');
-    expect(within(grid).getByRole('gridcell', { name: `عناصر الأسبوع من ${full('2026-11-14')} إلى ${full('2026-11-20')}` })).toBeInTheDocument();
+    expect(within(grid).getByRole('gridcell', { description: `عناصر الأسبوع من ${full('2026-11-14')} إلى ${full('2026-11-20')}` })).toBeInTheDocument();
   });
 
   it('draws items as bars across their days and weeks, with times, colours and names from the labels', () => {
@@ -127,7 +127,8 @@ describe('CgMonthCalendar', () => {
     const onItemOpen = vi.fn();
     render(<Host onItemOpen={onItemOpen} />);
     expect(screen.queryByRole('button', { name: 'مهمة 4' })).toBeNull();
-    const more = screen.getByRole('button', { name: `2 أخرى في ${full('2026-11-24')}` });
+    // Named by what it shows, described by moreLabel.
+    const more = screen.getByRole('button', { name: '+2 أخرى', description: `2 أخرى في ${full('2026-11-24')}` });
     expect(more).toHaveTextContent('+2 أخرى');
     expect(more).toHaveAttribute('aria-expanded', 'false');
     // The list is drawn once it is placed, which needs sizes jsdom does not measure.
@@ -488,5 +489,17 @@ describe('CgMonthCalendar from outside the grid', () => {
     act(() => handle.current!.startCreate('2026-11-09'));
     expect(cell('2026-11-09')).toHaveFocus();
     expect(cell('2026-11-09')).toHaveAttribute('aria-selected', 'true');
+  });
+});
+
+describe('CgMonthCalendar week items cell', () => {
+  it('is named by the titles it shows, and described by weekItems', () => {
+    render(<CgMonthCalendar items={[{ key: 'a', title: 'صرف الرواتب', start: '2026-11-16' }]} labels={labels} locale="ar" defaultMonth="2026-11" today="2026-11-16" timeZone="UTC" />);
+    const lanes = screen.getAllByRole('gridcell').filter((element) => element.hasAttribute('aria-describedby'));
+    expect(lanes.length).toBeGreaterThan(0);
+    const week = lanes.find((element) => element.textContent?.includes('صرف الرواتب'))!;
+    expect(week).not.toHaveAttribute('aria-label');
+    expect(week).toHaveAccessibleName(/صرف الرواتب/u);
+    expect(week.getAttribute('aria-describedby') && document.getElementById(week.getAttribute('aria-describedby')!)!.textContent).toMatch(/^عناصر الأسبوع من /u);
   });
 });

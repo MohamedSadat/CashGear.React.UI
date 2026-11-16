@@ -211,12 +211,12 @@ function CgMonthCalendarInner<TData>(
     start: formats.longDate(placed.start),
     end: placed.end > placed.start ? formats.longDate(placed.end) : null,
     time: timeOf(placed),
-  })) ?? titleOf(placed.item);
+  })) ?? [timeOf(placed), titleOf(placed.item)].filter((part) => part !== null).join(' ');
   const content = (placed: PlacedItem<TData>, piece: Pick<MonthSegment<TData>, 'before' | 'after' | 'span'>, placement: 'bar' | 'list'): ReactNode => {
     const time = timeOf(placed);
     if (renderItem) return renderItem(placed.item, Object.freeze({ time, continuesBefore: piece.before, continuesAfter: piece.after, span: piece.span, placement }));
     return <>
-      {time !== null && !piece.before ? <span className={styles.time}>{time}</span> : null}
+      {time !== null && !piece.before ? <><span className={styles.time}>{time}</span>{' '}</> : null}
       <span className={styles.text} dir="auto">{titleOf(placed.item)}</span>
     </>;
   };
@@ -372,7 +372,6 @@ function CgMonthCalendarInner<TData>(
             const day = week.start + col;
             const selected = day === activeDay;
             const date = formats.longDate(day);
-            const hidden = week.hidden[col] ?? 0;
             return <div
               key={day}
               role="gridcell"
@@ -397,20 +396,32 @@ function CgMonthCalendarInner<TData>(
                 title={labels.create?.(date)}
                 onClick={(event) => onCreate(dateOfDay(day), Object.freeze({ source: 'button', anchor: dayCell(event.currentTarget) }))}
               ><CgIcon name="add" /></button> : null}
-              {hidden ? <button
-                type="button"
-                className={styles.more}
-                tabIndex={selected ? 0 : -1}
-                aria-label={labels.moreLabel?.(hidden, date)}
-                aria-haspopup="dialog"
-                aria-expanded={more?.day === day}
-                onClick={(event) => setMore({ day, anchor: dayCell(event.currentTarget) })}
-              >{labels.more(hidden)}</button> : null}
+
             </div>;
           })}
           {/* A row's children are its cells: the items drawn over the week's days are the cell after them. */}
-          <div role="gridcell" className={styles.lanes} aria-label={labels.weekItems?.(formats.longDate(week.start), formats.longDate(week.start + 6))}>
+          {/* Its name stays its visible content (the items' titles); weekItems describes it. */}
+          <div role="gridcell" className={styles.lanes} aria-describedby={labels.weekItems ? `${baseId}-week-${week.start}` : undefined}>
+            {labels.weekItems ? <span id={`${baseId}-week-${week.start}`} hidden>{labels.weekItems(formats.longDate(week.start), formats.longDate(week.start + 6))}</span> : null}
             {week.shown.map((segment) => piece(segment, week.start))}
+            {/* "+N" sits under its day in this cell, not in the day's own cell, whose name is its date. */}
+            {week.hidden.map((hidden, col) => {
+              if (!hidden) return null;
+              const day = week.start + col;
+              const date = formats.longDate(day);
+              return <button
+                key={`more-${day}`}
+                type="button"
+                className={cx(styles.more, styles.moreInWeek)}
+                style={{ gridColumn: col + 1, gridRow: maxItemRows + 1 }}
+                tabIndex={day === activeDay ? 0 : -1}
+                aria-describedby={labels.moreLabel ? `${baseId}-more-${day}` : undefined}
+                aria-haspopup="dialog"
+                aria-expanded={more?.day === day}
+                data-cg-month-more-day={day}
+                onClick={(event) => setMore({ day, anchor: event.currentTarget.closest('[role="row"]')?.querySelector<HTMLElement>(`[data-cg-month-day="${day}"]`) ?? event.currentTarget })}
+              >{labels.more(hidden)}{labels.moreLabel ? <span id={`${baseId}-more-${day}`} hidden>{labels.moreLabel(hidden, date)}</span> : null}</button>;
+            })}
           </div>
         </div>)}
       </div>

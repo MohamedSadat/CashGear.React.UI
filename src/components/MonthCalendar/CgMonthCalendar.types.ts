@@ -50,7 +50,7 @@ export interface CgMonthCalendarLabels<TData = unknown> {
   today: string;
   /** The text of a full day's button, as "+2 more". */
   more: (count: number) => string;
-  /** That button's accessible name, given the day written in full, as "2 more on Monday 16 November". Default: `more`. */
+  /** Describes that button, given the day written in full, as "2 more on Monday 16 November" (its name is the `more` text it shows). */
   moreLabel?: (count: number, date: string) => string;
   /** The name of the list a "+N more" button opens, as "Items on Monday 16 November". */
   dayItems: (date: string) => string;
@@ -58,11 +58,18 @@ export interface CgMonthCalendarLabels<TData = unknown> {
   create?: (date: string) => string;
   /** Spoken after a move by drag or keys, as "Budget moved to Monday 16 November". Needed with `onItemMove`. */
   moved?: (item: CgMonthCalendarItem<TData>, date: string) => string;
-  /** An item's accessible name, as "Budget, Monday 16 to Wednesday 18 November". Default: its title. */
+  /**
+   * An item's accessible name, as "Budget, Monday 16 to Wednesday 18 November". Start it with what
+   * the item shows (its time, then its title), so a spoken name matches the visible one. Default:
+   * the time shown, then the title.
+   */
   item?: (item: CgMonthCalendarItem<TData>, info: CgMonthCalendarItemNameInfo) => string;
   /** Read after a movable item's name, as "Alt and the arrow keys move it". */
   moveHint?: string;
-  /** The name of the cell holding a week's items, given its first and last day. */
+  /**
+   * Describes the cell holding a week's items, given its first and last day (its description, not
+   * its name: the cell is named by the items' titles it shows).
+   */
   weekItems?: (start: string, end: string) => string;
   /** Drawn and read for an item whose title is blank. */
   untitled?: string;
