@@ -1070,6 +1070,46 @@ live.current?.announce('نُقلت البطاقة إلى «قيد التنفيذ
 
 `CgInlineTextEditor` and `CgInlineNumberEditor` keep no React draft: the field is uncontrolled, typing draws nothing, and the text is read once when the edit ends. Enter, Tab, Shift+Tab and leaving the field commit through `onCommit(value, { end, text, changed })`; Escape puts the starting text back and commits nothing; `onDone({ end, committed })` follows every edit, which is where a cell editor unmounts. They focus and select their text on mount (`initialSelection="end"` after a typed first key), keep keys and presses from a grid around them (`isolateEvents`), and an editor that stays mounted starts a new edit at the next key or focus. `multiline` is a text area where Shift+Enter is a new line. The number editor reads the locale's digits and separators, Arabic-Indic ones included, commits `null` for empty text, and marks other text `aria-invalid` with `invalidMessage` on Enter or Tab, staying open; `parse` and `format` replace its reading.
 
+### CommandMenu
+
+`CgCommandMenu` is a filtered, grouped list of commands. In place, with `searchable`, it is a palette whose search box owns the active option. With `anchor` (a point or rectangle in viewport pixels, such as a caret's) it floats there while focus stays in the host: the host forwards keys to the ref's `handleKeyDown(event)` and sets its `aria-activedescendant` from `onActiveDescendantChange`. Items have `label`, `group`, `icon` (a `CgIcon` name, an element or an emoji), `detail`, `shortcut`, `keywords` and `disabled`. The default filter matches word starts in the label and keywords, ignoring case and Arabic marks; `filter={false}` shows the items as given. Arrows, Home, End, PageUp and PageDown move, Enter (and Tab with `selectOnTab`) chooses, Escape calls `onDismiss`. With `loading`, an Enter pressed early acts when the results arrive.
+
+### SelectionToolbar
+
+`CgSelectionToolbar` is a `CgToolbar` in a `CgFlyout` that follows a selection: give it the selection's `rect` (null hides it); it sits above and flips below when there is no room. Presses in it keep focus where it was, so an editor keeps its selection, except in a text field of its `panel` (a row under the toolbar for a link field or colours). `onEscape` returns focus to the editor. `mode="docked"` puts it at the bottom of the visible viewport, above an on-screen keyboard.
+
+### MenuPanel
+
+`CgMenuPanel` is a menu surface that also holds `fields` (such as a name input), switches and nested panels, for a property or view menu inside a `CgFlyout`. Its parts are `CgMenuPanelItem` (`icon`, `hint`, `danger`, `checked` as a radio or check item, `opensPanel`), `CgMenuPanelSwitch`, `CgMenuPanelGroup`, `CgMenuPanelSeparator` and `CgMenuPanelHeader` (a title with a back button). Arrows, Home and End move focus among the items, ArrowDown from a field enters the menu and ArrowUp on the first item returns to it, Escape calls `onEscape`.
+
+### SortableList
+
+`CgSortableList` reorders a short list by a handle on each row: dragged with the pointer, with a drop line, or moved with ArrowUp, ArrowDown, Home and End on the focused handle, which keeps focus. `onMove(key, toIndex)` is called once per move. `isItemFixed` leaves rows without a handle, `canMove` vetoes a move, and `moveAnnouncement` is spoken after each one.
+
+### OptionPicker and ItemPicker
+
+`CgOptionPicker` chooses options of a select or status field and manages them in place: with `canManage` it creates an option from the text typed and opens each option's editor (rename, recolour, regroup, delete); a handle or Alt+arrows reorders. `onOptionsChange(options, change)` reports each change. Options can be grouped (`groups`, as a status's To do, In progress, Done), coloured from the caller's `colours`, single or `multiple`. `manage` only manages. `CgItemPicker` draws chips the caller describes over results the caller finds for the text typed, as for people or related rows. In both, the arrows walk the list, Enter chooses and Backspace in an empty search removes the last chip; every string comes from `labels` or a prop.
+
+### MentionArea
+
+`CgMentionArea` is an editable area that writes text, line breaks and mentions. A trigger (`@` by default) typed at a word start offers the caller's `suggest(query, trigger)` results, grouped, chosen with the arrows and Enter or Tab, or the pointer, while the area keeps focus. A mention is one atom carrying its `kind` and `id`. Pasted content goes in as plain text, Ctrl+Enter (⌘Enter) calls `onSubmit`, and Escape closes the list and then calls `onCancel`. Nothing renders per keystroke: the ref's `getValue()`, `setValue()` and `clear()` read and write the content, `onValueChange` reports each input.
+
+### EmojiPicker
+
+`CgEmojiPicker` is a searchable grid of emoji in named groups, with `recent` ones first and an optional remove button. Arrows walk it along the line (mirrored in right to left), and ArrowUp from the first row returns to the search box. It takes any emoji list; `cgPageIcons('ar' | 'en')` gives the curated page-icon set (about 130 emoji named in Arabic and English, written for this library, so no third-party emoji data is bundled).
+
+### Fixes to existing components
+
+These change no prop's meaning:
+
+- `CgSplitter`: a pane is a column whose content fills it and scrolls on its own under a fixed header (the pane no longer scrolls as a whole). `separatorAriaLabel({ start, end })` names each separator; without it the English template stays.
+- `CgButton`: on the dark theme, solid buttons draw `--cg-color-fg-on-accent`, now the page's dark (6.3:1 or more on every intent); `soft` buttons draw their text 25% towards the text colour (5.4:1 for primary on light), and neutral `soft` draws the theme's text on the subtle surface.
+- Theme tokens: `--cg-color-text`, `-text-muted`, `-text-disabled`, `-surface`, `-surface-subtle`, `-surface-raised`, `-surface-muted`, `-surface-hover`, `-border`, `-focus`, `-danger` and `-on-primary` are now set on every themed element, so `CgContextMenu`, `CgMenu`, `CgToolbar`, `CgAccordion`, `CgFormLayout` and the PDF viewer follow the dark theme instead of their light fallbacks.
+- `CgDrawer`: `openSize` and `miniSize` take a CSS `min()`, `max()`, `clamp()` or `calc()`.
+- `CgTabs` with `reorderable`: a click selects the tab (the pointer is captured only once a drag starts), and dragging in right to left drops where the pointer is.
+- `CgFlyout`: an explicit `width` survives positioning; `focusFirst()` called while the flyout is still being placed (as from `onAfterOpen` when mounted open) focuses once it is drawn; the new `autoFocus` does that on every open; an element, ref or selector anchor is watched only while open.
+- `CgChart`: the "Chart data" toggle is at least 24 px high.
+
 ## MaskedInput
 
 `CgMaskedInput` follows TextBox's `value`, `defaultValue`, and `onValueChange` convention, uses `''` as empty, and forwards its `HTMLInputElement` ref plus native events and attributes. Masks are Unicode-aware: `0`, `L`, `A`, and `*` are required digit/letter/alphanumeric slots; `9`, `l`, `a`, and `?` are optional; backslash escapes the next code point. Empty masks and trailing escapes are configuration errors.
@@ -1136,6 +1176,7 @@ Components:
 - `CgNumericEdit`, `CgDecimalEdit`, `CgSpinEdit`, `CgSearchBox`
 - `CgLoadingPanel`, `CgWaitIndicator`, `CgProgressBar`
 - `CgLiveAnnouncer`, `CgAvatar`, `CgAvatarStack`, `CgFilePicker`, `CgBreadcrumb`, `CgInlineTextEditor`, `CgInlineNumberEditor`
+- `CgCommandMenu`, `CgSelectionToolbar`, `CgMenuPanel` (with `CgMenuPanelItem`, `CgMenuPanelSwitch`, `CgMenuPanelGroup`, `CgMenuPanelSeparator`, `CgMenuPanelHeader`), `CgSortableList`, `CgOptionPicker`, `CgItemPicker`, `CgMentionArea`, `CgEmojiPicker` and `cgPageIcons`
 - `CgToastProvider`, `CgConfirmationProvider`, `CgEditorCommitProvider`
 
 Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, canonical `CgDateValue`/`CgDateRangeValue`/`CgTimeValue`, the Filter Core AST/registry/persistence contracts, the DateEdit/TimeEdit/Calendar/DateRangePicker contracts and CgDateRangePresetKey, Scheduler recurrence/resource/reminder/action/iCalendar contracts, the FileUploader item/transport/event/render/action contracts, the PDF source/state/event/render/action contracts, the Chart descriptor/axis/selection/action/localization contracts, the GridLayout descriptors, the TreeList binding/column/node/provider/mutation/output/state/render/action contracts, the Splitter versioned-state/descriptor/detail contracts, the Drawer lifecycle/render/action contracts, WaitIndicator, MessageBox, Toast and Confirmation APIs, the shared overlay contracts, and each descriptor component's props, actions, lifecycle details, and render/state contexts. Private PDF controller/model modules, chart model/layout/browser modules, endpoint-session tokens, menu, adaptive-layout, TreeView normalization/check/filter engines, and TreeList hierarchy/projection internals are not exported. There is intentionally no universal component-state interface.
