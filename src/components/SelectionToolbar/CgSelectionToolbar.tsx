@@ -40,6 +40,7 @@ function CgSelectionToolbarInner<TData>(
     keepSelection = true,
     offset = 8,
     zIndex,
+    size = 'small',
     className,
     style,
     ...toolbarProps
@@ -67,6 +68,7 @@ function CgSelectionToolbarInner<TData>(
   const content = <>
     <CgToolbar
       {...toolbarProps}
+      size={size}
       ariaLabel={label}
       autoOverflow={autoOverflow}
       overflowButtonLabel={overflowButtonLabel ?? label}

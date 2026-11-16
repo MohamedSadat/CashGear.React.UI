@@ -31,4 +31,6 @@ export interface CgSelectionToolbarProps<TData = unknown> extends Omit<CgToolbar
   /** Distance in pixels from the selection. Default 8. */
   offset?: number;
   zIndex?: number;
+  /** The toolbar's control size. Default `small`, as a bubble over text is. */
+  size?: CgToolbarProps<TData>['size'];
 }

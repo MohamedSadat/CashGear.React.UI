@@ -2,8 +2,9 @@ import type { CgEmojiPickerGroup, CgEmojiPickerItem } from './CgEmojiPicker.type
 
 /**
  * A curated set of emoji for page and block icons, drawn by the system's emoji font. The emoji
- * are Unicode characters; the names and keywords were written for this library, in Arabic and
- * English, so no third-party emoji data is bundled.
+ * are Unicode characters up to Emoji 11, which current Windows, macOS, iOS and Android fonts all
+ * draw; the names and keywords were written for this library, in Arabic and English, so no
+ * third-party emoji data is bundled.
  */
 type Entry = readonly [emoji: string, group: GroupKey, ar: string, en: string, keywords?: string];
 type GroupKey = 'documents' | 'work' | 'time' | 'status' | 'objects' | 'places' | 'people' | 'nature' | 'symbols';
@@ -50,7 +51,6 @@ const ENTRIES: readonly Entry[] = [
   ['💰', 'work', 'كيس نقود', 'Money bag', 'budget ميزانية'],
   ['💵', 'work', 'أوراق نقدية', 'Banknote', 'cash'],
   ['💳', 'work', 'بطاقة ائتمان', 'Credit card', 'payment دفع'],
-  ['🪙', 'work', 'عملة معدنية', 'Coin'],
   ['🧮', 'work', 'معداد', 'Abacus', 'calculate حساب'],
   ['📦', 'work', 'طرد', 'Package', 'inventory مخزون شحنة'],
   ['🚚', 'work', 'شاحنة توصيل', 'Delivery truck', 'shipping شحن'],
@@ -118,7 +118,6 @@ const ENTRIES: readonly Entry[] = [
   ['✈️', 'places', 'طائرة', 'Airplane', 'travel سفر'],
   ['🚗', 'places', 'سيارة', 'Car'],
   ['🚢', 'places', 'سفينة', 'Ship'],
-  ['🧑‍💼', 'people', 'موظف', 'Office worker'],
   ['👥', 'people', 'أشخاص', 'People', 'team فريق'],
   ['👋', 'people', 'يد تلوح', 'Waving hand', 'hello مرحبا'],
   ['🙂', 'people', 'وجه مبتسم', 'Smiling face'],

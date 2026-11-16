@@ -31,7 +31,7 @@ function SlashEditor() {
   const [activeId, setActiveId] = useState<string>();
   const [chosen, setChosen] = useState('');
   const query = slash ? text.slice(slash.at + 1) : '';
-  return <div style={{ display: 'grid', gap: 12, inlineSize: 'min(32rem, 100%)', minBlockSize: 380 }}>
+  return <div style={{ display: 'grid', gap: 12, inlineSize: 'min(32rem, 100%)', minBlockSize: 380, alignContent: 'start' }}>
     <input
       ref={input}
       aria-label="محرر المستند"

@@ -6,7 +6,7 @@
   gap: var(--cg-space-2);
   padding: var(--cg-space-1);
 }
-.toolbar { border: 0; background: transparent; }
+.surface .toolbar { padding: 0; border: 0; background: transparent; gap: var(--cg-space-1); }
 .panel {
   padding-block: var(--cg-space-2);
   padding-inline: var(--cg-space-3);

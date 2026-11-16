@@ -206,11 +206,13 @@ export const CgFlyout = forwardRef<HTMLDivElement, CgFlyoutProps>(function CgFly
     const first = marked ?? surfaceRef.current?.querySelector<HTMLElement>('button:not(:disabled),[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])');
     const target = first ?? surfaceRef.current;
     target?.focus({ preventScroll: true });
-    // A marked element can sit below a scroller's fold, as a selected swatch in a long gallery does.
-    marked?.scrollIntoView?.({ block: 'nearest' });
     // Just opened, the surface stays hidden until it is placed, and a hidden element takes no
     // focus: the focus is given again once the placed surface is drawn.
-    pendingFocusRef.current = target !== null && target !== undefined && target.ownerDocument.activeElement !== target;
+    const focused = target !== null && target !== undefined && target.ownerDocument.activeElement === target;
+    pendingFocusRef.current = target !== null && target !== undefined && !focused;
+    // A marked element can sit below a scroller's fold, as a selected swatch in a long gallery does.
+    // Scrolled to only once drawn: before it is placed, it would scroll the page instead.
+    if (focused) marked?.scrollIntoView?.({ block: 'nearest' });
   });
   useLayoutEffect(() => {
     if (!lifecycle.open) { pendingFocusRef.current = false; return; }
