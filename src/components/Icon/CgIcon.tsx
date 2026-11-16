@@ -1,7 +1,7 @@
 import { forwardRef } from 'react';
 import type { ReactNode } from 'react';
-import { fluentIconAccentPaths, fluentIconPaths } from '../../vendor/fluent-icons/icons';
-import type { FluentAccentIconName, FluentIconName } from '../../vendor/fluent-icons/icons';
+import { fluentIconAccentPaths, fluentIconPaths, fluentIconRtlPaths } from '../../vendor/fluent-icons/icons';
+import type { FluentAccentIconName, FluentDirectionalIconName, FluentIconName } from '../../vendor/fluent-icons/icons';
 import { cx } from '../../utils';
 import styles from './CgIcon.module.css';
 import type { CgIconProps } from './CgIcon.types';
@@ -33,6 +33,9 @@ function isFluentIcon(name: CgIconProps['name']): name is FluentIconName {
   return Object.hasOwn(fluentIconPaths, name);
 }
 
+/** Icons that point along the line, drawn mirrored in a right-to-left container. */
+const MIRRORED: ReadonlySet<CgIconProps['name']> = new Set(['chevron-start', 'chevron-end', 'toggle', 'toc']);
+
 export const CgIcon = forwardRef<SVGSVGElement, CgIconProps>(function CgIcon(
   { name, size = '1em', label, accentColor, className, ...svgProps },
   ref,
@@ -43,7 +46,7 @@ export const CgIcon = forwardRef<SVGSVGElement, CgIconProps>(function CgIcon(
     ref,
     width: size,
     height: size,
-    className: cx(styles.icon, (name === 'chevron-start' || name === 'chevron-end') && styles.logical, className),
+    className: cx(styles.icon, MIRRORED.has(name) && styles.logical, className),
     'aria-hidden': labelled ? undefined : true,
     'aria-label': label,
     role: labelled ? 'img' : undefined,
@@ -51,10 +54,13 @@ export const CgIcon = forwardRef<SVGSVGElement, CgIconProps>(function CgIcon(
   } as const;
   if (isFluentIcon(name)) {
     const accentPath = accentColor === undefined ? undefined : fluentIconAccentPaths[name as FluentAccentIconName];
+    const rtlPath = Object.hasOwn(fluentIconRtlPaths, name) ? fluentIconRtlPaths[name as FluentDirectionalIconName] : undefined;
     return (
       <svg {...shared} viewBox="0 0 20 20" fill="currentColor">
         {accentPath ? <path d={accentPath} fill={accentColor} data-cg-icon-accent="" /> : null}
-        <path d={fluentIconPaths[name]} />
+        {rtlPath
+          ? <><path d={fluentIconPaths[name]} className={styles.ltrDrawing} /><path d={rtlPath} className={styles.rtlDrawing} data-cg-icon-rtl="" /></>
+          : <path d={fluentIconPaths[name]} />}
       </svg>
     );
   }

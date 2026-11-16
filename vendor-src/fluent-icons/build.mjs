@@ -142,6 +142,58 @@ const ICONS = {
   calculator: 'calculator',
   settings: 'settings',
   more: 'more_horizontal',
+  // Document blocks
+  text: 'text_t',
+  paragraph: 'text_paragraph',
+  'heading-1': 'text_header_1',
+  'heading-2': 'text_header_2',
+  'heading-3': 'text_header_3',
+  todo: 'checkbox_checked',
+  toggle: 'triangle_right',
+  quote: 'text_quote',
+  callout: 'lightbulb',
+  code: 'code',
+  divider: 'line_horizontal_1',
+  file: 'attach',
+  page: 'document_text',
+  'page-add': 'document_add',
+  'page-link': 'document_link',
+  database: 'database',
+  toc: 'text_bullet_list_tree',
+  embed: 'code_block',
+  chart: 'data_bar_vertical_ascending',
+  board: 'grid_kanban',
+  bookmark: 'bookmark',
+  'linked-view': 'window_multiple',
+  sync: 'arrow_sync',
+  // Views, people and editing
+  'calendar-month': 'calendar_month',
+  'view-list': 'apps_list',
+  gallery: 'image_multiple',
+  timeline: 'timeline',
+  'drag-handle': 're_order_dots_vertical',
+  emoji: 'emoji',
+  'emoji-add': 'emoji_add',
+  mention: 'mention',
+  person: 'person',
+  people: 'people',
+  tag: 'tag',
+  rename: 'rename',
+  color: 'color',
+  highlight: 'highlight',
+  folder: 'folder',
+  upload: 'arrow_upload',
+};
+
+/**
+ * Icons Fluent draws twice, once for each writing direction (a list's bullets or numbers stay at
+ * the line's start). The left-to-right drawing is the icon's path; the right-to-left one is drawn
+ * instead inside a right-to-left container.
+ */
+const DIRECTIONAL = {
+  'list-bullet': ['text_bullet_list_ltr', 'text_bullet_list_rtl'],
+  'list-number': ['text_number_list_ltr', 'text_number_list_rtl'],
+  'list-todo': ['task_list_ltr', 'task_list_rtl'],
 };
 
 /** The colour bar under an icon, drawn separately so it can take the current colour. */
@@ -176,6 +228,11 @@ async function readPath(file) {
 const paths = {};
 for (const [name, fluent] of Object.entries(ICONS)) paths[name] = await readPath(`${fluent}_20_regular.svg`);
 for (const [name, { base, add }] of Object.entries(DERIVED)) paths[name] = `${await readPath(`${base}_20_regular.svg`)} ${add}`;
+const rtlPaths = {};
+for (const [name, [ltr, rtl]] of Object.entries(DIRECTIONAL)) {
+  paths[name] = await readPath(`${ltr}_20_regular.svg`);
+  rtlPaths[name] = await readPath(`${rtl}_20_regular.svg`);
+}
 const accents = {};
 for (const [name, file] of Object.entries(ACCENTS)) accents[name] = await readPath(`${file}.svg`);
 
@@ -194,6 +251,13 @@ ${entries(paths)}
 
 export const fluentIconAccentPaths: Readonly<Record<FluentAccentIconName, string>> = {
 ${entries(accents)}
+};
+
+export type FluentDirectionalIconName = ${Object.keys(rtlPaths).map((name) => `'${name}'`).join(' | ')};
+
+/** The right-to-left drawing of the icons Fluent draws once for each direction. */
+export const fluentIconRtlPaths: Readonly<Record<FluentDirectionalIconName, string>> = {
+${entries(rtlPaths)}
 };
 `;
 

@@ -7,3 +7,10 @@
 :global([dir='rtl']) .logical {
   transform: scaleX(-1);
 }
+
+/* Icons Fluent draws once for each direction: the drawing that matches the nearest dir. */
+.rtlDrawing { display: none; }
+:global([dir='rtl']) .rtlDrawing { display: inline; }
+:global([dir='rtl']) .ltrDrawing { display: none; }
+:global([dir='rtl'] [dir='ltr']) .rtlDrawing { display: none; }
+:global([dir='rtl'] [dir='ltr']) .ltrDrawing { display: inline; }

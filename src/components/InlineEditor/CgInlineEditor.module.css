@@ -1,0 +1,25 @@
+.editor {
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-inline-size: 0;
+  margin: 0;
+  padding-block: var(--cg-space-1);
+  padding-inline: var(--cg-space-2);
+  border: var(--cg-border-width) solid var(--cg-accent);
+  border-radius: var(--cg-radius-sm);
+  background: var(--cg-surface);
+  color: var(--cg-text);
+  font: inherit;
+  line-height: var(--cg-line-height);
+  outline: none;
+}
+.editor:focus-visible { box-shadow: 0 0 0 var(--cg-focus-ring-width) color-mix(in srgb, var(--cg-focus-ring-color) 35%, transparent); }
+.editor[aria-invalid='true'] { border-color: var(--cg-danger-text); box-shadow: 0 0 0 var(--cg-focus-ring-width) color-mix(in srgb, var(--cg-danger-text) 30%, transparent); }
+.editor:disabled { border-color: var(--cg-disabled-border); background: var(--cg-disabled-bg); color: var(--cg-disabled-text); }
+.multiline { display: block; resize: none; field-sizing: content; overflow-wrap: anywhere; }
+.number { font-variant-numeric: tabular-nums; text-align: end; }
+
+@media (forced-colors: active) {
+  .editor { border-color: Highlight; }
+  .editor[aria-invalid='true'] { border-color: Mark; }
+}

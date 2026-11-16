@@ -40,3 +40,19 @@ export const LogicalRtl: Story = { render: () => <StoryFrame source={source} dif
 export const Spreadsheet: Story = { render: () => <StoryFrame source={source} difference={spreadsheetDifference}><Sheet /></StoryFrame> };
 export const SpreadsheetDark: Story = { globals: { theme: 'dark' }, render: () => <StoryFrame source={source} difference={spreadsheetDifference}><Sheet /></StoryFrame> };
 export const SpreadsheetRtl: Story = { globals: { direction: 'rtl' }, render: () => <StoryFrame source={source} difference={spreadsheetDifference}><Sheet /></StoryFrame> };
+
+const blockDifference = 'Document block, view and people icons for Cash Gear Workspace (Track U8), from the same pinned Fluent System Icons (MIT). Lists keep their bullets at the line start in right to left; the toggle and contents icons mirror.';
+const blockIcons: ReadonlyArray<readonly [string, ReadonlyArray<CgIconName>]> = [
+  ['كتل النص', ['text', 'paragraph', 'heading-1', 'heading-2', 'heading-3', 'list-bullet', 'list-number', 'list-todo', 'todo', 'toggle', 'quote', 'callout', 'code', 'divider']],
+  ['الوسائط والصفحات', ['image', 'file', 'bookmark', 'embed', 'page', 'page-add', 'page-link', 'toc', 'table', 'database', 'linked-view', 'chart', 'board', 'workbook', 'sync']],
+  ['العروض والأشخاص', ['calendar-month', 'view-list', 'gallery', 'timeline', 'drag-handle', 'emoji', 'emoji-add', 'mention', 'person', 'people', 'tag', 'rename', 'color', 'highlight', 'folder', 'upload']],
+];
+const Blocks = () => <div style={{ display: 'grid', gap: 12, inlineSize: '100%' }} data-testid="block-icons">
+  {blockIcons.map(([title, names]) => <section key={title} style={{ display: 'grid', gap: 4 }}>
+    <h3 style={{ margin: 0, fontSize: 13 }}>{title}</h3>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>{names.map((name) => <CgIcon key={name} name={name} label={name} size={24} />)}</div>
+  </section>)}
+</div>;
+export const DocumentBlocks: Story = { render: () => <StoryFrame source={source} difference={blockDifference}><Blocks /></StoryFrame> };
+export const DocumentBlocksRtl: Story = { globals: { direction: 'rtl' }, render: () => <StoryFrame source={source} difference={blockDifference}><Blocks /></StoryFrame> };
+export const DocumentBlocksDark: Story = { globals: { theme: 'dark', direction: 'rtl' }, render: () => <StoryFrame source={source} difference={blockDifference}><Blocks /></StoryFrame> };

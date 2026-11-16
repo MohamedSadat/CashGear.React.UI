@@ -192,3 +192,15 @@ export type { CgKeyTagBoxActions, CgKeyTagBoxProps, CgKeyTagBoxResolverContext, 
 
 export { CgDateRangePresetSelect } from './components/DateRangePresetSelect';
 export type { CgDateRangePresetKey, CgDateRangePresetSelection, CgDateRangePresetSelectProps } from './components/DateRangePresetSelect';
+
+// Phase 37: document-workspace components (Cash Gear Workspace Track U).
+export { CgLiveAnnouncer } from './components/LiveAnnouncer';
+export type { CgLiveAnnouncerHandle, CgLiveAnnouncerPoliteness, CgLiveAnnouncerProps } from './components/LiveAnnouncer';
+export { CgAvatar, CgAvatarStack } from './components/Avatar';
+export type { CgAvatarProps, CgAvatarSize, CgAvatarStackItem, CgAvatarStackProps } from './components/Avatar';
+export { CgFilePicker } from './components/FilePicker';
+export type { CgFilePickerDetails, CgFilePickerHandle, CgFilePickerProps, CgFilePickerSource } from './components/FilePicker';
+export { CgBreadcrumb } from './components/Breadcrumb';
+export type { CgBreadcrumbItem, CgBreadcrumbNavigateDetails, CgBreadcrumbProps } from './components/Breadcrumb';
+export { CgInlineNumberEditor, CgInlineTextEditor } from './components/InlineEditor';
+export type { CgInlineCommitDetails, CgInlineDoneDetails, CgInlineEditEnd, CgInlineEditorBaseProps, CgInlineEditorHandle, CgInlineNumberEditorProps, CgInlineTextEditorProps } from './components/InlineEditor';

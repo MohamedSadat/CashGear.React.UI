@@ -1036,6 +1036,40 @@ The host keeps the last color: the main part reapplies it, the arrow opens the p
 
 Fields and items can be dragged with the pointer, with an insertion marker, and every drag has a keyboard path through the field and item menus. The pane enforces the spreadsheet rules: a field sits in one of Filters, Columns and Rows, Values can repeat a field, and the Σ Values item (`fieldKey: CG_PIVOT_FIELD_LIST_VALUES_KEY`) stays in Columns or Rows. `canDrop` lets the host veto more. `onFieldToggle` hands field checking to the host. Defer Layout Update holds edits until Update, `readOnly` shows without changing, and `labels` covers Arabic. See [its README](src/components/PivotFieldList/README.md) for the rules, generated ids and keyboard. `CgPivotTable` keeps its own popup field list.
 
+## Document workspace components
+
+Phase 37 adds the generic pieces a document workspace (CashGear Workspace) draws with. None of them builds in a visible or accessible English string: every name is a prop. Their stories are under `Phase 37` in Storybook, in Arabic and right to left.
+
+### LiveAnnouncer
+
+`CgLiveAnnouncer` is a visually hidden live region spoken through its ref, never through React state, so a drag or typing announces without drawing. `announce(text)` empties the region and writes the text a frame later, so the same message twice is read twice; `clear()` empties it. `politeness` is `polite` (a `status`) or `assertive` (an `alert`); `clearAfter` empties it after that many milliseconds.
+
+```tsx
+const live = useRef<CgLiveAnnouncerHandle>(null);
+<CgLiveAnnouncer ref={live} />;
+live.current?.announce('نُقلت البطاقة إلى «قيد التنفيذ»');
+```
+
+### Avatar and AvatarStack
+
+`CgAvatar` draws a person's initials (one letter for a name in Arabic script, else the first letters of the first and last words) or `src` picture on the `color` the caller gives, with `name` as its accessible name and tooltip. Sizes are `tiny` (16 px), `small`, `medium` and `large` (40 px); `decorative` hides it when the name is written beside it. `CgAvatarStack` overlaps up to `max` avatars along the line and counts the rest in one "+N", named by `overflowLabel(hidden)`. As a `group` (default) each avatar is named; as an `image` the stack is one image named by `label`.
+
+### Document block icons
+
+`CgIcon` adds names for document blocks, views and people: `text`, `paragraph`, `heading-1` to `heading-3`, `list-bullet`, `list-number`, `list-todo`, `todo`, `toggle`, `quote`, `callout`, `code`, `divider`, `file`, `page`, `page-add`, `page-link`, `database`, `toc`, `embed`, `chart`, `board`, `bookmark`, `linked-view`, `sync`, `calendar-month`, `view-list`, `gallery`, `timeline`, `drag-handle`, `emoji`, `emoji-add`, `mention`, `person`, `people`, `tag`, `rename`, `color`, `highlight`, `folder` and `upload` (`image`, `table` and `workbook` were there). The three lists use Fluent's right-to-left drawings inside a right-to-left container, so bullets and numbers stay at the line start; `toggle` and `toc` mirror like the logical chevrons.
+
+### FilePicker
+
+`CgFilePicker` is a button that opens the browser's file dialog and gives the files chosen through `onPick(files, { source })`, and nothing else: it reads, uploads and keeps nothing (`CgFileUploader` uploads). `accept` takes extensions, types and families and is checked for dropped files too, with the rest given to `onReject`. Without `multiple` only the first file is given. `dropZone` makes the button and its `hint` a drop target; the ref's `open()` opens the dialog from elsewhere, and `onCancel` reports a dialog closed without a choice.
+
+### Breadcrumb
+
+`CgBreadcrumb` is a named navigation list from the root to the current page, which is last and marked `aria-current="page"`. A crumb with `href` is a link, one without is text (a section name), and each `text` keeps its own direction. With `maxItems`, a longer trail keeps `itemsBeforeCollapse` and `itemsAfterCollapse` crumbs and puts the rest in a "…" menu named by `overflowLabel`. `onNavigate({ item, source, event })` reports a chosen crumb from the trail or the menu; call `event.preventDefault()` to route in the app.
+
+### InlineTextEditor and InlineNumberEditor
+
+`CgInlineTextEditor` and `CgInlineNumberEditor` keep no React draft: the field is uncontrolled, typing draws nothing, and the text is read once when the edit ends. Enter, Tab, Shift+Tab and leaving the field commit through `onCommit(value, { end, text, changed })`; Escape puts the starting text back and commits nothing; `onDone({ end, committed })` follows every edit, which is where a cell editor unmounts. They focus and select their text on mount (`initialSelection="end"` after a typed first key), keep keys and presses from a grid around them (`isolateEvents`), and an editor that stays mounted starts a new edit at the next key or focus. `multiline` is a text area where Shift+Enter is a new line. The number editor reads the locale's digits and separators, Arabic-Indic ones included, commits `null` for empty text, and marks other text `aria-invalid` with `invalidMessage` on Enter or Tab, staying open; `parse` and `format` replace its reading.
+
 ## MaskedInput
 
 `CgMaskedInput` follows TextBox's `value`, `defaultValue`, and `onValueChange` convention, uses `''` as empty, and forwards its `HTMLInputElement` ref plus native events and attributes. Masks are Unicode-aware: `0`, `L`, `A`, and `*` are required digit/letter/alphanumeric slots; `9`, `l`, `a`, and `?` are optional; backslash escapes the next code point. Empty masks and trailing escapes are configuration errors.
@@ -1101,6 +1135,7 @@ Components:
 - `CgRadio`, `CgRadioGroup`
 - `CgNumericEdit`, `CgDecimalEdit`, `CgSpinEdit`, `CgSearchBox`
 - `CgLoadingPanel`, `CgWaitIndicator`, `CgProgressBar`
+- `CgLiveAnnouncer`, `CgAvatar`, `CgAvatarStack`, `CgFilePicker`, `CgBreadcrumb`, `CgInlineTextEditor`, `CgInlineNumberEditor`
 - `CgToastProvider`, `CgConfirmationProvider`, `CgEditorCommitProvider`
 
 Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, canonical `CgDateValue`/`CgDateRangeValue`/`CgTimeValue`, the Filter Core AST/registry/persistence contracts, the DateEdit/TimeEdit/Calendar/DateRangePicker contracts and CgDateRangePresetKey, Scheduler recurrence/resource/reminder/action/iCalendar contracts, the FileUploader item/transport/event/render/action contracts, the PDF source/state/event/render/action contracts, the Chart descriptor/axis/selection/action/localization contracts, the GridLayout descriptors, the TreeList binding/column/node/provider/mutation/output/state/render/action contracts, the Splitter versioned-state/descriptor/detail contracts, the Drawer lifecycle/render/action contracts, WaitIndicator, MessageBox, Toast and Confirmation APIs, the shared overlay contracts, and each descriptor component's props, actions, lifecycle details, and render/state contexts. Private PDF controller/model modules, chart model/layout/browser modules, endpoint-session tokens, menu, adaptive-layout, TreeView normalization/check/filter engines, and TreeList hierarchy/projection internals are not exported. There is intentionally no universal component-state interface.
