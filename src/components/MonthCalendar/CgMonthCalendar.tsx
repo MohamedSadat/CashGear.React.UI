@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, ForwardedRef, KeyboardEvent, MouseEvent, PointerEvent, ReactElement, ReactNode, RefAttributes } from 'react';
 import { useCgId, useControllableState, useMergedRefs } from '../../hooks';
 import { dayOfWeekIndex, localeFirstDayOfWeek } from '../../internal/date/dateFormat';
@@ -11,10 +11,12 @@ import { CgLiveAnnouncer } from '../LiveAnnouncer';
 import type { CgLiveAnnouncerHandle } from '../LiveAnnouncer';
 import styles from './CgMonthCalendar.module.css';
 import type {
+  CgMonthCalendarHandle,
   CgMonthCalendarItem,
   CgMonthCalendarLabels,
   CgMonthCalendarMonthChangeReason,
   CgMonthCalendarProps,
+  CgMonthCalendarSelectedDayChangeReason,
 } from './CgMonthCalendar.types';
 import { addMonthsTo, assertTimeZone, dateOfDay, dayOfDate, monthCalendarFormats, monthOfDay, monthText, parseMonth, sameMonth, todayIn } from './monthCalendarDates';
 import type { CalendarMonth } from './monthCalendarDates';
@@ -23,7 +25,15 @@ import type { MonthSegment, PlacedItem } from './monthCalendarLayout';
 
 const MOVE_KEYS = 'Alt+ArrowLeft Alt+ArrowRight Alt+ArrowUp Alt+ArrowDown';
 
-type PendingFocus = { kind: 'day'; day: number } | { kind: 'item'; key: string; day: number };
+/** A day to focus after the next drawing, and with `create` to start a create on it then. */
+type PendingFocus = { kind: 'day'; day: number; create?: boolean } | { kind: 'item'; key: string; day: number };
+
+/** A date given to the calendar as a day number; a `RangeError` naming `what` when it is not a `YYYY-MM-DD` date. */
+function dayOfValue(value: string, what: string): number {
+  const day = typeof value === 'string' ? dayOfDate(value) : null;
+  if (day === null) throw new RangeError(`CgMonthCalendar ${what} '${String(value)}' is not a YYYY-MM-DD date.`);
+  return day;
+}
 
 function assertLabels<TData>(labels: CgMonthCalendarLabels<TData>, creates: boolean, moves: boolean): void {
   for (const name of ['grid', 'previousMonth', 'nextMonth', 'today'] as const) {
@@ -59,12 +69,13 @@ const dayCell = (element: HTMLElement): HTMLElement => element.closest<HTMLEleme
  * "+N more" list where a day is full. It has no editor: opening, creating and moving are callbacks.
  * The days are one tab stop moved by the arrows (mirrored in right to left), Home, End, PageUp and
  * PageDown; the items on the selected day follow it in the tab order, open with Enter and move with
- * Alt and the arrows, or by dragging.
+ * Alt and the arrows, or by dragging. `actionsRef` finds and marks days for a drag from outside the
+ * grid, and starts a create on a day.
  */
 function CgMonthCalendarInner<TData>(
   {
-    items, labels, month, defaultMonth, onMonthChange, locale, firstDayOfWeek, today, timeZone, maxItemRows = 3,
-    renderItem, onItemOpen, onCreate, onItemMove, className, style, ...nativeProps
+    items, labels, month, defaultMonth, onMonthChange, selectedDay, defaultSelectedDay, onSelectedDayChange, locale, firstDayOfWeek,
+    today, timeZone, maxItemRows = 3, renderItem, onItemOpen, onCreate, onItemMove, actionsRef, className, style, ...nativeProps
   }: CgMonthCalendarProps<TData>,
   forwardedRef: ForwardedRef<HTMLDivElement>,
 ) {
@@ -73,6 +84,8 @@ function CgMonthCalendarInner<TData>(
   assertTimeZone(timeZone);
   const todayDay = today === undefined ? todayIn(timeZone) : dayOfDate(today);
   if (todayDay === null) throw new RangeError(`CgMonthCalendar today '${String(today)}' is not a YYYY-MM-DD date.`);
+  const controlledDay = selectedDay === undefined ? undefined : dayOfValue(selectedDay, 'selectedDay');
+  const defaultDay = defaultSelectedDay === undefined ? undefined : dayOfValue(defaultSelectedDay, 'defaultSelectedDay');
 
   const baseId = useCgId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -82,8 +95,9 @@ function CgMonthCalendarInner<TData>(
   const pendingFocus = useRef<PendingFocus | null>(null);
   const stopDrag = useRef<(() => void) | null>(null);
   const marked = useRef<HTMLElement[]>([]);
-  const [monthValue, setMonthValue] = useControllableState<string>(month, defaultMonth ?? monthText(monthOfDay(todayDay)), 'CgMonthCalendar');
-  const [active, setActive] = useState<number | null>(null);
+  const [monthValue, setMonthValue] = useControllableState<string>(month, defaultMonth ?? monthText(monthOfDay(controlledDay ?? defaultDay ?? todayDay)), 'CgMonthCalendar');
+  // The selected day as a day number; null until one is chosen, when the stop is today or the first.
+  const [active, setActive] = useControllableState<number | null>(controlledDay, defaultDay ?? null, 'CgMonthCalendar selectedDay');
   const [more, setMore] = useState<{ day: number; anchor: HTMLElement } | null>(null);
   const [, setFocusRequests] = useState(0);
 
@@ -98,6 +112,7 @@ function CgMonthCalendarInner<TData>(
   useEffect(() => () => stopDrag.current?.(), []);
 
   // A day reached by the keys, or an item moved by them, is a new element: focus follows it there.
+  // A create started by the handle is called once its day is drawn, with the day's cell as anchor.
   useLayoutEffect(() => {
     const pending = pendingFocus.current;
     const root = rootRef.current;
@@ -108,8 +123,10 @@ function CgMonthCalendarInner<TData>(
       const pieces = [...root.querySelectorAll<HTMLElement>('[data-cg-month-item]')].filter((element) => element.dataset.cgMonthItem === pending.key);
       target = pieces.find((element) => Number(element.dataset.firstDay) <= pending.day && pending.day <= Number(element.dataset.lastDay)) ?? pieces[0];
     }
-    target ??= root.querySelector<HTMLElement>(`[data-cg-month-day="${pending.day}"]`) ?? root.querySelector<HTMLElement>('[data-cg-month-day][tabindex="0"]') ?? undefined;
+    const cell = root.querySelector<HTMLElement>(`[data-cg-month-day="${pending.day}"]`) ?? undefined;
+    target ??= cell ?? root.querySelector<HTMLElement>('[data-cg-month-day][tabindex="0"]') ?? undefined;
     target?.focus();
+    if (pending.kind === 'day' && pending.create && cell) onCreate?.(dateOfDay(pending.day), Object.freeze({ source: 'programmatic', anchor: cell }));
   });
 
   if (!shown || !layout) throw new RangeError(`CgMonthCalendar month '${monthValue}' is not a YYYY-MM month.`);
@@ -133,16 +150,58 @@ function CgMonthCalendarInner<TData>(
     setMonthValue(text);
     onMonthChange?.(text, Object.freeze({ reason, previousMonth: monthValue }));
   };
+  /** The roving stop goes to `day`; a day other than the one selected is reported. */
+  const select = (day: number, reason: CgMonthCalendarSelectedDayChangeReason) => {
+    const previous = active ?? activeDay;
+    setActive(day);
+    if (day !== previous) onSelectedDayChange?.(dateOfDay(day), Object.freeze({ reason, previousDay: dateOfDay(previous) }));
+  };
   const turn = (count: number) => {
     const next = addMonthsTo(shown, count);
-    setActive(dayOfDate(`${monthText(next)}-01`));
+    const first = dayOfDate(`${monthText(next)}-01`);
+    if (first !== null) select(first, count < 0 ? 'previous' : 'next');
     changeMonth(next, count < 0 ? 'previous' : 'next');
   };
   const goToDay = (day: number) => {
-    setActive(day);
+    select(day, 'keyboard');
     if (!sameMonth(monthOfDay(day), shown)) changeMonth(monthOfDay(day), 'keyboard');
     requestFocus({ kind: 'day', day });
   };
+
+  // ---- Drop marks and the handle -----------------------------------------------------------------
+  /** The days a drag would cover are marked in the DOM, by a drag in the grid or one from outside. */
+  const mark = (cells: HTMLElement[]) => {
+    for (const cell of marked.current) if (!cells.includes(cell)) cell.removeAttribute('data-drop');
+    for (const cell of cells) cell.setAttribute('data-drop', '');
+    marked.current = cells;
+  };
+  const dayElement = (day: number) => rootRef.current?.querySelector<HTMLElement>(`[data-cg-month-day="${day}"]`) ?? null;
+  // Each method reads the drawing of the moment: only a create draws again.
+  useImperativeHandle(actionsRef, (): CgMonthCalendarHandle => ({
+    dayAt: (x, y) => {
+      const scroller = scrollerRef.current;
+      if (!scroller) return null;
+      const box = scroller.getBoundingClientRect();
+      if (x < box.left || x >= box.right || y < box.top || y >= box.bottom) return null;
+      for (const element of scroller.querySelectorAll<HTMLElement>('[data-cg-month-day]')) {
+        const rect = element.getBoundingClientRect();
+        if (x >= rect.left && x < rect.right && y >= rect.top && y < rect.bottom) return dateOfDay(Number(element.dataset.cgMonthDay));
+      }
+      return null;
+    },
+    markDropDay: (date) => {
+      const cell = date === null ? null : dayElement(dayOfValue(date, 'markDropDay'));
+      mark(cell ? [cell] : []);
+    },
+    getDayElement: (date) => dayElement(dayOfValue(date, 'getDayElement')),
+    startCreate: (date) => {
+      const day = dayOfValue(date, 'startCreate');
+      setMore(null);
+      select(day, 'programmatic');
+      if (!sameMonth(monthOfDay(day), shown)) changeMonth(monthOfDay(day), 'programmatic');
+      requestFocus({ kind: 'day', day, create: true });
+    },
+  }));
 
   // ---- Names -------------------------------------------------------------------------------------
   const titleOf = (item: CgMonthCalendarItem<TData>) => (item.title.trim() ? item.title : labels.untitled ?? item.title);
@@ -171,11 +230,6 @@ function CgMonthCalendarInner<TData>(
     onItemMove(placed.item, Object.freeze({ start: next.start, end: next.end, days, source }));
     const message = labels.moved?.(placed.item, formats.longDate(placed.start + days));
     if (message) live.current?.announce(message);
-  };
-  const mark = (cells: HTMLElement[]) => {
-    for (const cell of marked.current) if (!cells.includes(cell)) cell.removeAttribute('data-drop');
-    for (const cell of cells) cell.setAttribute('data-drop', '');
-    marked.current = cells;
   };
 
   // A drag is followed outside React: the days it would cover are marked in the DOM, and only the
@@ -258,7 +312,7 @@ function CgMonthCalendarInner<TData>(
     const last = Number(event.currentTarget.dataset.lastDay);
     const to = (activeDay >= first && activeDay <= last ? activeDay : first) + step;
     move(placed, step, 'keyboard');
-    setActive(to);
+    select(to, 'move');
     if (!sameMonth(monthOfDay(to), shown)) changeMonth(monthOfDay(to), 'move');
     requestFocus({ kind: 'item', key: placed.item.key, day: to });
   };
@@ -304,7 +358,7 @@ function CgMonthCalendarInner<TData>(
       <div id={titleId} className={styles.title} aria-live="polite">{formats.monthHeading(shown)}</div>
       <div className={styles.navigation}>
         <CgButton appearance="ghost" size="small" aria-label={labels.previousMonth} title={labels.previousMonth} onClick={() => turn(-1)}><CgIcon name="chevron-start" /></CgButton>
-        <CgButton appearance="outline" size="small" onClick={() => { setActive(todayDay); changeMonth(monthOfDay(todayDay), 'today'); }}>{labels.today}</CgButton>
+        <CgButton appearance="outline" size="small" onClick={() => { select(todayDay, 'today'); changeMonth(monthOfDay(todayDay), 'today'); }}>{labels.today}</CgButton>
         <CgButton appearance="ghost" size="small" aria-label={labels.nextMonth} title={labels.nextMonth} onClick={() => turn(1)}><CgIcon name="chevron-end" /></CgButton>
       </div>
     </div>
@@ -330,7 +384,7 @@ function CgMonthCalendarInner<TData>(
               data-cg-month-day={day}
               data-outside={inMonth(day) ? undefined : ''}
               data-today={day === todayDay ? '' : undefined}
-              onFocus={() => setActive(day)}
+              onFocus={() => select(day, 'focus')}
               onKeyDown={(event) => onDayKeyDown(event, day)}
               onDoubleClick={(event) => onDayDoubleClick(event, day)}
             >

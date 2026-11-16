@@ -1,4 +1,4 @@
-import type { HTMLAttributes, ReactNode } from 'react';
+import type { HTMLAttributes, ReactNode, Ref } from 'react';
 import type { CgDateValue, CgDayOfWeek } from '../../types/date';
 
 /** A month as `YYYY-MM`, such as `2026-11`. */
@@ -88,7 +88,8 @@ export interface CgMonthCalendarOpenDetails {
   readonly anchor: HTMLElement;
 }
 
-export type CgMonthCalendarCreateSource = 'button' | 'doubleClick' | 'keyboard';
+/** `programmatic` is a call to the handle's `startCreate`. */
+export type CgMonthCalendarCreateSource = 'button' | 'doubleClick' | 'keyboard' | 'programmatic';
 
 export interface CgMonthCalendarCreateDetails {
   readonly source: CgMonthCalendarCreateSource;
@@ -106,11 +107,56 @@ export interface CgMonthCalendarMoveDetails {
   readonly source: 'pointer' | 'keyboard';
 }
 
-export type CgMonthCalendarMonthChangeReason = 'previous' | 'next' | 'today' | 'keyboard' | 'move';
+/** `programmatic` is a call to the handle's `startCreate` on a day of another month. */
+export type CgMonthCalendarMonthChangeReason = 'previous' | 'next' | 'today' | 'keyboard' | 'move' | 'programmatic';
 
 export interface CgMonthCalendarMonthChangeDetails {
   readonly reason: CgMonthCalendarMonthChangeReason;
   readonly previousMonth: CgMonthCalendarMonth;
+}
+
+/**
+ * What moved the selected day: the arrows, Home, End, PageUp or PageDown (`keyboard`); a day, or a
+ * control in it, taking focus, as a click does (`focus`); the month buttons (`previous`, `next`,
+ * `today`); an item moved with Alt and the arrows (`move`); the handle's `startCreate` (`programmatic`).
+ */
+export type CgMonthCalendarSelectedDayChangeReason = 'keyboard' | 'focus' | 'previous' | 'next' | 'today' | 'move' | 'programmatic';
+
+export interface CgMonthCalendarSelectedDayChangeDetails {
+  readonly reason: CgMonthCalendarSelectedDayChangeReason;
+  /** The day selected before (`YYYY-MM-DD`). */
+  readonly previousDay: CgDateValue;
+}
+
+/**
+ * What `actionsRef` gives, for what happens outside the grid: a drag from a list of the caller's own
+ * onto a day, or a create started from a toolbar. Dates are `YYYY-MM-DD`; a method given anything
+ * else throws a `RangeError`. The day cells' attributes are not part of this contract: use
+ * `dayAt` and `getDayElement`.
+ */
+export interface CgMonthCalendarHandle {
+  /**
+   * The day whose cell is under a viewport point (a pointer event's `clientX` and `clientY`), a day
+   * of the month before or after included; null off the days or outside the visible part of the
+   * grid. It reads the layout and draws nothing, so it can be called on every pointer move.
+   */
+  dayAt(x: number, y: number): CgDateValue | null;
+  /**
+   * Marks a day as the drop target, as a drag inside the grid marks one (`data-drop` on its cell),
+   * or clears the mark with null. Written to the DOM: nothing is drawn again. A day whose week is
+   * not shown marks nothing.
+   */
+  markDropDay(date: CgDateValue | null): void;
+  /** The day's cell while its week is shown, else null: an anchor for an editor of the caller's own. */
+  getDayElement(date: CgDateValue): HTMLElement | null;
+  /**
+   * Starts a create on a day: turns to its month when it is not the one shown (`onMonthChange` with
+   * `programmatic`), selects and focuses the day, then calls `onCreate` with the source
+   * `programmatic` and the day's cell as anchor once the cell is drawn. A controlled `month` the
+   * caller does not turn leaves the day unshown, and `onCreate` is not called. Without `onCreate`
+   * it only selects and focuses the day.
+   */
+  startCreate(date: CgDateValue): void;
 }
 
 type NativeMonthCalendarProps = Omit<HTMLAttributes<HTMLDivElement>, 'children' | 'defaultValue' | 'onChange' | 'dangerouslySetInnerHTML'>;
@@ -120,9 +166,21 @@ export interface CgMonthCalendarProps<TData = unknown> extends NativeMonthCalend
   labels: CgMonthCalendarLabels<TData>;
   /** The month shown (`YYYY-MM`), controlled. */
   month?: CgMonthCalendarMonth;
-  /** The first month shown when uncontrolled. Default: today's. */
+  /** The first month shown when uncontrolled. Default: the month of `selectedDay` or `defaultSelectedDay` when given, else today's. */
   defaultMonth?: CgMonthCalendarMonth;
   onMonthChange?: (month: CgMonthCalendarMonth, details: CgMonthCalendarMonthChangeDetails) => void;
+  /**
+   * The selected day (`YYYY-MM-DD`), controlled: the days' one tab stop, marked `aria-selected`.
+   * Keyboard moves, clicks and the month buttons report a new one through `onSelectedDayChange`; a
+   * move into another month turns the month as before. Setting it does not turn the month: a day
+   * whose week is not shown leaves the stop on today in the month shown, else on its first day.
+   */
+  selectedDay?: CgDateValue;
+  /** The first selected day when uncontrolled. Default: today in the month shown, else its first day. */
+  defaultSelectedDay?: CgDateValue;
+  onSelectedDayChange?: (date: CgDateValue, details: CgMonthCalendarSelectedDayChangeDetails) => void;
+  /** Finding and marking days from outside the grid, and starting a create on one. `ref` stays the root element. */
+  actionsRef?: Ref<CgMonthCalendarHandle>;
   /** Month and weekday names, day numbers and times. Default: the browser's. */
   locale?: string;
   /** Default: the locale's (Saturday in most Arabic regions, Sunday in the United States). */
@@ -138,8 +196,9 @@ export interface CgMonthCalendarProps<TData = unknown> extends NativeMonthCalend
   /** An item was clicked, or Enter or Space pressed on it, or it was chosen from a day's list. */
   onItemOpen?: (item: CgMonthCalendarItem<TData>, details: CgMonthCalendarOpenDetails) => void;
   /**
-   * A day's "+" was pressed, the day was double-clicked, or Enter pressed on it: `date` is
-   * `YYYY-MM-DD`. Without it, days have no create button.
+   * A day's "+" was pressed, the day was double-clicked, Enter pressed on it, or the handle's
+   * `startCreate` called: `date` is `YYYY-MM-DD`, the anchor the day's cell. Without it, days have
+   * no create button.
    */
   onCreate?: (date: CgDateValue, details: CgMonthCalendarCreateDetails) => void;
   /**

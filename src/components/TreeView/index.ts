@@ -24,6 +24,7 @@ export type {
   CgTreeViewMoveDetails,
   CgTreeViewMoveLabels,
   CgTreeViewMoveSource,
+  CgTreeViewNodeCurrent,
   CgTreeViewNodeDescriptor,
   CgTreeViewNodeDetails,
   CgTreeViewNodeRenderContext,

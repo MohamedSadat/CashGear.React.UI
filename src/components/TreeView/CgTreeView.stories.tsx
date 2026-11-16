@@ -305,6 +305,107 @@ function VirtualExample() {
   </StoryFrame>;
 }
 
+// ---- The Workspace sidebar's sections, open page and row actions.
+interface SidebarPage {
+  key: string;
+  title: string;
+  /** A section heading: it never folds, and is not a page to open. */
+  section?: boolean;
+  children?: SidebarPage[];
+}
+
+const sidebarPages: SidebarPage[] = [
+  { key: 'workspace', title: 'المساحة', section: true, children: [
+    { key: 'handbook', title: 'دليل الموظفين', children: [{ key: 'welcome', title: 'مرحبًا بك' }, { key: 'leave', title: 'سياسة الإجازات' }] },
+    { key: 'projects', title: 'المشاريع', children: [{ key: 'website', title: 'الموقع الإلكتروني' }, { key: 'payroll', title: 'الرواتب' }] },
+    { key: 'tasks', title: 'قاعدة بيانات المهام' },
+  ] },
+  { key: 'private', title: 'خاص', section: true, children: [{ key: 'notes', title: 'ملاحظاتي' }] },
+];
+
+function sidebarNodes(pages: ReadonlyArray<SidebarPage>, current: string): CgTreeViewNodeDescriptor<SidebarPage>[] {
+  return pages.map((page) => ({
+    key: page.key,
+    text: page.title,
+    item: page,
+    ...(page.section
+      ? {
+          collapsible: false,
+          allowSelection: false,
+          nodeRenderer: () => <span style={{ fontWeight: 600, color: 'var(--cg-text-secondary)' }}>{page.title}</span>,
+        }
+      : { icon: 'page' as const }),
+    ...(page.key === current ? { current: 'page' as const } : {}),
+    ...(page.children ? { children: sidebarNodes(page.children, current) } : {}),
+  }));
+}
+
+function SidebarExample() {
+  const [pages, setPages] = useState<SidebarPage[]>(sidebarPages);
+  const [current, setCurrent] = useState('welcome');
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set(['handbook']));
+  const [action, setAction] = useState('none');
+  const created = useRef(0);
+  const nodes = useMemo(() => sidebarNodes(pages, current), [pages, current]);
+  // The app's own shortcut, as the Workspace's Ctrl+K: it reaches the window while a row has focus.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'k') return;
+      event.preventDefault();
+      setAction('shortcut:k');
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+  const addInside = (parentKey: string) => {
+    created.current += 1;
+    const key = `new-${created.current}`;
+    const add = (list: ReadonlyArray<SidebarPage>): SidebarPage[] => list.map((page) => page.key === parentKey
+      ? { ...page, children: [...(page.children ?? []), { key, title: 'صفحة جديدة' }] }
+      : page.children ? { ...page, children: add(page.children) } : page);
+    setPages(add);
+    setExpanded((keys) => new Set(keys).add(parentKey));
+    setAction(`add:${parentKey}:${key}`);
+  };
+  return <StoryFrame
+    source={pageTreeSource}
+    difference="Section headings never fold (collapsible false: no toggle, always open, aria-expanded true); the open page carries aria-current, apart from the selection; a row is named by its title alone, its actions outside that name; Ctrl+K on a row reaches the app."
+  >
+    <div style={{ display: 'grid', gap: 8, inlineSize: 'min(20rem, 100%)' }}>
+      <div style={{ padding: 4, border: '1px solid var(--cg-border)', borderRadius: 8, background: 'var(--cg-surface)' }}>
+        <CgTreeView<SidebarPage>
+          nodes={nodes}
+          aria-label="الشريط الجانبي"
+          data-testid="sidebar-tree"
+          arrowKeys="logical"
+          size="small"
+          textWrap={false}
+          defaultSelectedKey="tasks"
+          expandedKeys={expanded}
+          onExpandedKeysChange={(keys) => setExpanded(keys)}
+          labels={{ expand: 'توسيع {0}', collapse: 'طي {0}' }}
+          onNodeActivate={({ key, node }) => {
+            if (!key || node?.item?.section) return;
+            setCurrent(key);
+            setAction(`open:${key}`);
+          }}
+          renderActions={({ key, item }) => {
+            const title = item?.title ?? key;
+            if (item?.section) return <button type="button" tabIndex={-1} style={actionButton} aria-label={`إضافة صفحة في «${title}»`} title={`إضافة صفحة في «${title}»`} onClick={() => addInside(key)}><CgIcon name="add" /></button>;
+            return <>
+              <button type="button" tabIndex={-1} style={actionButton} aria-label={`خيارات «${title}»`} title={`خيارات «${title}»`} onClick={() => setAction(`more:${key}`)}><CgIcon name="more" /></button>
+              <button type="button" tabIndex={-1} style={actionButton} aria-label={`إضافة صفحة داخل «${title}»`} title={`إضافة صفحة داخل «${title}»`} onClick={() => addInside(key)}><CgIcon name="add" /></button>
+            </>;
+          }}
+        />
+      </div>
+      <output data-testid="current-page">{current}</output>
+      <output data-testid="last-tree-action">{action}</output>
+    </div>
+  </StoryFrame>;
+}
+
 export const PageTreeArabic: Story = { globals: { direction: 'rtl' }, render: () => <PageTreeExample initialExpanded={['workspace', 'start', 'private']} /> };
+export const SidebarSectionsArabic: Story = { globals: { direction: 'rtl' }, render: () => <SidebarExample /> };
 export const PageTreeDark: Story = { globals: { theme: 'dark', direction: 'rtl' }, render: () => <PageTreeExample initialExpanded={['workspace', 'projects', 'shared']} /> };
 export const VirtualFiveThousand: Story = { render: () => <VirtualExample /> };

@@ -152,4 +152,20 @@ describe('CgCommandMenu', () => {
     expect(() => render(<CgCommandMenu items={blocks} label="" emptyText="x" onSelect={() => undefined} />)).toThrow(/label/u);
     expect(() => render(<CgCommandMenu items={blocks} label="x" searchable emptyText="x" onSelect={() => undefined} />)).toThrow(/searchLabel/u);
   });
+
+  it('acts only on the keys it is given, leaving the others to the editor', () => {
+    const ref = createRef<CgCommandMenuHandle>();
+    render(<CgCommandMenu ref={ref} items={blocks} label="الكتل" emptyText="x" onSelect={() => undefined} handledKeys={['ArrowUp', 'ArrowDown', 'Enter', 'Escape']} />);
+    const key = (name: string) => {
+      const event = new KeyboardEvent('keydown', { key: name, cancelable: true });
+      let used = false;
+      act(() => { used = ref.current!.handleKeyDown(event); });
+      return { used, prevented: event.defaultPrevented };
+    };
+    expect(key('End')).toEqual({ used: false, prevented: false });
+    expect(key('Home')).toEqual({ used: false, prevented: false });
+    expect(screen.getAllByRole('option')[0]).toHaveAttribute('aria-selected', 'true');
+    expect(key('ArrowDown').used).toBe(true);
+    expect(screen.getAllByRole('option')[1]).toHaveAttribute('aria-selected', 'true');
+  });
 });

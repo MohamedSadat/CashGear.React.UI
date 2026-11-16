@@ -7,11 +7,12 @@ import type { CgFlyoutOpenChangeDetails } from '../Flyout';
 import { CgIcon } from '../Icon';
 import type { CgIconName } from '../../types';
 import styles from './CgCommandMenu.module.css';
-import type { CgCommandMenuHandle, CgCommandMenuItem, CgCommandMenuProps } from './CgCommandMenu.types';
+import type { CgCommandMenuHandle, CgCommandMenuItem, CgCommandMenuKey, CgCommandMenuProps } from './CgCommandMenu.types';
 import { commandMatches, groupCommands } from './commandFilter';
 
 const ICON_NAME = /^[a-z][a-z0-9-]*$/u;
 const PAGE = 8;
+const ALL_KEYS: readonly CgCommandMenuKey[] = ['ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown', 'Enter', 'Tab', 'Escape'];
 
 function drawIcon(icon: CgCommandMenuItem['icon']): ReactNode {
   if (icon === undefined || icon === null || icon === false) return null;
@@ -39,6 +40,7 @@ function CgCommandMenuInner<TData>(
     loading = false,
     loadingText,
     selectOnTab = false,
+    handledKeys = ALL_KEYS,
     onActiveDescendantChange,
     renderItem,
     maxHeight = '20rem',
@@ -112,6 +114,7 @@ function CgCommandMenuInner<TData>(
     if (native.isComposing || native.keyCode === 229) return false;
     const { enabledIndexes: enabled, activeItem: item, loading: busy } = stateRef.current;
     let used = true;
+    if (!handledKeys.includes(event.key as CgCommandMenuKey)) return false;
     switch (event.key) {
       case 'ArrowDown': move(1); break;
       case 'ArrowUp': move(-1); break;

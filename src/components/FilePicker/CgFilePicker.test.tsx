@@ -42,7 +42,7 @@ describe('CgFilePicker', () => {
     await userEvent.click(screen.getByRole('button', { name: 'اختر ملفاً' }));
     expect(click).toHaveBeenCalledTimes(1);
     await userEvent.upload(input, csv);
-    expect(onPick).toHaveBeenCalledWith([csv], { source: 'dialog' });
+    expect(onPick).toHaveBeenCalledWith([csv], { source: 'dialog', paths: expect.any(Array) });
     expect(input.value).toBe('');
   });
 
@@ -52,11 +52,11 @@ describe('CgFilePicker', () => {
     const { container, rerender } = render(<CgFilePicker accept=".csv,.tsv" onPick={onPick} onReject={onReject}>ملفات</CgFilePicker>);
     const input = container.querySelector<HTMLInputElement>('input')!;
     fireEvent.change(input, { target: { files: [csv, tsv, png] } });
-    expect(onPick).toHaveBeenLastCalledWith([csv], { source: 'dialog' });
-    expect(onReject).toHaveBeenLastCalledWith([png], { source: 'dialog' });
+    expect(onPick).toHaveBeenLastCalledWith([csv], { source: 'dialog', paths: expect.any(Array) });
+    expect(onReject).toHaveBeenLastCalledWith([png], { source: 'dialog', paths: expect.any(Array) });
     rerender(<CgFilePicker accept=".csv,.tsv" multiple onPick={onPick} onReject={onReject}>ملفات</CgFilePicker>);
     fireEvent.change(input, { target: { files: [csv, tsv] } });
-    expect(onPick).toHaveBeenLastCalledWith([csv, tsv], { source: 'dialog' });
+    expect(onPick).toHaveBeenLastCalledWith([csv, tsv], { source: 'dialog', paths: expect.any(Array) });
     onPick.mockClear();
     fireEvent.change(input, { target: { files: [png] } });
     expect(onPick).not.toHaveBeenCalled();
@@ -73,7 +73,7 @@ describe('CgFilePicker', () => {
     expect(zone).toHaveAttribute('data-drag-over');
     expect(drop(zone, [csv], 'dragover').defaultPrevented).toBe(true);
     drop(zone, [csv]);
-    expect(onPick).toHaveBeenCalledWith([csv], { source: 'drop' });
+    expect(onPick).toHaveBeenCalledWith([csv], { source: 'drop', paths: expect.any(Array) });
     expect(zone).not.toHaveAttribute('data-drag-over');
   });
 
@@ -101,5 +101,21 @@ describe('CgFilePicker', () => {
     expect(screen.getByRole('button', { name: 'اختر' })).toHaveFocus();
     input.dispatchEvent(new Event('cancel'));
     expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('chooses a folder: every matching file, with its path below the folder', async () => {
+    const onPick = vi.fn();
+    const onReject = vi.fn();
+    const { container } = render(<CgFilePicker directory accept=".md" onPick={onPick} onReject={onReject}>اختر مجلداً</CgFilePicker>);
+    const input = container.querySelector<HTMLInputElement>('input')!;
+    expect(input).toHaveAttribute('webkitdirectory');
+    expect(input.multiple).toBe(true);
+    const note = new File(['# x'], 'plan.md', { type: 'text/markdown' });
+    Object.defineProperty(note, 'webkitRelativePath', { value: 'notes/2026/plan.md' });
+    const image = new File(['x'], 'logo.png', { type: 'image/png' });
+    Object.defineProperty(image, 'webkitRelativePath', { value: 'notes/logo.png' });
+    fireEvent.change(input, { target: { files: [note, image] } });
+    expect(onPick).toHaveBeenCalledWith([note], { source: 'dialog', paths: ['notes/2026/plan.md'] });
+    expect(onReject).toHaveBeenCalledWith([image], { source: 'dialog', paths: ['notes/logo.png'] });
   });
 });

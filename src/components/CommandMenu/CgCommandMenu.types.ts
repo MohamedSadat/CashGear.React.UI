@@ -19,6 +19,9 @@ export interface CgCommandMenuItem<TData = unknown> {
   data?: TData;
 }
 
+/** A key the command menu can act on. */
+export type CgCommandMenuKey = 'ArrowUp' | 'ArrowDown' | 'Home' | 'End' | 'PageUp' | 'PageDown' | 'Enter' | 'Tab' | 'Escape';
+
 export interface CgCommandMenuSelectDetails {
   readonly source: 'keyboard' | 'pointer';
 }
@@ -89,6 +92,12 @@ export interface CgCommandMenuProps<TData = unknown> extends Omit<HTMLAttributes
   loading?: boolean;
   /** Shown while `loading` and nothing matches yet. */
   loadingText?: ReactNode;
+  /**
+   * The keys the menu acts on, through `handleKeyDown` and in its search box. Default all of them.
+   * An editor showing the menu at its caret can leave out Home and End (and PageUp, PageDown) so
+   * they keep moving the caret in the text.
+   */
+  handledKeys?: readonly CgCommandMenuKey[];
   /** Tab chooses the active option, as in an editor's slash menu. Default false. */
   selectOnTab?: boolean;
   /** Reports the active option's id, for a host that keeps focus and sets `aria-activedescendant`. */

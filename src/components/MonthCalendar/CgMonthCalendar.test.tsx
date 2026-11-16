@@ -1,10 +1,11 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useState } from 'react';
+import { createRef, useState } from 'react';
 import type { ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
+import { cgTrackDrag } from '../DragDrop';
 import { CgMonthCalendar } from './CgMonthCalendar';
-import type { CgMonthCalendarItem, CgMonthCalendarLabels, CgMonthCalendarMoveDetails } from './CgMonthCalendar.types';
+import type { CgMonthCalendarHandle, CgMonthCalendarItem, CgMonthCalendarLabels, CgMonthCalendarMoveDetails, CgMonthCalendarSelectedDayChangeDetails } from './CgMonthCalendar.types';
 import { dayOfDate } from './monthCalendarDates';
 
 const arabicDate = new Intl.DateTimeFormat('ar', { calendar: 'gregory', timeZone: 'UTC', dateStyle: 'full' });
@@ -321,5 +322,171 @@ describe('CgMonthCalendar', () => {
     expect(() => render(<CgMonthCalendar {...base} labels={labels} month="2026-13" />)).toThrow(/2026-13/u);
     expect(() => render(<CgMonthCalendar {...base} labels={labels} today="16/11/2026" />)).toThrow(/today/u);
     expect(() => render(<CgMonthCalendar {...base} labels={labels} timeZone="Mars/Olympus" />)).toThrow(/timeZone/u);
+  });
+});
+
+describe('CgMonthCalendar from outside the grid', () => {
+  it('finds the day under a viewport point, only where the grid is visible', () => {
+    const handle = createRef<CgMonthCalendarHandle>();
+    render(<Host actionsRef={handle} />);
+    layOutDays();
+    // The grid starts on Saturday 31 October: 16 November is the 17th cell (row 2, column 2).
+    expect(handle.current!.dayAt(250, 250)).toBe('2026-11-16');
+    expect(handle.current!.dayAt(50, 50)).toBe('2026-10-31');
+    expect(handle.current!.dayAt(699, 499)).toBe('2026-12-04');
+    expect(handle.current!.dayAt(250, 520)).toBeNull();
+    expect(handle.current!.dayAt(750, 250)).toBeNull();
+    expect(handle.current!.dayAt(-5, 250)).toBeNull();
+    // A cell scrolled out of the scroller's box is not under the point.
+    screen.getByRole('grid').parentElement!.getBoundingClientRect = () => DOMRect.fromRect({ x: 0, y: 0, width: 700, height: 250 });
+    expect(handle.current!.dayAt(250, 240)).toBe('2026-11-16');
+    expect(handle.current!.dayAt(250, 260)).toBeNull();
+  });
+
+  it('marks one drop day in the DOM without drawing again, and gives a day cell', () => {
+    const handle = createRef<CgMonthCalendarHandle>();
+    const renderItem = vi.fn((item: CgMonthCalendarItem) => item.title);
+    render(<Host actionsRef={handle} renderItem={renderItem} />);
+    const drawn = renderItem.mock.calls.length;
+    const dropDays = () => [...screen.getByRole('grid').querySelectorAll('[data-drop]')];
+    handle.current!.markDropDay('2026-11-16');
+    expect(dropDays()).toEqual([cell('2026-11-16')]);
+    handle.current!.markDropDay('2026-11-17');
+    expect(dropDays()).toEqual([cell('2026-11-17')]);
+    handle.current!.markDropDay('2027-03-01');
+    expect(dropDays()).toEqual([]);
+    handle.current!.markDropDay('2026-12-05');
+    handle.current!.markDropDay(null);
+    expect(dropDays()).toEqual([]);
+    expect(renderItem).toHaveBeenCalledTimes(drawn);
+    expect(handle.current!.getDayElement('2026-11-16')).toBe(cell('2026-11-16'));
+    expect(handle.current!.getDayElement('2026-10-31')).toBe(cell('2026-10-31'));
+    expect(handle.current!.getDayElement('2026-12-25')).toBeNull();
+    expect(() => handle.current!.markDropDay('16/11/2026')).toThrow(RangeError);
+    expect(() => handle.current!.getDayElement('2026-02-30')).toThrow(/getDayElement '2026-02-30'/u);
+    expect(() => handle.current!.startCreate('')).toThrow(RangeError);
+  });
+
+  it('marks and finds the day under a drag from a list of its own, as a drag in the grid does', () => {
+    vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'setTimeout'] });
+    const handle = createRef<CgMonthCalendarHandle>();
+    const onDrop = vi.fn();
+    render(<>
+      <Host actionsRef={handle} />
+      <button
+        type="button"
+        onPointerDown={(event) => cgTrackDrag(event, event.currentTarget, {
+          ghost: false,
+          onMove: (x, y) => handle.current?.markDropDay(handle.current.dayAt(x, y)),
+          onDrop: (x, y) => { handle.current?.markDropDay(null); onDrop(handle.current?.dayAt(x, y)); },
+          onCancel: () => handle.current?.markDropDay(null),
+        })}
+      >بلا تاريخ</button>
+    </>);
+    layOutDays();
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'بلا تاريخ' }), { button: 0, pointerId: 1, clientX: 900, clientY: 900 });
+    act(() => { window.dispatchEvent(pointer('pointermove', 250, 250)); });
+    act(() => { vi.advanceTimersByTime(20); });
+    expect(cell('2026-11-16')).toHaveAttribute('data-drop');
+    act(() => { window.dispatchEvent(pointer('pointermove', 950, 250)); });
+    act(() => { vi.advanceTimersByTime(20); });
+    expect(screen.getByRole('grid').querySelectorAll('[data-drop]')).toHaveLength(0);
+    act(() => { window.dispatchEvent(pointer('pointermove', 350, 250)); });
+    act(() => { vi.advanceTimersByTime(20); });
+    expect(cell('2026-11-17')).toHaveAttribute('data-drop');
+    act(() => { window.dispatchEvent(pointer('pointerup', 350, 250)); });
+    expect(onDrop).toHaveBeenCalledWith('2026-11-17');
+    expect(screen.getByRole('grid').querySelectorAll('[data-drop]')).toHaveLength(0);
+  });
+
+  it('lets the caller hold the selected day: keys, clicks, the month buttons and moves report it', async () => {
+    const onSelectedDayChange = vi.fn<(date: string, details: CgMonthCalendarSelectedDayChangeDetails) => void>();
+    function Controlled() {
+      const [day, setDay] = useState('2026-12-05');
+      return <>
+        <Host defaultMonth={undefined} selectedDay={day} onSelectedDayChange={(date, details) => { onSelectedDayChange(date, details); setDay(date); }} />
+        <output data-testid="day">{day}</output>
+      </>;
+    }
+    render(<Controlled />);
+    // With no month given, the selected day's is shown.
+    expect(screen.getByText('ديسمبر 2026')).toBeInTheDocument();
+    expect(cell('2026-12-05')).toHaveAttribute('aria-selected', 'true');
+    expect(cell('2026-12-05')).toHaveAttribute('tabindex', '0');
+    act(() => cell('2026-12-05').focus());
+    expect(onSelectedDayChange).not.toHaveBeenCalled();
+    await userEvent.keyboard('{ArrowLeft}');
+    expect(onSelectedDayChange).toHaveBeenLastCalledWith('2026-12-06', { reason: 'keyboard', previousDay: '2026-12-05' });
+    expect(cell('2026-12-06')).toHaveFocus();
+    expect(screen.getByTestId('day')).toHaveTextContent('2026-12-06');
+    await userEvent.click(cell('2026-12-10'));
+    expect(onSelectedDayChange).toHaveBeenLastCalledWith('2026-12-10', { reason: 'focus', previousDay: '2026-12-06' });
+    expect(cell('2026-12-10')).toHaveAttribute('tabindex', '0');
+    fireEvent.click(screen.getByRole('button', { name: 'الشهر التالي' }));
+    expect(onSelectedDayChange).toHaveBeenLastCalledWith('2027-01-01', { reason: 'next', previousDay: '2026-12-10' });
+    fireEvent.click(screen.getByRole('button', { name: 'اليوم' }));
+    expect(onSelectedDayChange).toHaveBeenLastCalledWith('2026-11-16', { reason: 'today', previousDay: '2027-01-01' });
+    expect(screen.getByText('نوفمبر 2026')).toBeInTheDocument();
+    act(() => bars('مراجعة الميزانية')[0]!.focus());
+    await userEvent.keyboard('{Alt>}{ArrowLeft}{/Alt}');
+    expect(onSelectedDayChange).toHaveBeenLastCalledWith('2026-11-17', { reason: 'move', previousDay: '2026-11-16' });
+    expect(screen.getByTestId('day')).toHaveTextContent('2026-11-17');
+    expect(onSelectedDayChange).toHaveBeenCalledTimes(5);
+  });
+
+  it('keeps a controlled selected day the caller does not change, and starts uncontrolled on defaultSelectedDay', async () => {
+    const onSelectedDayChange = vi.fn();
+    const { unmount } = render(<Host selectedDay="2026-11-10" onSelectedDayChange={onSelectedDayChange} />);
+    expect(cell('2026-11-10')).toHaveAttribute('tabindex', '0');
+    act(() => cell('2026-11-10').focus());
+    await userEvent.keyboard('{ArrowLeft}');
+    expect(onSelectedDayChange).toHaveBeenCalledWith('2026-11-11', { reason: 'keyboard', previousDay: '2026-11-10' });
+    expect(cell('2026-11-10')).toHaveAttribute('tabindex', '0');
+    expect(cell('2026-11-11')).toHaveAttribute('tabindex', '-1');
+    unmount();
+    render(<Host defaultMonth={undefined} defaultSelectedDay="2027-02-14" />);
+    expect(screen.getByText('فبراير 2027')).toBeInTheDocument();
+    expect(cell('2027-02-14')).toHaveAttribute('aria-selected', 'true');
+    expect(cell('2027-02-14')).toHaveAttribute('tabindex', '0');
+  });
+
+  it('needs a sound selected day', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    expect(() => render(<CgMonthCalendar items={[]} labels={labels} today="2026-11-16" selectedDay="tomorrow" />)).toThrow(/selectedDay 'tomorrow'/u);
+    expect(() => render(<CgMonthCalendar items={[]} labels={labels} today="2026-11-16" defaultSelectedDay="2026-13-01" />)).toThrow(/defaultSelectedDay/u);
+  });
+
+  it('starts a create on a day from outside: turns to its month, selects and focuses it, then calls onCreate with its cell', () => {
+    const handle = createRef<CgMonthCalendarHandle>();
+    const onCreate = vi.fn();
+    const onMonthChange = vi.fn();
+    const onSelectedDayChange = vi.fn();
+    render(<Host actionsRef={handle} onCreate={onCreate} onMonthChange={onMonthChange} onSelectedDayChange={onSelectedDayChange} />);
+    act(() => handle.current!.startCreate('2026-11-20'));
+    expect(cell('2026-11-20')).toHaveFocus();
+    expect(cell('2026-11-20')).toHaveAttribute('tabindex', '0');
+    expect(onCreate).toHaveBeenCalledWith('2026-11-20', { source: 'programmatic', anchor: cell('2026-11-20') });
+    expect(onSelectedDayChange).toHaveBeenLastCalledWith('2026-11-20', { reason: 'programmatic', previousDay: '2026-11-16' });
+    expect(onMonthChange).not.toHaveBeenCalled();
+    act(() => handle.current!.startCreate('2027-01-05'));
+    expect(onMonthChange).toHaveBeenCalledWith('2027-01', { reason: 'programmatic', previousMonth: '2026-11' });
+    expect(screen.getByText('يناير 2027')).toBeInTheDocument();
+    expect(cell('2027-01-05')).toHaveFocus();
+    expect(onCreate).toHaveBeenLastCalledWith('2027-01-05', { source: 'programmatic', anchor: cell('2027-01-05') });
+    expect(onCreate).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not create on a day a controlled month keeps out of view, and only selects without onCreate', () => {
+    const handle = createRef<CgMonthCalendarHandle>();
+    const onCreate = vi.fn();
+    const { unmount } = render(<Host month="2026-11" actionsRef={handle} onCreate={onCreate} />);
+    act(() => handle.current!.startCreate('2027-01-05'));
+    expect(screen.getByText('نوفمبر 2026')).toBeInTheDocument();
+    expect(onCreate).not.toHaveBeenCalled();
+    unmount();
+    render(<Host actionsRef={handle} />);
+    act(() => handle.current!.startCreate('2026-11-09'));
+    expect(cell('2026-11-09')).toHaveFocus();
+    expect(cell('2026-11-09')).toHaveAttribute('aria-selected', 'true');
   });
 });

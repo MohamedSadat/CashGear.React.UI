@@ -39,8 +39,6 @@ const ICONS = {
   'align-bottom': 'align_bottom',
   'text-wrap': 'text_wrap',
   'text-rotate': 'text_direction_rotate_90_right',
-  'indent-increase': 'text_indent_increase_ltr',
-  'indent-decrease': 'text_indent_decrease_ltr',
   // Cells, rows and columns
   'cells-merge': 'table_cells_merge',
   'cells-split': 'table_cells_split',
@@ -186,14 +184,16 @@ const ICONS = {
 };
 
 /**
- * Icons Fluent draws twice, once for each writing direction (a list's bullets or numbers stay at
- * the line's start). The left-to-right drawing is the icon's path; the right-to-left one is drawn
+ * Icons Fluent draws twice, once for each writing direction (a list's bullets or numbers, and an
+ * indent's arrow, stay at the line's start). The left-to-right drawing is the icon's path; the right-to-left one is drawn
  * instead inside a right-to-left container.
  */
 const DIRECTIONAL = {
   'list-bullet': ['text_bullet_list_ltr', 'text_bullet_list_rtl'],
   'list-number': ['text_number_list_ltr', 'text_number_list_rtl'],
   'list-todo': ['task_list_ltr', 'task_list_rtl'],
+  'indent-increase': ['text_indent_increase_ltr', 'text_indent_increase_rtl'],
+  'indent-decrease': ['text_indent_decrease_ltr', 'text_indent_decrease_rtl'],
 };
 
 /** The colour bar under an icon, drawn separately so it can take the current colour. */

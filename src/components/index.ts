@@ -82,3 +82,4 @@ export * from './EmojiPicker';
 export * from './DragDrop';
 export * from './KanbanBoard';
 export * from './MonthCalendar';
+export * from './Select';

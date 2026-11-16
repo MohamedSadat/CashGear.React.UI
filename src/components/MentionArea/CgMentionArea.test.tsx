@@ -39,6 +39,14 @@ describe('mention DOM', () => {
     expect(readValue(root)).toEqual(value);
     root.innerHTML = '<div>سطر</div><div>آخر<br></div>';
     expect(readValue(root)).toEqual(['سطر\nآخر']);
+    // "a", Enter, Enter, "b" as Chrome and WebKit write it: one empty line between.
+    root.innerHTML = 'a<div><br></div><div>b</div>';
+    expect(readValue(root)).toEqual(['a\n\nb']);
+    root.innerHTML = '<div>a</div><div><br></div><div>b</div>';
+    expect(readValue(root)).toEqual(['a\n\nb']);
+    // Two <br> inside one line are two breaks.
+    root.innerHTML = 'a<br><br>b';
+    expect(readValue(root)).toEqual(['a\n\nb']);
   });
 });
 

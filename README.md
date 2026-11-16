@@ -1114,6 +1114,21 @@ live.current?.announce('نُقلت البطاقة إلى «قيد التنفيذ
 
 `CgTreeView` gains, all opt-in: `onNodeMove` with `canDrop` and `moveLabels` (rows dragged before, after or inside another, or moved with Alt+Shift and the arrows), `onNodeRename` with `renameLabel` (F2, a double click or `actions.startRename(key)` opens an inline editor; Enter or leaving commits, Escape reverts), `loadChildren` with `loadLabels` for nodes marked `hasChildren` (loading, error and retry rows; collapsing aborts), `virtualize` with `rowHeight`, `overscan` and `height` (only rows in view are drawn, with their level and position kept), `renderActions` for buttons at a row's end, `actions.showContextMenu`, and `arrowKeys="logical"` to mirror the arrows in right to left. Existing trees render as before; right-to-left toggle chevrons now point the right way.
 
+### Select
+
+`CgSelect` is a single choice from a short list, drawn and labelled as the library's fields (it takes `CgField`'s label, description, required and validation state): the browser's own select underneath, so its keyboard, type-ahead and a phone's picker work as people expect. `options` are `{ value, label, disabled, group }`, grouped as `optgroup`s; `value` or `defaultValue` (`null` shows the `placeholder`), `onValueChange(value, { option, event })`, `size`, `fullWidth`, `readOnly`. `CgComboBox` is the control that filters.
+
+### Later additions for the workspace
+
+- `CgCommandMenu` `handledKeys`: the keys it acts on, so an editor showing it at the caret can keep Home and End for the text. On the active option, the second line and shortcut read at 6.2:1.
+- `CgMentionArea` reads an empty line a browser makes of a block as one line, not two.
+- `CgFilePicker` `directory`: the dialog asks for a folder and gives every file in it, and folders dropped on a `dropZone` are read through; `details.paths` gives each file's path below the folder (also given, as the names, without `directory`).
+- `CgOptionPicker` `normalize(text)` folds the query and each name with the app's own rule (a name that folds to the typed text is not offered as new), or `filter(option, query)` decides the matches. `CgItemPicker` already shows the caller's own results.
+- `CgToolbarItem` `expanded` and `controls` set `aria-expanded` and `aria-controls` on an item that opens a panel. An icon-only `CgButton` draws no empty label box beside its icon.
+- `CgSelectionToolbar` docked keeps 44 px tools and scrolls along the line when they are wider than the screen.
+- `indent-increase` and `indent-decrease` draw Fluent's right-to-left versions inside a right-to-left container.
+- A notice with "Undo" and "Close" is `useCgToast().show({ content, action: { label, onAction }, showCloseButton: true, closeButtonAriaLabel })`: it pauses while hovered, focused or running its action, and is a polite `status` (an `alert` only for errors and `important`).
+
 ### Fixes to existing components
 
 These change no prop's meaning:
@@ -1193,7 +1208,7 @@ Components:
 - `CgLoadingPanel`, `CgWaitIndicator`, `CgProgressBar`
 - `CgLiveAnnouncer`, `CgAvatar`, `CgAvatarStack`, `CgFilePicker`, `CgBreadcrumb`, `CgInlineTextEditor`, `CgInlineNumberEditor`
 - `CgCommandMenu`, `CgSelectionToolbar`, `CgMenuPanel` (with `CgMenuPanelItem`, `CgMenuPanelSwitch`, `CgMenuPanelGroup`, `CgMenuPanelSeparator`, `CgMenuPanelHeader`), `CgSortableList`, `CgOptionPicker`, `CgItemPicker`, `CgMentionArea`, `CgEmojiPicker` and `cgPageIcons`
-- `CgDragHandle`, `CgDropIndicator`, `cgTrackDrag`, `cgStartsDrag`, `cgEdgeScrollStep`, `CG_DRAG_THRESHOLD`, `CgKanbanBoard`, `CgMonthCalendar`
+- `CgDragHandle`, `CgDropIndicator`, `cgTrackDrag`, `cgStartsDrag`, `cgEdgeScrollStep`, `CG_DRAG_THRESHOLD`, `CgKanbanBoard`, `CgMonthCalendar`, `CgSelect`
 - `CgToastProvider`, `CgConfirmationProvider`, `CgEditorCommitProvider`
 
 Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, canonical `CgDateValue`/`CgDateRangeValue`/`CgTimeValue`, the Filter Core AST/registry/persistence contracts, the DateEdit/TimeEdit/Calendar/DateRangePicker contracts and CgDateRangePresetKey, Scheduler recurrence/resource/reminder/action/iCalendar contracts, the FileUploader item/transport/event/render/action contracts, the PDF source/state/event/render/action contracts, the Chart descriptor/axis/selection/action/localization contracts, the GridLayout descriptors, the TreeList binding/column/node/provider/mutation/output/state/render/action contracts, the Splitter versioned-state/descriptor/detail contracts, the Drawer lifecycle/render/action contracts, WaitIndicator, MessageBox, Toast and Confirmation APIs, the shared overlay contracts, and each descriptor component's props, actions, lifecycle details, and render/state contexts. Private PDF controller/model modules, chart model/layout/browser modules, endpoint-session tokens, menu, adaptive-layout, TreeView normalization/check/filter engines, and TreeList hierarchy/projection internals are not exported. There is intentionally no universal component-state interface.

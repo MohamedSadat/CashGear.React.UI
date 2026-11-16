@@ -3,6 +3,7 @@ export type {
   CgCommandMenuFilter,
   CgCommandMenuHandle,
   CgCommandMenuItem,
+  CgCommandMenuKey,
   CgCommandMenuProps,
   CgCommandMenuRenderContext,
   CgCommandMenuSelectDetails,

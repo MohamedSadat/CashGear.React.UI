@@ -174,6 +174,37 @@ describe('CgOptionPicker', () => {
   });
 });
 
+describe('CgOptionPicker matching', () => {
+  /** Workspace's kind of rule: alef forms, ى and ی as ي, ة as ه, Arabic-Indic digits. */
+  const fold = (text: string) => text.trim().toLowerCase()
+    .replace(/[أإآٱ]/gu, 'ا').replace(/[ىی]/gu, 'ي').replace(/ة/gu, 'ه')
+    .replace(/[٠-٩]/gu, (digit) => String(digit.charCodeAt(0) - 0x0660));
+  const departments: CgOptionPickerOption[] = [
+    { key: 'admin', name: 'إدارة' },
+    { key: 'sales', name: 'مبيعات ٢٠٢٦' },
+    { key: 'hr', name: 'الموارد البشرية' },
+  ];
+
+  it('folds the query and each name with the caller\'s normalize, and offers no folded duplicate as new', async () => {
+    render(<CgOptionPicker options={departments} selected={[]} canManage onOptionsChange={() => undefined} labels={labels} normalize={fold} />);
+    await userEvent.click(screen.getByRole('combobox'));
+    await userEvent.keyboard('اداره');
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['إدارة']);
+    await userEvent.clear(screen.getByRole('combobox'));
+    await userEvent.keyboard('2026');
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['مبيعات ٢٠٢٦', 'إنشاء «2026»']);
+  });
+
+  it('takes a filter that decides the matches itself', async () => {
+    const filter = vi.fn((option: CgOptionPickerOption, query: string) => option.key.startsWith(query));
+    render(<CgOptionPicker options={departments} selected={[]} labels={labels} filter={filter} />);
+    await userEvent.click(screen.getByRole('combobox'));
+    await userEvent.keyboard('h');
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['الموارد البشرية']);
+    expect(filter).toHaveBeenCalledWith(departments[0], 'h');
+  });
+});
+
 describe('CgItemPicker', () => {
   const people = [{ key: 'u1', label: 'ليلى حسن' }, { key: 'u2', label: 'سامي يوسف' }];
   function ItemHost({ multiple = true }: { multiple?: boolean }) {

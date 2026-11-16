@@ -88,3 +88,23 @@ export const Tags: Story = { args: { options: [], selected: [], labels }, render
 export const StatusGroups: Story = { args: { options: [], selected: [], labels }, render: () => <StoryFrame source={source} difference={difference}><Picker grouped multiple={false} initial={statuses} /></StoryFrame>, globals: { direction: 'rtl' } };
 export const StatusGroupsDark: Story = { args: { options: [], selected: [], labels }, render: () => <StoryFrame source={source} difference={difference}><Picker grouped multiple={false} initial={statuses} /></StoryFrame>, globals: { theme: 'dark', direction: 'rtl' } };
 export const PeopleResults: Story = { args: { options: [], selected: [], labels }, render: () => <StoryFrame source={source} difference={difference}><People /></StoryFrame>, globals: { direction: 'rtl' } };
+
+/** An app's own folding rule: alef forms, ى and ی as ي, ة as ه, Arabic-Indic digits. */
+const foldArabic = (text: string) => text.trim().toLowerCase()
+  .replace(/[أإآٱ]/gu, 'ا').replace(/[ىی]/gu, 'ي').replace(/ة/gu, 'ه')
+  .replace(/[٠-٩]/gu, (digit) => String(digit.charCodeAt(0) - 0x0660));
+
+function Normalised() {
+  const [options, setOptions] = useState<CgOptionPickerOption[]>([
+    { key: 'n1', name: 'إدارة', colour: 'blue' },
+    { key: 'n2', name: 'مبيعات ٢٠٢٦', colour: 'green' },
+    { key: 'n3', name: 'مستشفى', colour: 'yellow' },
+  ]);
+  const [selected, setSelected] = useState<string[]>([]);
+  return <div style={{ inlineSize: '20rem', border: '1px solid var(--cg-border)', borderRadius: 8, background: 'var(--cg-surface)' }}>
+    <CgOptionPicker options={options} selected={selected} multiple canManage colours={colours} labels={labels} normalize={foldArabic} onSelectionChange={setSelected} onOptionsChange={setOptions} />
+    <output data-testid="picked" style={{ display: 'block', padding: 8 }}>{selected.join('، ')}</output>
+  </div>;
+}
+
+export const ArabicNormalisation: Story = { args: { options: [], selected: [], labels }, render: () => <StoryFrame source={source} difference={difference}><Normalised /></StoryFrame>, globals: { direction: 'rtl' } };

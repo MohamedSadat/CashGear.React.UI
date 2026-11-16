@@ -89,6 +89,14 @@ export interface CgOptionPickerProps extends Omit<HTMLAttributes<HTMLDivElement>
   labels: CgOptionPickerLabels;
   /** Draws an option's chip; default: its name on its colour. */
   renderChip?: (option: CgOptionPickerOption) => ReactNode;
+  /**
+   * Folds text for matching, applied to the query and to each option's name (an app's own rule,
+   * such as Arabic alef forms, ى and ی as ي, ة as ه and Arabic-Indic digits). A name that folds to
+   * the typed text is not offered again as new. Default: case and Arabic marks ignored.
+   */
+  normalize?: (text: string) => string;
+  /** Decides which options match the query, in place of the default and of `normalize`. */
+  filter?: (option: CgOptionPickerOption, query: string) => boolean;
 }
 
 export interface CgItemPickerItem {

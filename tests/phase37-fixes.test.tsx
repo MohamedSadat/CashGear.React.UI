@@ -155,3 +155,27 @@ describe('Theme tokens', () => {
     expect(button).not.toMatch(/--button-color:\s*#fff/u);
   });
 });
+
+describe('Workspace editor follow-ups', () => {
+  it('marks a toolbar item that opens a panel with aria-expanded and aria-controls', async () => {
+    const { CgToolbar } = await import('../src');
+    render(<CgToolbar ariaLabel="التنسيق" items={[{ name: 'link', text: 'رابط', icon: 'link', iconOnly: true, expanded: true, controls: 'link-panel' }, { name: 'bold', text: 'غامق', icon: 'text-bold', iconOnly: true }]} />);
+    expect(screen.getByRole('button', { name: 'رابط' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: 'رابط' })).toHaveAttribute('aria-controls', 'link-panel');
+    expect(screen.getByRole('button', { name: 'غامق' })).not.toHaveAttribute('aria-expanded');
+  });
+
+  it('draws no label box in an icon-only button', async () => {
+    const { CgButton } = await import('../src');
+    render(<CgButton icon="text-bold" aria-label="غامق">{null}</CgButton>);
+    const label = screen.getByRole('button', { name: 'غامق' }).querySelector('span:last-child')!;
+    expect(label).toBeEmptyDOMElement();
+    expect(getComputedStyle(label).display).toBe('none');
+  });
+
+  it('gives the indent icons right-to-left drawings', async () => {
+    const { fluentIconRtlPaths } = await import('../src/vendor/fluent-icons/icons');
+    expect(fluentIconRtlPaths['indent-increase']).toMatch(/^[Mm]/u);
+    expect(fluentIconRtlPaths['indent-decrease']).toMatch(/^[Mm]/u);
+  });
+});

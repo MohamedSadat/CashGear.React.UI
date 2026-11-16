@@ -358,6 +358,8 @@ function CgToolbarInner<TData>(
     onFocus: () => setActiveName(node.name),
     title: node.tooltip ?? (node.iconOnly ? node.text : undefined),
     'aria-label': node.text ? undefined : node.tooltip ?? node.name,
+    'aria-expanded': node.expanded,
+    'aria-controls': node.controls,
   });
 
   const renderPlacement = (placement: ToolbarPlacement) => {

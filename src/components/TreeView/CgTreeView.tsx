@@ -139,6 +139,20 @@ function expandable<TItem>(node: TreeNode<TItem>): boolean {
   return node.children.length > 0 || node.descriptor.hasChildren === true;
 }
 
+/** A node that never folds (`collapsible: false`) and has children: always open, with no toggle. */
+function alwaysOpen<TItem>(node: TreeNode<TItem>): boolean {
+  return node.descriptor.collapsible === false && expandable(node);
+}
+
+/**
+ * A chord with Ctrl, Cmd or Alt that the tree has no use for, such as an app's Ctrl+K: it goes on
+ * bubbling with its default untouched. Alt+Shift with an arrow key moves a node when moving is on.
+ */
+function passesThrough(event: KeyboardEvent<HTMLElement>, moveEnabled: boolean): boolean {
+  if (!event.ctrlKey && !event.metaKey && !event.altKey) return false;
+  return !(moveEnabled && event.altKey && event.shiftKey && !event.ctrlKey && !event.metaKey && MOVE_KEYS.has(event.key));
+}
+
 /** The box that scrolls the tree during a drag, when it is not the page itself. */
 function scrollParent(element: HTMLElement): HTMLElement | null {
   for (let current = element.parentElement; current && current !== element.ownerDocument.body; current = current.parentElement) {
@@ -292,10 +306,12 @@ function CgTreeViewInner<TItem>(
     searchText: (descriptor) => descriptor.searchText,
     predicate: filterPredicate,
   }), [actualFilter, filterLocale, filterMinimumLength, filterPredicate, model]);
+  // Open: what the caller expanded, what a filter opens to show matches, and every node that never folds.
   const effectiveExpanded = useMemo(() => new Set([
     ...validExpanded,
     ...filterResult.forcedExpandedKeys,
-  ]), [filterResult.forcedExpandedKeys, validExpanded]);
+    ...model.visibleNodes.filter(alwaysOpen).map((node) => node.key),
+  ]), [filterResult.forcedExpandedKeys, model, validExpanded]);
   const renderedNodes = useMemo(() => {
     const result: TreeNode<TItem>[] = [];
     const visit = (items: ReadonlyArray<TreeNode<TItem>>): void => {
@@ -512,7 +528,7 @@ function CgTreeViewInner<TItem>(
     event?: TreeEvent,
   ): Promise<boolean> => {
     const before = expandedRef.current;
-    const changed = modelRef.current.visibleNodes.filter((node) => expandable(node)
+    const changed = modelRef.current.visibleNodes.filter((node) => expandable(node) && !alwaysOpen(node)
       && !node.descriptor.disabled && before.has(node.key) !== target.has(node.key));
     if (disabled || readOnly || changed.length === 0) return false;
     const base = changed.map((node): CgTreeViewExpansionChangeDetails<TItem> => ({
@@ -546,7 +562,7 @@ function CgTreeViewInner<TItem>(
     source: CgTreeViewChangeSource,
     event?: TreeEvent,
   ): Promise<boolean> => {
-    if (!node.modelVisible || !expandable(node) || node.descriptor.disabled || disabled || readOnly || expandedRef.current.has(node.key) === expanded) return Promise.resolve(false);
+    if (!node.modelVisible || !expandable(node) || alwaysOpen(node) || node.descriptor.disabled || disabled || readOnly || expandedRef.current.has(node.key) === expanded) return Promise.resolve(false);
     const target = new Set(expandedRef.current);
     if (expanded) target.add(node.key); else target.delete(node.key);
     return requestExpandedBatch(target, source, event);
@@ -1043,7 +1059,8 @@ function CgTreeViewInner<TItem>(
       }
     } else if (event.key === collapseKey) {
       event.preventDefault();
-      if (expandable(node) && validExpanded.has(node.key)) void requestExpanded(node, false, 'keyboard', event);
+      // A node that never folds is not collapsed: the key goes to its parent, as from an end node.
+      if (expandable(node) && !alwaysOpen(node) && validExpanded.has(node.key)) void requestExpanded(node, false, 'keyboard', event);
       else if (node.parentKey) {
         setFocusedKey(node.parentKey); focusElement(node.parentKey, false);
       }
@@ -1062,7 +1079,19 @@ function CgTreeViewInner<TItem>(
     else if (event.key === collapseKey) { event.preventDefault(); setFocusedKey(parent.key); focusElement(parent.key, false); }
     else if (failed && (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar')) { event.preventDefault(); loading.retry(parent.key); }
   };
-  const fromRowControls = (target: EventTarget): boolean => target instanceof Element && target.closest('[data-cg-tree-actions], [data-cg-tree-rename]') !== null;
+  const fromRename = (target: EventTarget): boolean => renameEnabled && target instanceof Element && target.closest('[data-cg-tree-rename]') !== null;
+  const fromActions = (target: EventTarget): boolean => renderActions !== undefined && target instanceof Element && target.closest('[data-cg-tree-actions]') !== null;
+  /**
+   * Keys at a row. Rows nest, so a key the tree takes stops here, before an ancestor row would take it
+   * too; a chord it has no use for (Ctrl+K) goes on to the app. The rename field keeps all its keys.
+   */
+  const handleNodeKeyDown = (event: KeyboardEvent<HTMLElement>, node: TreeNode<TItem>): void => {
+    if (fromRename(event.target)) { event.stopPropagation(); return; }
+    if (passesThrough(event, moveEnabled)) return;
+    event.stopPropagation();
+    if (fromActions(event.target)) return;
+    handleKeyDown(event, node);
+  };
 
   const instructionsId = `${rootId}-move-instructions`;
   const flatStyle = (index: number, depth: number): CSSProperties => ({
@@ -1088,7 +1117,7 @@ function CgTreeViewInner<TItem>(
       style={flat ? flatStyle(flatIndex, parent.depth + 1) : undefined}
       onFocus={(event) => { event.stopPropagation(); hadTreeFocus.current = true; if (pendingFocus.current !== key) pendingFocus.current = null; setFocusedKey(key); }}
       onBlur={(event) => { event.stopPropagation(); if (!rootRef.current?.contains(event.relatedTarget)) hadTreeFocus.current = false; }}
-      onKeyDown={(event) => { event.stopPropagation(); handleStatusKeyDown(event, key, parent, failed); }}
+      onKeyDown={(event) => { if (passesThrough(event, moveEnabled)) return; event.stopPropagation(); handleStatusKeyDown(event, key, parent, failed); }}
       onClick={(event) => event.stopPropagation()}
     >
       <div className={styles.row}>
@@ -1109,12 +1138,16 @@ function CgTreeViewInner<TItem>(
     const children = filterResult.childrenByKey.get(node.key) ?? [];
     const expanded = effectiveExpanded.has(node.key);
     const canExpand = expandable(node);
+    const foldable = canExpand && !alwaysOpen(node);
+    const current = node.descriptor.current || undefined;
     const flat = flatIndex !== undefined;
     const loadState = lazyEnabled && expanded && children.length === 0 ? loading.states.get(node.key) : undefined;
     const statusRow = !flat && loadState && loadState.status !== 'loaded'
       ? { kind: 'status' as const, key: statusKey(node.key), parent: node, state: loadState }
       : undefined;
     const groupId = `${rootId}-group-${stableKeyToken(node.key)}`;
+    // The item is named by its text alone: the toggle, check box and row actions inside it are not part of that name.
+    const labelId = `${rootId}-label-${stableKeyToken(node.key)}`;
     const register = (element: HTMLElement | null): void => {
       if (element) elements.current.set(node.key, element); else elements.current.delete(node.key);
     };
@@ -1137,7 +1170,9 @@ function CgTreeViewInner<TItem>(
       aria-posinset={position}
       aria-setsize={setSize}
       aria-selected={context.allowSelection ? context.selected : undefined}
+      aria-labelledby={labelId}
       aria-expanded={canExpand ? expanded : undefined}
+      aria-current={current}
       aria-checked={state === 'none' ? undefined : state === 'mixed' ? 'mixed' : state === 'checked'}
       aria-disabled={context.disabled || undefined}
       aria-controls={flat ? undefined : node.children.length > 0 && expanded || statusRow ? groupId : undefined}
@@ -1146,11 +1181,11 @@ function CgTreeViewInner<TItem>(
       aria-keyshortcuts={shortcuts}
       data-node-key={node.key}
       data-visible-index={context.visibleIndex}
-      className={cx(styles.node, flat && styles.flatNode, context.selected && styles.selected, expanded && styles.expanded, context.disabled && styles.nodeDisabled, !textWrap && styles.nowrap, node.descriptor.className)}
+      className={cx(styles.node, flat && styles.flatNode, context.selected && styles.selected, current && styles.current, expanded && styles.expanded, context.disabled && styles.nodeDisabled, !textWrap && styles.nowrap, node.descriptor.className)}
       style={flat ? flatStyle(flatIndex, node.depth) : undefined}
       onFocus={(event) => { event.stopPropagation(); hadTreeFocus.current = true; if (pendingFocus.current !== node.key) pendingFocus.current = null; setFocusedKey(node.key); }}
       onBlur={(event) => { event.stopPropagation(); if (!rootRef.current?.contains(event.relatedTarget)) hadTreeFocus.current = false; }}
-      onKeyDown={(event) => { event.stopPropagation(); if ((renderActions || renameEnabled) && fromRowControls(event.target)) return; handleKeyDown(event, node); }}
+      onKeyDown={(event) => handleNodeKeyDown(event, node)}
       onContextMenu={(event) => showNodeMenu(node, event, false)}
       onClick={(event) => { event.stopPropagation(); if (!context.disabled && !readOnly) activateNode(node, 'pointer', event); }}
       onDoubleClick={renameEnabled ? (event) => {
@@ -1165,7 +1200,7 @@ function CgTreeViewInner<TItem>(
         data-cg-tree-row={moveEnabled ? '' : undefined}
         onPointerDown={movable ? (event) => startDrag(event, node) : undefined}
       >
-        {canExpand ? <button
+        {foldable ? <button
           type="button"
           tabIndex={-1}
           className={styles.toggle}
@@ -1191,6 +1226,8 @@ function CgTreeViewInner<TItem>(
           onClick={(event) => event.stopPropagation()}
           onDoubleClick={(event) => event.stopPropagation()}
         >
+          {/* While the field replaces the text, the item keeps its name from a hidden copy. */}
+          <span id={labelId} hidden>{content}</span>
           <CgInlineTextEditor
             label={typeof renameLabel === 'function' ? renameLabel(context) : renameLabel ?? ''}
             defaultValue={startText}
@@ -1200,7 +1237,7 @@ function CgTreeViewInner<TItem>(
             }}
             onDone={(details) => finishRenaming(node.key, details.end)}
           />
-        </span> : <span className={styles.content}>{content}</span>}
+        </span> : <span id={labelId} className={styles.content}>{content}</span>}
         {renderActions && !renaming ? <span
           className={styles.actions}
           data-cg-tree-actions=""
@@ -1272,7 +1309,7 @@ function CgTreeViewInner<TItem>(
     const items: CgContextMenuItem<CgTreeViewContext<TItem>>[] = [
       { key: 'open', text: mergedLabels.openCommand, disabled: unavailable || !allowSelection || current.descriptor.allowSelection === false, command: () => { const node = requireNode(current.key); activateNode(node, 'context-menu'); } },
     ];
-    if (expandable(current)) items.push({
+    if (expandable(current) && !alwaysOpen(current)) items.push({
       key: context.expanded ? 'collapse' : 'expand',
       text: context.expanded ? mergedLabels.collapseCommand : mergedLabels.expandCommand,
       disabled: unavailable,

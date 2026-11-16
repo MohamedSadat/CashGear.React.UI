@@ -31,7 +31,13 @@ export function readValue(root: Node): CgMentionAreaValue {
         out.push({ kind: child.dataset.cgMentionKind ?? '', id: child.dataset.cgMentionId, text: child.textContent ?? '' });
         continue;
       }
-      if (child.tagName === 'BR') { push('\n'); continue; }
+      if (child.tagName === 'BR') {
+        // A line a browser made a block of keeps a <br> as its last child while empty: the block
+        // is the line, so that <br> is not another break.
+        const holdsEmptyLine = node instanceof HTMLElement && BLOCKS.has(node.tagName) && child === node.lastChild;
+        if (!holdsEmptyLine) push('\n');
+        continue;
+      }
       const block = BLOCKS.has(child.tagName);
       if (block && out.length && !afterBlock) {
         const last = out[out.length - 1];

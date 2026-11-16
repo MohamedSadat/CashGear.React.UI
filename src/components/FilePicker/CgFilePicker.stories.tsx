@@ -31,3 +31,15 @@ export const Button: Story = { args: { children: 'اختر ملفاً', onPick: 
 export const DropZone: Story = { args: { children: 'اختر ملفاً', onPick: () => undefined }, render: () => <Fixture dropZone />, globals: { direction: 'rtl' } };
 export const DropZoneDark: Story = { args: { children: 'اختر ملفاً', onPick: () => undefined }, render: () => <Fixture dropZone />, globals: { theme: 'dark', direction: 'rtl' } };
 export const Disabled: Story = { args: { children: 'اختر ملفاً', onPick: () => undefined }, render: () => <StoryFrame source={source} difference={difference}><CgFilePicker disabled dropZone appearance="outline" hint="الاستيراد جارٍ" onPick={() => undefined}>اختر ملفاً</CgFilePicker></StoryFrame>, globals: { direction: 'rtl' } };
+
+function FolderFixture() {
+  const [paths, setPaths] = useState<readonly string[]>([]);
+  return <StoryFrame source={source} difference={difference}>
+    <div style={{ display: 'grid', gap: 12, inlineSize: 'min(32rem, 100%)' }} data-testid="folder-picker-demo">
+      <CgFilePicker directory dropZone accept=".md" appearance="outline" icon="folder" hint="أو أفلت مجلد ملاحظات Markdown هنا" onPick={(_files, details) => setPaths(details.paths)}>اختر مجلداً</CgFilePicker>
+      <output data-testid="picked-paths">{paths.join('، ') || 'لم يُختر مجلد'}</output>
+    </div>
+  </StoryFrame>;
+}
+
+export const Folder: Story = { args: { children: 'اختر مجلداً', onPick: () => undefined }, render: () => <FolderFixture />, globals: { direction: 'rtl' } };

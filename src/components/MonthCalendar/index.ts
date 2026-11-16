@@ -2,6 +2,7 @@ export { CgMonthCalendar } from './CgMonthCalendar';
 export type {
   CgMonthCalendarCreateDetails,
   CgMonthCalendarCreateSource,
+  CgMonthCalendarHandle,
   CgMonthCalendarItem,
   CgMonthCalendarItemNameInfo,
   CgMonthCalendarItemRenderContext,
@@ -13,4 +14,6 @@ export type {
   CgMonthCalendarOpenDetails,
   CgMonthCalendarOpenSource,
   CgMonthCalendarProps,
+  CgMonthCalendarSelectedDayChangeDetails,
+  CgMonthCalendarSelectedDayChangeReason,
 } from './CgMonthCalendar.types';

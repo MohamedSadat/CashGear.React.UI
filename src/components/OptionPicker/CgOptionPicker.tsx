@@ -93,7 +93,7 @@ function OptionEditor({ option, colours, groups, labels, onChange, onDelete, onB
  * text typed, rename, recolour, regroup, reorder (a handle, or Alt+arrows) and delete.
  */
 export const CgOptionPicker = forwardRef<HTMLDivElement, CgOptionPickerProps>(function CgOptionPicker(
-  { options, selected, multiple = false, onSelectionChange, canManage = false, onOptionsChange, createOption, colours, groups, manage = false, defaultQuery = '', labels, renderChip, className, ...nativeProps },
+  { options, selected, multiple = false, onSelectionChange, canManage = false, onOptionsChange, createOption, colours, groups, manage = false, defaultQuery = '', labels, renderChip, normalize, filter, className, ...nativeProps },
   forwardedRef,
 ) {
   const baseId = `cg-${useId().replace(/[^a-zA-Z0-9-]/gu, '')}`;
@@ -108,13 +108,16 @@ export const CgOptionPicker = forwardRef<HTMLDivElement, CgOptionPickerProps>(fu
   const trimmed = query.trim();
   const groupOf = (option: CgOptionPickerOption) => option.group ?? groups?.[0]?.key;
 
+  const fold = normalize ?? normalizeListBoxSearch;
   const matches = useMemo(() => {
-    const needle = normalizeListBoxSearch(query);
-    return needle ? options.filter((option) => normalizeListBoxSearch(option.name).includes(needle)) : [...options];
-  }, [options, query]);
+    if (filter) return query.trim() ? options.filter((option) => filter(option, query)) : [...options];
+    const needle = fold(query.trim());
+    return needle ? options.filter((option) => fold(option.name).includes(needle)) : [...options];
+  }, [filter, fold, options, query]);
   // Grouped options are listed, and walked by the keyboard, group by group.
   const listed = useMemo(() => (groups?.length ? groups.flatMap((group) => matches.filter((option) => (option.group ?? groups[0]!.key) === group.key)) : matches), [groups, matches]);
-  const canCreate = canManage && trimmed !== '' && !options.some((option) => option.name === trimmed);
+  // A name that reads the same once folded (alef forms, a final ya) is the same option, not a new one.
+  const canCreate = canManage && trimmed !== '' && !options.some((option) => option.name === trimmed || (normalize !== undefined && normalize(option.name) === normalize(trimmed)));
   const total = listed.length + (canCreate ? 1 : 0);
   const activeIndex = Math.min(active, Math.max(0, total - 1));
   const optionId = (index: number) => `${baseId}-option-${index}`;

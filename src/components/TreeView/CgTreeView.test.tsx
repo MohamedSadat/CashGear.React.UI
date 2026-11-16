@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { readFileSync } from 'node:fs';
 import { createRef, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { normalizeTreeView } from '../../internal/treeViewModel';
@@ -472,5 +473,267 @@ describe('CgTreeView virtualisation', () => {
     await waitFor(() => expect(item('g30')).toHaveFocus());
     expect(document.querySelectorAll('[role=treeitem][tabindex="0"]')).toHaveLength(1);
     restore();
+  });
+});
+
+describe('CgTreeView item names', () => {
+  it('names an item by its text alone, not its toggle, check box or row actions', async () => {
+    const onExpanded = vi.fn();
+    render(<CgTreeView
+      nodes={pages}
+      checkMode="multiple"
+      onExpandedKeysChange={onExpanded}
+      renderActions={(context) => <><button type="button" tabIndex={-1}>More {typeof context.text === 'string' ? context.text : ''}</button><button type="button" tabIndex={-1}>Add inside</button></>}
+    />);
+    expect(screen.getByRole('treeitem', { name: 'Alpha' })).toBe(item('alpha'));
+    expect(item('alpha')).toHaveAccessibleName('Alpha');
+    expect(item('gamma')).toHaveAccessibleName('Gamma');
+    // The toggle keeps its own name and still works by pointer.
+    await userEvent.click(within(item('alpha')).getByRole('button', { name: 'Expand Alpha' }));
+    expect(onExpanded).toHaveBeenLastCalledWith(new Set(['alpha']), expect.objectContaining({ expanded: true, source: 'pointer' }));
+    expect(item('alpha')).toHaveAccessibleName('Alpha');
+    expect(item('beta')).toHaveAccessibleName('Beta');
+    // The row actions are still there, focusable and clickable, outside the name.
+    const more = within(item('gamma')).getByRole('button', { name: 'More Gamma' });
+    act(() => more.focus());
+    expect(more).toHaveFocus();
+    expect(item('gamma').getAttribute('aria-labelledby')).toBe(item('gamma').querySelector('[class*=content]')!.id);
+  });
+
+  it('names rich and highlighted text, virtual rows, and an item while its rename field is open', async () => {
+    const { unmount } = render(<CgTreeView nodes={[{ key: 'rich', text: <strong>Invoice</strong>, searchText: 'invoice', children: [{ key: 'line', text: 'Line' }] }, ...pages]} defaultFilterText="lph" filterPredicate={(node) => node.key === 'rich' || node.key === 'alpha'} />);
+    expect(item('rich')).toHaveAccessibleName('Invoice');
+    expect(item('alpha').querySelector('mark')).toHaveTextContent('lph');
+    expect(item('alpha')).toHaveAccessibleName('Alpha');
+    unmount();
+    const view = render(<CgTreeView nodes={pages} virtualize rowHeight={32} height={320} />);
+    expect(item('alpha')).toHaveAccessibleName('Alpha');
+    view.unmount();
+    render(<CgTreeView nodes={pages} onNodeRename={() => undefined} renameLabel="Page title" />);
+    act(() => item('alpha').focus());
+    await userEvent.keyboard('{F2}');
+    expect(screen.getByRole('textbox', { name: 'Page title' })).toHaveFocus();
+    expect(item('alpha')).toHaveAccessibleName('Alpha');
+  });
+});
+
+describe('CgTreeView nodes that never fold', () => {
+  const sections: ReadonlyArray<CgTreeViewNodeDescriptor> = [
+    { key: 'workspace', text: 'Workspace', collapsible: false, allowSelection: false, children: [
+      { key: 'handbook', text: 'Handbook', children: [{ key: 'intro', text: 'Intro' }] },
+      { key: 'notes', text: 'Notes', collapsible: false, children: [{ key: 'today', text: 'Today' }] },
+    ] },
+    { key: 'private', text: 'Private', collapsible: false, children: [{ key: 'draft', text: 'Draft' }] },
+    { key: 'empty', text: 'Empty section', collapsible: false },
+  ];
+  const rowOf = (key: string) => item(key).querySelector<HTMLElement>(':scope > div')!;
+
+  it('draws no toggle, shows its children whatever expandedKeys holds, and is expanded to assistive technology', () => {
+    const onExpanded = vi.fn();
+    render(<CgTreeView nodes={sections} expandedKeys={new Set()} onExpandedKeysChange={onExpanded} aria-label="Sidebar" />);
+    expect(item('workspace')).toHaveAttribute('aria-expanded', 'true');
+    expect(within(rowOf('workspace')).queryByRole('button')).toBeNull();
+    expect(item('workspace')).toHaveAccessibleName('Workspace');
+    expect(item('workspace')).not.toHaveAttribute('aria-selected');
+    const group = document.getElementById(item('workspace').getAttribute('aria-controls')!)!;
+    expect(group).toHaveAttribute('role', 'group');
+    expect(within(group).getByRole('treeitem', { name: 'Handbook' })).toHaveAttribute('aria-level', '2');
+    expect(item('handbook')).toHaveAttribute('aria-expanded', 'false');
+    expect(within(rowOf('handbook')).getByRole('button', { name: 'Expand Handbook' })).toBeInTheDocument();
+    expect(item('draft')).toBeInTheDocument();
+    expect(item('today')).toBeInTheDocument();
+    // Without children it is an end node.
+    expect(item('empty')).not.toHaveAttribute('aria-expanded');
+    expect(onExpanded).not.toHaveBeenCalled();
+  });
+
+  it('ignores collapsing by keys, actions and the menu, and leaves expandedKeys alone', async () => {
+    const onExpanded = vi.fn();
+    const beforeCollapse = vi.fn(() => true);
+    const actions = createRef<CgTreeViewActions>();
+    render(<CgTreeView nodes={sections} actionsRef={actions} beforeCollapse={beforeCollapse} onExpandedKeysChange={onExpanded} contextMenuAreas="node" />);
+    act(() => item('workspace').focus());
+    await userEvent.keyboard('{ArrowLeft}');
+    expect(item('workspace')).toHaveAttribute('aria-expanded', 'true');
+    expect(item('workspace')).toHaveFocus();
+    // ArrowRight goes to the first child, as on any open node.
+    await userEvent.keyboard('{ArrowRight}');
+    expect(item('handbook')).toHaveFocus();
+    // Nested, ArrowLeft goes to the parent, as from an end node.
+    act(() => item('notes').focus());
+    await userEvent.keyboard('{ArrowLeft}');
+    expect(item('workspace')).toHaveFocus();
+    expect(item('notes')).toHaveAttribute('aria-expanded', 'true');
+    await act(async () => { expect(await actions.current!.setNodeExpanded('workspace', false)).toBe(false); });
+    await act(async () => { await actions.current!.collapseAll(); });
+    expect(item('workspace')).toHaveAttribute('aria-expanded', 'true');
+    expect(beforeCollapse).not.toHaveBeenCalled();
+    expect(onExpanded).not.toHaveBeenCalled();
+    // Expand all opens the others and reports only them.
+    await act(async () => { await actions.current!.expandAll(); });
+    expect(onExpanded).toHaveBeenLastCalledWith(new Set(['handbook']), expect.objectContaining({ key: 'handbook', expanded: true }));
+    fireEvent.contextMenu(item('notes'), { clientX: 10, clientY: 10 });
+    expect(await screen.findByText('Open')).toBeInTheDocument();
+    expect(screen.queryByText('Collapse')).toBeNull();
+    expect(screen.queryByText('Expand')).toBeNull();
+  });
+
+  it('keeps a caller key for it without a correction, and loads lazy children at once', async () => {
+    const onExpanded = vi.fn();
+    const loadChildren = vi.fn(() => new Promise<void>(() => undefined));
+    render(<CgTreeView nodes={[...sections, { key: 'remote', text: 'Remote', collapsible: false, hasChildren: true }]} expandedKeys={new Set(['workspace'])} onExpandedKeysChange={onExpanded} loadChildren={loadChildren} loadLabels={loadLabels} />);
+    await waitFor(() => expect(loadChildren).toHaveBeenCalledWith(expect.objectContaining({ key: 'remote', source: 'expand' })));
+    expect(item('remote')).toHaveAttribute('aria-expanded', 'true');
+    expect(await screen.findByRole('treeitem', { name: 'Loading pages' })).toHaveAttribute('aria-level', '2');
+    expect(onExpanded).not.toHaveBeenCalled();
+  });
+});
+
+describe('CgTreeView keys it leaves to the app', () => {
+  function listen() {
+    const seen = vi.fn<(event: KeyboardEvent) => void>();
+    document.addEventListener('keydown', seen);
+    return { seen, stop: () => document.removeEventListener('keydown', seen) };
+  }
+
+  it('lets Ctrl and Cmd chords it has no use for bubble on, their default untouched', async () => {
+    render(<CgTreeView nodes={pages} defaultExpandedKeys={new Set(['alpha'])} />);
+    const { seen, stop } = listen();
+    act(() => item('beta').focus());
+    // fireEvent returns false when the default was prevented.
+    expect(fireEvent.keyDown(item('beta'), { key: 'k', ctrlKey: true })).toBe(true);
+    expect(fireEvent.keyDown(item('beta'), { key: '\\', ctrlKey: true })).toBe(true);
+    expect(fireEvent.keyDown(item('beta'), { key: ',', metaKey: true })).toBe(true);
+    expect(seen).toHaveBeenCalledTimes(3);
+    expect(seen.mock.calls.map(([event]) => event.key)).toEqual(['k', '\\', ',']);
+    // A modifier with a key the tree knows is not the tree's either: focus stays.
+    expect(fireEvent.keyDown(item('beta'), { key: 'ArrowDown', ctrlKey: true })).toBe(true);
+    expect(fireEvent.keyDown(item('beta'), { key: 'Enter', metaKey: true })).toBe(true);
+    expect(item('beta')).toHaveFocus();
+    expect(item('beta')).toHaveAttribute('aria-selected', 'false');
+    expect(seen).toHaveBeenCalledTimes(5);
+    // The tree's own keys stop at the row.
+    expect(fireEvent.keyDown(item('beta'), { key: 'ArrowDown' })).toBe(false);
+    expect(item('epsilon')).toHaveFocus();
+    expect(seen).toHaveBeenCalledTimes(5);
+    // A real chord from a nested row (Epsilon is inside Alpha).
+    seen.mockClear();
+    await userEvent.keyboard('{Control>}k{/Control}');
+    expect(seen.mock.calls.some(([event]) => event.key === 'k' && event.ctrlKey && !event.defaultPrevented)).toBe(true);
+    stop();
+  });
+
+  it('keeps Alt+Shift with an arrow when moving is on, and lets it pass when off', () => {
+    const onNodeMove = vi.fn();
+    const { unmount } = render(<CgTreeView nodes={pages} onNodeMove={onNodeMove} moveLabels={moveLabels} />);
+    const { seen, stop } = listen();
+    act(() => item('gamma').focus());
+    expect(fireEvent.keyDown(item('gamma'), { key: 'ArrowUp', altKey: true, shiftKey: true })).toBe(false);
+    expect(onNodeMove).toHaveBeenCalledWith(expect.objectContaining({ key: 'gamma', targetKey: 'alpha', position: 'before' }));
+    expect(seen).not.toHaveBeenCalled();
+    unmount();
+    render(<CgTreeView nodes={pages} />);
+    act(() => item('gamma').focus());
+    expect(fireEvent.keyDown(item('gamma'), { key: 'ArrowUp', altKey: true, shiftKey: true })).toBe(true);
+    expect(item('gamma')).toHaveFocus();
+    expect(seen).toHaveBeenCalledTimes(1);
+    stop();
+  });
+
+  it('passes chords on from row actions, nested rows and status rows, and leaves the rename field its keys', async () => {
+    render(<CgTreeView
+      nodes={[...pages, { key: 'remote', text: 'Remote', hasChildren: true }]}
+      defaultExpandedKeys={new Set(['alpha', 'beta', 'remote'])}
+      onNodeRename={() => undefined}
+      renameLabel="Page title"
+      loadChildren={() => new Promise<void>(() => undefined)}
+      loadLabels={loadLabels}
+      renderActions={() => <button type="button" tabIndex={-1}>More</button>}
+    />);
+    const { seen, stop } = listen();
+    const more = within(item('delta')).getByRole('button', { name: 'More' });
+    expect(fireEvent.keyDown(more, { key: 'k', ctrlKey: true })).toBe(true);
+    expect(seen).toHaveBeenCalledTimes(1);
+    // A plain key on an action stays with the action: no row takes it.
+    fireEvent.keyDown(more, { key: 'Enter' });
+    expect(seen).toHaveBeenCalledTimes(1);
+    expect(item('delta')).toHaveAttribute('aria-selected', 'false');
+    const loadingRow = await screen.findByRole('treeitem', { name: 'Loading pages' });
+    expect(fireEvent.keyDown(loadingRow, { key: 'k', metaKey: true })).toBe(true);
+    expect(seen).toHaveBeenCalledTimes(2);
+    act(() => item('delta').focus());
+    await userEvent.keyboard('{F2}');
+    const field = screen.getByRole('textbox', { name: 'Page title' });
+    seen.mockClear();
+    fireEvent.keyDown(field, { key: 'z', ctrlKey: true });
+    expect(seen).not.toHaveBeenCalled();
+    stop();
+  });
+});
+
+describe('CgTreeView selected and current rows', () => {
+  const css = readFileSync('src/components/TreeView/CgTreeView.module.css', 'utf8');
+  const tokens = readFileSync('src/styles/tokens.css', 'utf8');
+  const themes = {
+    light: /:root,\s*\[data-cg-theme='light'\]\s*\{([^}]*)\}/u.exec(tokens)?.[1] ?? '',
+    dark: /\[data-cg-theme='dark'\]\s*\{([^}]*)\}/u.exec(tokens)?.[1] ?? '',
+  };
+  const token = (theme: string, name: string): number[] => {
+    const short = new RegExp(`--cg-${name}:\\s*#([0-9a-f]{3});`, 'u').exec(theme)?.[1];
+    const value = short ? [...short].map((digit) => digit + digit).join('') : new RegExp(`--cg-${name}:\\s*#([0-9a-f]{6})`, 'u').exec(theme)?.[1];
+    if (!value) throw new Error(`No --cg-${name}`);
+    return [0, 2, 4].map((at) => parseInt(value.slice(at, at + 2), 16));
+  };
+  const channel = (value: number) => { const c = value / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+  const luminance = ([r, g, b]: number[]) => 0.2126 * channel(r!) + 0.7152 * channel(g!) + 0.0722 * channel(b!);
+  const contrast = (first: number[], second: number[]) => {
+    const [high, low] = [luminance(first), luminance(second)].sort((a, b) => b - a);
+    return (high! + 0.05) / (low! + 0.05);
+  };
+  const rule = (selector: string) => new RegExp(`(?:^|\\n)${selector.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}\\s*\\{([^}]*)\\}`, 'u').exec(css)?.[1] ?? '';
+
+  it('reads selected text at 4.5:1 or more on the selection, focused and hovered, in light and dark', () => {
+    const mix = /--cg-tree-selected-text:\s*color-mix\(in srgb, var\(--cg-tree-accent\) (\d+)%, var\(--cg-tree-text\)\);/u.exec(css);
+    expect(mix).not.toBeNull();
+    const share = Number(mix![1]) / 100;
+    expect(css).toMatch(/--cg-tree-accent:\s*var\(--cg-accent,/u);
+    expect(css).toMatch(/--cg-tree-text:\s*var\(--cg-text,/u);
+    expect(rule('.selected > .row')).toMatch(/color:\s*var\(--cg-tree-selected-text\);\s*background:\s*var\(--cg-tree-accent-soft\)/u);
+    // Focus draws a ring and keeps the selection's background; hover gives the row the hover background.
+    expect(rule('.node:focus-visible > .row')).toMatch(/box-shadow/u);
+    expect(rule('.node:focus-visible > .row')).not.toMatch(/background/u);
+    expect(rule('.node:not(.nodeDisabled) > .row:hover')).toMatch(/background:\s*var\(--cg-tree-hover\)/u);
+    for (const [name, theme] of Object.entries(themes)) {
+      const text = token(theme, 'accent').map((value, index) => value * share + token(theme, 'text')[index]! * (1 - share));
+      expect(contrast(text, token(theme, 'accent-soft')), `${name} selected`).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(text, token(theme, 'hover')), `${name} hovered and selected`).toBeGreaterThanOrEqual(4.5);
+      // The current row's bar, against every background a row can have.
+      for (const background of ['surface', 'accent-soft', 'hover']) {
+        expect(contrast(token(theme, 'accent'), token(theme, background)), `${name} bar on ${background}`).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+
+  it('sets aria-current apart from selection, and marks the row', async () => {
+    render(<CgTreeView nodes={[
+      { key: 'open', text: 'Open page', current: 'page' },
+      { key: 'chosen', text: 'Chosen', current: true },
+      { key: 'trail', text: 'Trail', current: 'location' },
+      { key: 'plain', text: 'Plain', current: false },
+    ]} defaultSelectedKey="chosen" />);
+    expect(item('open')).toHaveAttribute('aria-current', 'page');
+    expect(item('open')).toHaveAttribute('aria-selected', 'false');
+    expect(item('chosen')).toHaveAttribute('aria-current', 'true');
+    expect(item('chosen')).toHaveAttribute('aria-selected', 'true');
+    expect(item('trail')).toHaveAttribute('aria-current', 'location');
+    expect(item('plain')).not.toHaveAttribute('aria-current');
+    expect(item('open').className).toMatch(/current/u);
+    expect(item('plain').className).not.toMatch(/current/u);
+    expect(rule('.current > .row::before')).toMatch(/background:\s*var\(--cg-tree-accent\)/u);
+    // Selecting another row leaves the current one where it is.
+    await userEvent.click(item('plain'));
+    expect(item('plain')).toHaveAttribute('aria-selected', 'true');
+    expect(item('open')).toHaveAttribute('aria-current', 'page');
+    expect(item('plain')).not.toHaveAttribute('aria-current');
   });
 });

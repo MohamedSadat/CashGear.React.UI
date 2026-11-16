@@ -52,6 +52,10 @@ export interface CgToolbarItem<TData = unknown> {
   toggleAriaLabel?: string;
   /** For a `render` item holding a text box or combo box: its content keeps its own tab stop and arrow keys, and arrow navigation passes over it. */
   ownsKeyboard?: boolean;
+  /** The item opens a panel the caller draws (a link field, a colour row): whether it is open, as `aria-expanded`. */
+  expanded?: boolean;
+  /** The id of the panel the item opens, as `aria-controls`. */
+  controls?: string;
 }
 
 export interface CgToolbarItemActivationDetails<TData = unknown> {

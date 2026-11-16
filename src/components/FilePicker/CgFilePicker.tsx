@@ -3,6 +3,8 @@ import type { DragEvent } from 'react';
 import { cx } from '../../utils';
 import { CgButton } from '../Button';
 import { acceptTokens, fileMatches } from './accept';
+import { droppedFiles } from './folderEntries';
+import type { PathedFile } from './folderEntries';
 import styles from './CgFilePicker.module.css';
 import type { CgFilePickerHandle, CgFilePickerProps, CgFilePickerSource } from './CgFilePicker.types';
 
@@ -13,7 +15,7 @@ const carriesFiles = (event: DragEvent) => Array.from(event.dataTransfer?.types 
  * reads, uploads and keeps nothing. With `dropZone`, files dropped on it are given the same way.
  */
 export const CgFilePicker = forwardRef<CgFilePickerHandle, CgFilePickerProps>(function CgFilePicker(
-  { children, accept, multiple = false, capture, onPick, onReject, onCancel, hint, dropZone = false, containerClassName, disabled = false, ...buttonProps },
+  { children, accept, multiple = false, directory = false, capture, onPick, onReject, onCancel, hint, dropZone = false, containerClassName, disabled = false, ...buttonProps },
   forwardedRef,
 ) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -36,14 +38,23 @@ export const CgFilePicker = forwardRef<CgFilePickerHandle, CgFilePickerProps>(fu
     return () => input.removeEventListener('cancel', cancel);
   }, [onCancel]);
 
-  const give = (files: File[], source: CgFilePickerSource) => {
-    if (!files.length) return;
-    const taken = files.filter((file) => fileMatches(file, tokens));
-    const rejected = files.filter((file) => !fileMatches(file, tokens));
-    const details = Object.freeze({ source });
-    if (rejected.length) onReject?.(rejected, details);
-    if (taken.length) onPick(multiple ? taken : taken.slice(0, 1), details);
+  // A folder dialog is asked for through the non-standard attribute every current browser reads.
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+    input.toggleAttribute('webkitdirectory', directory);
+  }, [directory]);
+
+  const give = (pathed: readonly PathedFile[], source: CgFilePickerSource) => {
+    if (!pathed.length) return;
+    const several = multiple || directory;
+    const taken = pathed.filter(({ file }) => fileMatches(file, tokens));
+    const rejected = pathed.filter(({ file }) => !fileMatches(file, tokens));
+    const given = several ? taken : taken.slice(0, 1);
+    if (rejected.length) onReject?.(rejected.map(({ file }) => file), Object.freeze({ source, paths: Object.freeze(rejected.map(({ path }) => path)) }));
+    if (given.length) onPick(given.map(({ file }) => file), Object.freeze({ source, paths: Object.freeze(given.map(({ path }) => path)) }));
   };
+  const flat = (files: readonly File[]): PathedFile[] => files.map((file) => ({ file, path: file.webkitRelativePath || file.name }));
 
   const dropHandlers = dropZone && !disabled ? {
     onDragEnter: (event: DragEvent) => { if (carriesFiles(event)) { event.preventDefault(); setDragOver(true); } },
@@ -60,7 +71,13 @@ export const CgFilePicker = forwardRef<CgFilePickerHandle, CgFilePickerProps>(fu
       if (!carriesFiles(event)) return;
       event.preventDefault();
       setDragOver(false);
-      give(Array.from(event.dataTransfer.files), 'drop');
+      const files = Array.from(event.dataTransfer.files);
+      if (!directory) { give(flat(files), 'drop'); return; }
+      // Dropped folders are read through to their files, each with its path below the drop.
+      void droppedFiles(event.dataTransfer.items).then(
+        (pathed) => give(pathed ?? flat(files), 'drop'),
+        () => give(flat(files), 'drop'),
+      );
     },
   } : {};
 
@@ -75,7 +92,7 @@ export const CgFilePicker = forwardRef<CgFilePickerHandle, CgFilePickerProps>(fu
       className={styles.input}
       type="file"
       accept={tokens.length ? tokens.join(',') : undefined}
-      multiple={multiple}
+      multiple={multiple || directory}
       capture={capture}
       tabIndex={-1}
       aria-hidden="true"
@@ -84,7 +101,7 @@ export const CgFilePicker = forwardRef<CgFilePickerHandle, CgFilePickerProps>(fu
         const files = Array.from(event.currentTarget.files ?? []);
         // Cleared, so choosing the same file again is still a change.
         event.currentTarget.value = '';
-        give(files, 'dialog');
+        give(flat(files), 'dialog');
       }}
     />
     <CgButton {...buttonProps} ref={buttonRef} disabled={disabled} onClick={() => inputRef.current?.click()}>{children}</CgButton>

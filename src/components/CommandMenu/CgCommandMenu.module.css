@@ -47,6 +47,8 @@
 }
 .option[aria-disabled='true'] { color: var(--cg-disabled-text); cursor: default; }
 .active { background: var(--cg-selected); }
+/* On the selected background the secondary text is drawn nearer the text colour: 6.2:1 in light, more in dark. */
+.active .detail, .active .shortcut { color: color-mix(in srgb, var(--cg-text-secondary) 70%, var(--cg-text)); }
 .icon {
   display: inline-grid;
   inline-size: 1.75rem;

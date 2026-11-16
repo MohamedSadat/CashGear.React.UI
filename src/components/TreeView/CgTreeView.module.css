@@ -6,6 +6,12 @@
   --cg-tree-muted: var(--cg-text-secondary, #667085);
   --cg-tree-border: var(--cg-border, #d0d5dd);
   --cg-tree-hover: var(--cg-hover, #f2f4f7);
+  /*
+   * The selected row's text: the accent darkened (light) or lightened (dark) toward the text colour.
+   * The plain accent read 4.09:1 on the light selection; this reads 5.6:1 on it (and focused), 5.9:1
+   * hovered, and 5.8:1 and 6.7:1 in the dark theme.
+   */
+  --cg-tree-selected-text: color-mix(in srgb, var(--cg-tree-accent) 75%, var(--cg-tree-text));
   --cg-tree-row-height: 2rem;
   --cg-tree-indent: 1.25rem;
   --cg-tree-control: 1.25rem;
@@ -47,7 +53,19 @@
 /* The hovered row only: a nested row sits inside its ancestors' nodes. */
 .node:not(.nodeDisabled) > .row:hover { background: var(--cg-tree-hover); }
 .node:focus-visible > .row { box-shadow: inset 0 0 0 2px var(--cg-tree-accent), 0 0 0 0.1875rem color-mix(in srgb, var(--cg-tree-accent) 30%, transparent); }
-.selected > .row { color: var(--cg-tree-accent); background: var(--cg-tree-accent-soft); }
+.selected > .row { color: var(--cg-tree-selected-text); background: var(--cg-tree-accent-soft); }
+/* The current node (`current`, such as the page open), apart from selection: a bar at the row's start and medium weight. */
+.current > .row { position: relative; font-weight: var(--cg-font-weight-medium, 600); }
+.current > .row::before {
+  position: absolute;
+  inset-block: 0.25rem;
+  inset-inline-start: 0;
+  inline-size: 0.1875rem;
+  content: '';
+  background: var(--cg-tree-accent);
+  border-radius: 999px;
+}
+.flatNode.current > .row::before { inset-inline-start: calc(var(--cg-tree-indent) * var(--cg-tree-depth, 0)); }
 .nodeDisabled > .row, .readOnly .row { cursor: default; }
 .nodeDisabled > .row { opacity: 0.55; }
 .group { padding-inline-start: var(--cg-tree-indent); }
@@ -175,6 +193,8 @@
 
 @media (forced-colors: active) {
   .selected > .row { color: HighlightText; background: Highlight; }
+  .current > .row::before { background: CanvasText; forced-color-adjust: none; }
+  .selected.current > .row::before { background: HighlightText; }
   .checked, .mixed { color: HighlightText; background: Highlight; border-color: Highlight; forced-color-adjust: none; }
   .extended .node:focus-visible > .row { outline: 2px solid Highlight; outline-offset: -2px; }
   .row[data-cg-drop-inside] { outline: 2px dashed Highlight; outline-offset: -2px; }

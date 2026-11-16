@@ -1,0 +1,27 @@
+.shell { position: relative; display: inline-flex; min-inline-size: 10rem; max-inline-size: 100%; }
+.fullWidth { display: flex; inline-size: 100%; }
+.select {
+  box-sizing: border-box;
+  min-inline-size: 0;
+  flex: 1 1 auto;
+  inline-size: 100%;
+  align-self: stretch;
+  /* The shell draws the chevron at the inline end; the select's own arrow is not drawn. */
+  appearance: none;
+  padding-block: var(--cg-space-2);
+  padding-inline: var(--cg-control-padding-x) 2.25rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  line-height: var(--cg-line-height);
+  outline: 0;
+}
+.select:disabled { cursor: not-allowed; }
+.select option { background: var(--cg-surface); color: var(--cg-text); }
+.chevron { position: absolute; inset-block: 0; inset-inline-end: var(--cg-space-3); display: inline-flex; align-items: center; color: var(--cg-text-secondary); pointer-events: none; }
+
+@media (forced-colors: active) {
+  .chevron { color: CanvasText; }
+}

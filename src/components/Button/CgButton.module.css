@@ -37,6 +37,8 @@
 .root:disabled, .root[aria-disabled='true'] { cursor: not-allowed; opacity: 0.55; }
 .fullWidth { inline-size: 100%; }
 .icon, .label { display: inline-flex; align-items: center; }
+/* An icon-only button has no label: no empty box, and no gap beside the icon. */
+.label:empty { display: none; }
 .spinner { inline-size: 1em; block-size: 1em; border: 0.15em solid currentColor; border-inline-end-color: transparent; border-radius: 50%; animation: spin 700ms linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 1400ms; } }

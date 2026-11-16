@@ -25,6 +25,8 @@ export type CgTreeViewDropPosition = 'before' | 'inside' | 'after';
 export type CgTreeViewMoveSource = 'pointer' | 'keyboard';
 /** ArrowRight and ArrowLeft: `physical` (the default) expands with ArrowRight in both directions; `logical` follows the reading direction, so ArrowLeft expands in right to left. */
 export type CgTreeViewArrowKeys = 'physical' | 'logical';
+/** A node's `aria-current`: `true`, or the kind of current item, such as the page open (`page`) or the place in a path (`location`). */
+export type CgTreeViewNodeCurrent = boolean | 'page' | 'location';
 
 export interface CgTreeViewTextFragment { readonly text: string; readonly matched: boolean }
 
@@ -51,6 +53,17 @@ export interface CgTreeViewNodeDescriptor<TItem = unknown> {
   allowRename?: boolean;
   /** The text a rename starts from, when `text` is not that string (rich content, or an empty title shown as a placeholder). */
   renameText?: string;
+  /**
+   * False: the node never folds, such as a section heading. It draws no toggle and its children always
+   * show, whatever `expandedKeys` holds; collapsing it by keys, `actions` or the menu does nothing, and
+   * it keeps `aria-expanded="true"` (it is a parent whose group is open). Default true.
+   */
+  collapsible?: boolean;
+  /**
+   * Marks the node as the current one, such as the page open, apart from selection: sets `aria-current`
+   * on its tree item and draws a bar at the row's start with medium weight text.
+   */
+  current?: CgTreeViewNodeCurrent;
 }
 
 export interface CgTreeViewFilterMatch {
@@ -324,7 +337,10 @@ export interface CgTreeViewProps<TItem = unknown> extends NativeTreeViewProps {
   loadChildren?: (details: CgTreeViewLoadChildrenDetails<TItem>) => PromiseLike<void>;
   /** Required with `loadChildren`. */
   loadLabels?: CgTreeViewLoadLabels<TItem>;
-  /** Buttons at each row's end, such as Add inside and More, shown on hover, focus and selection. Clicks there do not select the row. */
+  /**
+   * Buttons at each row's end, such as Add inside and More, shown on hover, focus and selection. Clicks
+   * there do not select the row, and they are not part of the row's accessible name (its text alone is).
+   */
   renderActions?: (context: CgTreeViewNodeRenderContext<TItem>) => ReactNode;
   /**
    * Draws only the rows in view, for thousands of nodes: rows get one height (`rowHeight`) and do
