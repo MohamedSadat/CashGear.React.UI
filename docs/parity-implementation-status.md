@@ -317,8 +317,20 @@ Built for CashGear Workspace's Track U on `claude/cashgear-react-ui-library-xq8t
 | Production and Storybook builds | Passed. |
 | Package verification | Passed: 241 runtime exports and 2,770 packed files. |
 | New semantic and Axe cases | 104 per engine (Axe on every Phase 37 story, plus keyboard, pointer and RTL behaviour), all passed in Chromium and in WebKit. |
-| Existing semantic and Axe suites | Chromium 448 of 448 passed. WebKit: 446 of 448 passed; the two failures were load timing (the Phase 13 Grid test's navigation timeout, and preload warnings on the narrow Arabic ribbon story), and the one rerun alone passed. |
-| Visual | 16 existing cases per engine changed with the fixes and were reviewed and re-recorded: dark menus, toolbars, accordion, PDF viewer and analysis views now follow the dark tokens, and the charts' data toggle is 24 px high. 29 new Phase 37 cases per engine, recorded and inspected on this host. Final full runs: not rerun after the last Flyout focus-scroll fix (fca2da4); the tree visual cases were rerun and pass. |
+| Existing semantic and Axe suites | Chromium 448 of 448 passed. WebKit: 446 of 448 passed; the two failures were load timing (the Phase 13 Grid test's navigation timeout, and preload warnings on the narrow Arabic ribbon story), and both passed when rerun alone. |
+| Visual | 16 existing cases per engine changed with the fixes and were reviewed and re-recorded: dark menus, toolbars, accordion, PDF viewer and analysis views now follow the dark tokens, and the charts' data toggle is 24 px high. 29 new Phase 37 cases per engine, recorded and inspected on this host. Final full runs after every change below: Chromium 402 of 403 before re-recording the narrow PDF viewer, WebKit 403 of 403. |
 | Firefox | Not attempted; it cannot launch on this host. |
 
 The defect fixes: `CgSplitter` content fills its pane and scrolls under a fixed header, and `separatorAriaLabel` names separators; dark-theme solid buttons draw dark text (6.3:1 or more) and soft buttons read at 4.5:1 or more; the `--cg-color-*` names menus and toolbars read are set on every themed element; `CgDrawer` sizes take CSS math functions; a reorderable `CgTabs` selects on click and drops right-to-left drags where the pointer is; `CgFlyout` keeps an explicit width, focuses from `onAfterOpen` once drawn (and gains `autoFocus`), and watches its anchor only while open; `CgChart`'s data toggle is 24 px high. Found and fixed on the way: right-to-left `CgTreeView` chevrons pointed the wrong way, hovering a nested tree row lit its ancestors, and `focusFirst()` before placement scrolled the page.
+
+### Follow-ups from Workspace's swaps (2026-11-16)
+
+Pushed in `ab467b7` and `f66cb07`: `CgSelect`; `CgFilePicker` `directory`; `CgOptionPicker` `normalize` and `filter`; `CgCommandMenu` `handledKeys` and a 6.2:1 active option; `CgMentionArea` empty lines; `CgToolbarItem` `expanded` and `controls`; no empty label box in icon-only buttons (the narrow PDF viewer baseline changes in both engines); a docked selection toolbar that scrolls with 44 px tools; right-to-left indent icons; `CgTreeView` names, `collapsible`, `current`, modifier chords and selected-text contrast; `CgMonthCalendar` handle and selected day; `CgKanbanBoard` column moves, footers, paging, drafts and titles.
+
+| Gate | Recorded result |
+| --- | --- |
+| Typecheck, lint, cycles | Passed; 451 source modules have no relative-import cycles. |
+| Unit suite | 1,220 tests in 109 files with two workers before the kanban additions; the kanban suite then 39 of 39 and the public API test passed. |
+| New semantic and Axe cases | Follow-ups 10, sidebar and calendar 8, kanban columns 5, per engine: all passed in Chromium and WebKit, as did the earlier kanban, tree and calendar specs rerun with them. |
+| Package verification | Passed: 244 runtime exports and 2,789 packed files. |
+

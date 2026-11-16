@@ -1127,6 +1127,9 @@ live.current?.announce('نُقلت البطاقة إلى «قيد التنفيذ
 - `CgToolbarItem` `expanded` and `controls` set `aria-expanded` and `aria-controls` on an item that opens a panel. An icon-only `CgButton` draws no empty label box beside its icon.
 - `CgSelectionToolbar` docked keeps 44 px tools and scrolls along the line when they are wider than the screen.
 - `indent-increase` and `indent-decrease` draw Fluent's right-to-left versions inside a right-to-left container.
+- `CgKanbanBoard` adds `onColumnMove` (a column moves by its header, its grip's keys or the grip's menu, with a drop line and announcements), `renderColumnFooter`, `onColumnEndReached` for paging, a draft card (`draftColumn`, `renderDraft`) and `renderColumnTitle`. `moveKanbanCard` and `moveKanbanColumn` apply a reported move to the caller's list.
+- `CgMonthCalendar` adds an `actionsRef` handle (`dayAt(x, y)` and `markDropDay` for drags from outside, `getDayElement`, and `startCreate(date)`, whose `onCreate` carries the day cell as its anchor) and a controlled `selectedDay`.
+- `CgTreeView` rows are named by their title alone; `collapsible: false` makes a section heading that never folds; `current` sets `aria-current`; Ctrl, Cmd and Alt chords the tree does not use reach the app; selected text reads at 5.6:1.
 - A notice with "Undo" and "Close" is `useCgToast().show({ content, action: { label, onAction }, showCloseButton: true, closeButtonAriaLabel })`: it pauses while hovered, focused or running its action, and is a polite `status` (an `alert` only for errors and `important`).
 
 ### Fixes to existing components
