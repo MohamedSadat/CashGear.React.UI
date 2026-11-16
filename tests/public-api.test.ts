@@ -100,6 +100,8 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'cgEdgeScrollStep',
   'cgStartsDrag',
   'cgTrackDrag',
+  'CgKanbanBoard',
+  'CgMonthCalendar',
   'CgPopup',
   'CgProgressBar',
   'CgRadio',

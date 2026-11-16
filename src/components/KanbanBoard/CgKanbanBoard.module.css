@@ -1,0 +1,281 @@
+/* The board: columns side by side (a flex row, so RTL runs them right to left), scrolling as one
+   with each column's header sticky at the top. Cards are placed by logical offsets in their
+   column; only the copy that follows the pointer is placed by viewport pixels (cgTrackDrag). */
+
+.root {
+  display: flex;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  min-block-size: 0;
+  flex-direction: column;
+  color: var(--cg-text);
+  font: var(--cg-font-size-md)/var(--cg-line-height) var(--cg-font-family);
+}
+
+.scroller {
+  position: relative;
+  /* The columns never widen the board: it scrolls inside the width it is given. */
+  contain: inline-size;
+  min-block-size: 10rem;
+  flex: 1 1 auto;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.columns {
+  display: flex;
+  box-sizing: border-box;
+  min-inline-size: 100%;
+  inline-size: max-content;
+  align-items: flex-start;
+  gap: var(--cg-space-3);
+  padding: var(--cg-space-2);
+}
+
+.column {
+  position: relative;
+  display: flex;
+  box-sizing: border-box;
+  inline-size: var(--cg-kanban-column-size, 17rem);
+  flex: none;
+  flex-direction: column;
+  border-radius: var(--cg-radius-md);
+  background: var(--cg-surface-subtle);
+}
+
+.head {
+  position: sticky;
+  z-index: 3;
+  inset-block-start: 0;
+  display: flex;
+  box-sizing: border-box;
+  min-block-size: 2.75rem;
+  align-items: center;
+  gap: var(--cg-space-1);
+  padding-inline: var(--cg-space-2);
+  border-start-start-radius: var(--cg-radius-md);
+  border-start-end-radius: var(--cg-radius-md);
+  background: var(--cg-surface-subtle);
+}
+
+.title {
+  min-inline-size: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  font-weight: var(--cg-font-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.count {
+  flex: none;
+  color: var(--cg-text-secondary);
+  font-size: var(--cg-font-size-sm);
+}
+
+.columnIcon {
+  display: inline-flex;
+  flex: none;
+}
+
+.actions {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--cg-space-1);
+}
+
+.iconButton {
+  display: inline-grid;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  flex: none;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--cg-radius-sm);
+  background: transparent;
+  color: var(--cg-text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.iconButton:hover {
+  background: var(--cg-hover);
+  color: var(--cg-text);
+}
+
+.iconButton:focus-visible {
+  outline: var(--cg-focus-ring-width) solid var(--cg-focus-ring-color);
+  outline-offset: 0;
+}
+
+.body {
+  position: relative;
+  min-block-size: 2.5rem;
+  margin-inline: var(--cg-space-2);
+  padding-block-end: var(--cg-space-2);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+}
+
+.card {
+  position: absolute;
+  inset-inline: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: var(--cg-border-width) solid var(--cg-border);
+  border-radius: var(--cg-radius-md);
+  background: var(--cg-surface);
+  box-shadow: var(--cg-shadow-sm);
+  color: var(--cg-text);
+  font: var(--cg-font-size-md)/var(--cg-line-height) var(--cg-font-family);
+  cursor: pointer;
+  user-select: none;
+}
+
+.card:hover {
+  border-color: var(--cg-border-strong);
+}
+
+.card:focus {
+  outline: none;
+}
+
+.card:focus-visible {
+  outline: var(--cg-focus-ring-width) solid var(--cg-focus-ring-color);
+  outline-offset: 1px;
+}
+
+.card[data-cg-dragging] {
+  opacity: 0.45;
+}
+
+/* A card Space picked up: lifted, with a dashed ring that stays a focus mark. */
+.card[data-cg-picked] {
+  background: var(--cg-selected);
+  outline: var(--cg-focus-ring-width) dashed var(--cg-accent);
+  outline-offset: 2px;
+}
+
+.content {
+  box-sizing: border-box;
+  block-size: 100%;
+  overflow: hidden;
+  padding-block: var(--cg-space-2);
+  padding-inline: var(--cg-space-3);
+}
+
+.withHandle {
+  padding-inline-end: calc(var(--cg-space-1) + 1.75rem);
+}
+
+/* Two classes, so the handle's size wins over the drag handle's own. */
+.card .handle {
+  position: absolute;
+  inset-block-start: var(--cg-space-1);
+  inset-inline-end: var(--cg-space-1);
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  opacity: 0;
+}
+
+.card:hover .handle,
+.card:focus-within .handle,
+.card[data-cg-picked] .handle {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .card .handle {
+    opacity: 1;
+  }
+}
+
+.empty {
+  margin: 0;
+  padding-block: var(--cg-space-3);
+  padding-inline: var(--cg-space-2);
+  color: var(--cg-text-secondary);
+  font-size: var(--cg-font-size-sm);
+  text-align: center;
+}
+
+/* A collapsed column, or any with a fixed order, marked as a whole while a card is over it. */
+.column[data-cg-drop-target],
+.column[data-cg-drop-target] .head {
+  background: var(--cg-accent-soft);
+}
+
+.column[data-cg-drop-target] {
+  outline: 2px dashed var(--cg-accent);
+  outline-offset: -2px;
+}
+
+.collapsed {
+  inline-size: 2.75rem;
+}
+
+.collapsed .head {
+  min-block-size: 10rem;
+  flex-direction: column;
+  padding-block: var(--cg-space-2);
+  padding-inline: 0;
+  border-radius: var(--cg-radius-md);
+}
+
+.collapsed .title {
+  max-inline-size: 16rem;
+  flex: none;
+  writing-mode: vertical-rl;
+}
+
+.ghost {
+  cursor: grabbing;
+}
+
+.hiddenList {
+  border: var(--cg-border-width) dashed var(--cg-border);
+  background: transparent;
+}
+
+.hiddenList .head {
+  background: var(--cg-surface);
+  color: var(--cg-text-secondary);
+}
+
+.hiddenItems {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cg-space-1);
+  margin: 0;
+  padding-block: 0 var(--cg-space-2);
+  padding-inline: var(--cg-space-2);
+  list-style: none;
+}
+
+.hiddenItem {
+  display: flex;
+  min-block-size: 2rem;
+  align-items: center;
+  gap: var(--cg-space-2);
+}
+
+@media (forced-colors: active) {
+  .card:focus-visible,
+  .iconButton:focus-visible {
+    outline-color: Highlight;
+  }
+
+  .card[data-cg-picked],
+  .column[data-cg-drop-target] {
+    outline-color: Highlight;
+  }
+
+  .card[data-cg-dragging] {
+    border-style: dashed;
+  }
+}

@@ -220,3 +220,7 @@ export { CgEmojiPicker, cgPageIcons } from './components/EmojiPicker';
 export type { CgEmojiPickerGroup, CgEmojiPickerItem, CgEmojiPickerLabels, CgEmojiPickerProps } from './components/EmojiPicker';
 export { CG_DRAG_THRESHOLD, CgDragHandle, CgDropIndicator, cgEdgeScrollStep, cgStartsDrag, cgTrackDrag } from './components/DragDrop';
 export type { CgDragHandleProps, CgDragHandlers, CgDragOptions, CgDropIndicatorHandle, CgDropIndicatorOrientation, CgDropIndicatorPlacement, CgDropIndicatorProps } from './components/DragDrop';
+export { CgKanbanBoard } from './components/KanbanBoard';
+export type { CgKanbanBoardLabels, CgKanbanBoardProps, CgKanbanCard, CgKanbanCardContext, CgKanbanColumn, CgKanbanMoveDetails, CgKanbanOpenDetails } from './components/KanbanBoard';
+export { CgMonthCalendar } from './components/MonthCalendar';
+export type { CgMonthCalendarCreateDetails, CgMonthCalendarCreateSource, CgMonthCalendarItem, CgMonthCalendarItemNameInfo, CgMonthCalendarItemRenderContext, CgMonthCalendarLabels, CgMonthCalendarMonth, CgMonthCalendarMonthChangeDetails, CgMonthCalendarMonthChangeReason, CgMonthCalendarMoveDetails, CgMonthCalendarOpenDetails, CgMonthCalendarOpenSource, CgMonthCalendarProps } from './components/MonthCalendar';

@@ -1,0 +1,197 @@
+/* A month grid of CSS grids (mirrored in right to left), the items of each week in lanes over its
+   days, and a day's "+N more" under them. */
+.root {
+  --cg-month-calendar-rows: 3;
+  --cg-month-calendar-head: 1.75rem;
+  --cg-month-calendar-lane: 1.625rem;
+  --cg-month-calendar-more: 1.625rem;
+  display: flex;
+  box-sizing: border-box;
+  min-inline-size: 0;
+  flex-direction: column;
+  gap: var(--cg-space-3);
+  color: var(--cg-text);
+  font: var(--cg-font-size-md)/var(--cg-line-height) var(--cg-font-family);
+}
+:global([data-cg-density='compact']) .root {
+  --cg-month-calendar-head: 1.5rem;
+  --cg-month-calendar-lane: 1.5rem;
+  --cg-month-calendar-more: 1.5rem;
+}
+
+.header { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cg-space-3); }
+.title { margin-inline-end: var(--cg-space-3); font-size: var(--cg-font-size-lg); font-weight: var(--cg-font-weight-medium); }
+.navigation { display: flex; align-items: center; gap: var(--cg-space-2); }
+
+.scroller { min-inline-size: 0; overflow: auto; overscroll-behavior: contain; }
+.grid {
+  min-inline-size: 35rem;
+  border-block-start: var(--cg-border-width) solid var(--cg-border);
+  border-inline-start: var(--cg-border-width) solid var(--cg-border);
+  background: var(--cg-surface);
+}
+.weekdays, .week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.weekday {
+  overflow: hidden;
+  padding-block: var(--cg-space-2);
+  padding-inline: var(--cg-space-3);
+  border-block-end: var(--cg-border-width) solid var(--cg-border);
+  border-inline-end: var(--cg-border-width) solid var(--cg-border);
+  color: var(--cg-text-secondary);
+  font-size: var(--cg-font-size-sm);
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.week {
+  position: relative;
+  block-size: calc(var(--cg-month-calendar-head) + var(--cg-month-calendar-rows) * var(--cg-month-calendar-lane) + var(--cg-month-calendar-more));
+}
+
+.day {
+  position: relative;
+  box-sizing: border-box;
+  min-inline-size: 0;
+  padding-block: var(--cg-space-1);
+  padding-inline: var(--cg-space-2);
+  border-block-end: var(--cg-border-width) solid var(--cg-border);
+  border-inline-end: var(--cg-border-width) solid var(--cg-border);
+  outline: none;
+}
+.day[data-outside] { background: var(--cg-surface-subtle); color: var(--cg-text-secondary); }
+.day[aria-selected='true'] { background: var(--cg-hover); }
+.day[data-drop] { background: var(--cg-accent-soft); box-shadow: inset 0 0 0 2px var(--cg-accent); }
+.day:focus-visible { outline: var(--cg-focus-ring-width) solid var(--cg-focus-ring-color); outline-offset: calc(-1 * var(--cg-focus-ring-width)); }
+
+.number {
+  display: inline-block;
+  box-sizing: border-box;
+  min-inline-size: 1.5rem;
+  padding-inline: var(--cg-space-2);
+  border-radius: 0.75rem;
+  font-size: var(--cg-font-size-sm);
+  line-height: 1.5rem;
+  text-align: center;
+}
+.day[data-today] .number { background: var(--cg-accent); color: var(--cg-color-fg-on-accent); font-weight: var(--cg-font-weight-medium); }
+
+.add, .more {
+  position: absolute;
+  z-index: 1;
+  display: inline-grid;
+  box-sizing: border-box;
+  place-items: center;
+  border: 0;
+  border-radius: var(--cg-radius-sm);
+  background: transparent;
+  color: var(--cg-text-secondary);
+  cursor: pointer;
+  font: inherit;
+}
+.add {
+  inset-block-start: var(--cg-space-1);
+  inset-inline-end: var(--cg-space-1);
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  padding: 0;
+  opacity: 0;
+}
+.day:hover .add, .day:focus-within .add { opacity: 1; }
+.more {
+  inset-block-end: 1px;
+  inset-inline-start: var(--cg-space-1);
+  min-inline-size: 1.5rem;
+  block-size: 1.5rem;
+  padding-block: 0;
+  padding-inline: var(--cg-space-2);
+  font-size: var(--cg-font-size-sm);
+  white-space: nowrap;
+}
+.add:hover, .more:hover { background: var(--cg-hover); color: var(--cg-text); }
+.add:focus-visible, .more:focus-visible { opacity: 1; outline: var(--cg-focus-ring-width) solid var(--cg-focus-ring-color); outline-offset: -2px; }
+@media (hover: none) {
+  .add { opacity: 1; }
+}
+
+.lanes {
+  position: absolute;
+  inset-block-start: var(--cg-month-calendar-head);
+  inset-inline: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-rows: repeat(var(--cg-month-calendar-rows), var(--cg-month-calendar-lane));
+  pointer-events: none;
+}
+
+.item {
+  --cg-month-calendar-item-color: var(--cg-accent);
+  display: flex;
+  box-sizing: border-box;
+  min-inline-size: 0;
+  align-items: center;
+  gap: var(--cg-space-2);
+  margin-block: 1px;
+  margin-inline: var(--cg-space-2);
+  padding-inline: var(--cg-space-2);
+  overflow: hidden;
+  border-inline-start: 3px solid var(--cg-month-calendar-item-color);
+  border-radius: var(--cg-radius-sm);
+  background: color-mix(in srgb, var(--cg-month-calendar-item-color) 18%, var(--cg-surface));
+  color: var(--cg-text);
+  cursor: pointer;
+  font-family: var(--cg-font-family);
+  font-size: var(--cg-font-size-sm);
+  line-height: 1.25;
+  white-space: nowrap;
+  pointer-events: auto;
+  user-select: none;
+}
+.item[data-movable] { touch-action: none; }
+.item:hover { background: color-mix(in srgb, var(--cg-month-calendar-item-color) 28%, var(--cg-surface)); }
+.item:focus-visible { outline: var(--cg-focus-ring-width) solid var(--cg-focus-ring-color); outline-offset: 1px; }
+.item[data-continues-before] { margin-inline-start: 0; border-inline-start-width: 0; border-start-start-radius: 0; border-end-start-radius: 0; }
+.item[data-continues-after] { margin-inline-end: 0; border-start-end-radius: 0; border-end-end-radius: 0; }
+.item[data-cg-dragging] { opacity: 0.4; }
+
+/* The text colour, not the secondary one: on a light tint that reads under 4.5:1. */
+.time { flex: none; font-variant-numeric: tabular-nums; font-weight: var(--cg-font-weight-medium); }
+.text { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; }
+
+.moreList { display: flex; flex-direction: column; margin: 0; padding: var(--cg-space-2); list-style: none; }
+.moreItem {
+  --cg-month-calendar-item-color: var(--cg-accent);
+  display: flex;
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: 1.75rem;
+  align-items: center;
+  gap: var(--cg-space-3);
+  padding-block: var(--cg-space-2);
+  padding-inline: var(--cg-space-3);
+  border: 0;
+  border-radius: var(--cg-radius-sm);
+  background: transparent;
+  color: var(--cg-text);
+  cursor: pointer;
+  font: inherit;
+  text-align: start;
+}
+.moreItem::before {
+  flex: none;
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: 50%;
+  background: var(--cg-month-calendar-item-color);
+  content: '';
+}
+.moreItem:hover { background: var(--cg-hover); }
+.moreItem:focus-visible { outline: var(--cg-focus-ring-width) solid var(--cg-focus-ring-color); outline-offset: -2px; }
+
+@media (forced-colors: active) {
+  .day:focus-visible, .item:focus-visible, .add:focus-visible, .more:focus-visible, .moreItem:focus-visible { outline-color: Highlight; }
+  .day[aria-selected='true'] { outline: 1px dashed Highlight; outline-offset: -4px; }
+  .day[data-drop] { outline: 2px solid Highlight; outline-offset: -2px; }
+  .day[data-today] .number { background: Highlight; color: HighlightText; forced-color-adjust: none; }
+  .item { border: 1px solid CanvasText; }
+  .moreItem::before { background: CanvasText; }
+}
