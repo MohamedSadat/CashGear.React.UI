@@ -1,10 +1,13 @@
-import { useState } from 'react';
-import type { ReactNode } from 'react';
+import { useMemo, useState } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { StoryFrame, parityParameters } from '../../stories/storySupport';
+import { CgInlineTextEditor } from '../InlineEditor';
+import { CgStatusBadge } from '../StatusBadge';
+import type { CgStatusBadgeType } from '../StatusBadge';
 import { CgKanbanBoard } from './CgKanbanBoard';
 import type { CgKanbanBoardLabels, CgKanbanCard, CgKanbanColumn } from './CgKanbanBoard.types';
-import { moveKanbanCard } from './kanbanLayout';
+import { moveKanbanCard, moveKanbanColumn } from './kanbanLayout';
 
 const source = 'None: React only (Cash Gear Workspace Track U14, the database board view)';
 const difference = 'Generic columns and cards drawn by renderCard; drags, keys and the handle menu report one onCardMove, and a long column draws only the cards in view.';
@@ -176,4 +179,166 @@ export const ArabicBoardDark: Story = {
 export const LeftToRight: Story = {
   args: { columns: [], cards: [], labels: englishLabels, renderCard: () => null } as never,
   render: () => <Fixture columns={englishColumns} cards={englishCards} labels={englishLabels} openText="Open" newCard={(n) => `New card ${n}`} owner="Sara" />,
+};
+
+// ---- Columns that move, a paged column, a draft card and coloured titles (Arabic) ------------------
+
+const columnsDifference = 'Columns move by their header (drag, grip keys or grip menu) with one onColumnMove; a column ends with the caller’s footer, says once per number of cards that its end came into view, and can show a draft card.';
+
+interface Status { tone: CgStatusBadgeType }
+
+const PAGE = 20;
+const pagedColumns: Array<CgKanbanColumn<Status>> = [
+  { key: 'todo', title: 'لم يبدأ', data: { tone: 'neutral' } },
+  { key: 'doing', title: 'قيد التنفيذ', data: { tone: 'info' } },
+  { key: 'review', title: 'قيد المراجعة', data: { tone: 'warning' } },
+  { key: 'blocked', title: 'متوقف', data: { tone: 'error' } },
+  { key: 'done', title: 'منجز', data: { tone: 'success' } },
+];
+/** The paged column's cards on the "server": the board has the first page at the start. */
+const pagedTodo = tasks('todo', 80, arabicTitles, arabicOwners, arabicNumber);
+const pagedCards: Array<CgKanbanCard<Task>> = [
+  ...pagedTodo.slice(0, PAGE),
+  ...tasks('doing', 4, arabicTitles.slice(2), arabicOwners, arabicNumber),
+  ...tasks('review', 2, arabicTitles.slice(4), arabicOwners, arabicNumber),
+  ...tasks('done', 3, arabicTitles.slice(1), arabicOwners, arabicNumber),
+];
+const pagedLabels: CgKanbanBoardLabels<Task, Status> = {
+  ...arabicLabels,
+  columnHandle: (column) => `نقل العمود ${column.title}`,
+  columnHint: 'المسافة ترفع العمود، ثم تنقله مفاتيح الأسهم وتضعه المسافة، ويفتح Shift+F10 قائمته',
+  columnPickedUp: (column, index, count) => `رُفع العمود ${column.title}، الموضع ${index + 1} من ${count}`,
+  columnPosition: (column, index, count) => `${column.title}، الموضع ${index + 1} من ${count}`,
+  columnMoved: (column, index, count) => `نُقل العمود ${column.title} إلى الموضع ${index + 1} من ${count}`,
+  columnCancelled: (column) => `بقي العمود ${column.title} في مكانه`,
+  // In right to left the row starts on the right.
+  moveColumnPrevious: 'نقل لليمين',
+  moveColumnNext: 'نقل لليسار',
+};
+
+/** A column's title as its status's coloured chip. */
+const statusChip = (column: CgKanbanColumn<Status>) => {
+  const tone = column.data?.tone ?? 'neutral';
+  return <CgStatusBadge dir="auto" text={column.title} type={tone} appearance={tone === 'neutral' ? 'outline' : 'soft'} indicator />;
+};
+
+const footButton: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 4,
+  minBlockSize: 28,
+  paddingInline: 8,
+  border: 0,
+  borderRadius: 'var(--cg-radius-sm)',
+  background: 'transparent',
+  color: 'var(--cg-text-secondary)',
+  font: 'inherit',
+  fontSize: 'var(--cg-font-size-sm)',
+  textAlign: 'start',
+  cursor: 'pointer',
+};
+
+interface PagedData {
+  cards: Array<CgKanbanCard<Task>>;
+  /** Cards not loaded yet, by column. */
+  remaining: Array<CgKanbanCard<Task>>;
+  added: number;
+}
+
+/**
+ * Columns that move, a paged column that loads its next page when its end comes into view (or
+ * from its footer's "تحميل المزيد"), a draft card where a new card's title is typed, and the
+ * columns' titles drawn as coloured chips.
+ */
+function ColumnsFixture() {
+  const [columns, setColumns] = useState(pagedColumns);
+  const [data, setData] = useState<PagedData>(() => ({ cards: pagedCards, remaining: pagedTodo.slice(PAGE), added: 0 }));
+  const [draft, setDraft] = useState<string | null>('doing');
+  // The draft shown at the start waits to be focused; one opened from a footer takes the focus.
+  const [draftFocus, setDraftFocus] = useState(false);
+  const [lastMove, setLastMove] = useState('');
+  const [lastColumnMove, setLastColumnMove] = useState('');
+  const [endCalls, setEndCalls] = useState<string[]>([]);
+  const [draftText, setDraftText] = useState('');
+  // Each column's count is its total: the cards loaded and those not loaded yet.
+  const shown = useMemo(() => columns.map((column) => ({
+    ...column,
+    count: data.cards.filter((card) => card.columnKey === column.key).length + data.remaining.filter((card) => card.columnKey === column.key).length,
+  })), [columns, data]);
+  const loadMore = (columnKey: string) => setData((current) => {
+    const page = current.remaining.filter((card) => card.columnKey === columnKey).slice(0, PAGE);
+    return page.length ? { ...current, cards: [...current.cards, ...page], remaining: current.remaining.filter((card) => !page.includes(card)) } : current;
+  });
+  return <StoryFrame source={source} difference={columnsDifference}>
+    <div style={{ display: 'grid', gap: 8, inlineSize: '100%', minInlineSize: 0 }}>
+      <CgKanbanBoard<Task, Status>
+        data-testid="kanban-board"
+        style={{ blockSize: '30rem', border: '1px solid var(--cg-border)', borderRadius: 8, background: 'var(--cg-surface)' }}
+        columns={shown}
+        cards={data.cards}
+        labels={pagedLabels}
+        renderCard={renderTask}
+        cardSize={64}
+        renderColumnTitle={statusChip}
+        onCardMove={(key, toColumnKey, toIndex, details) => {
+          setData((current) => ({ ...current, cards: moveKanbanCard(current.cards, key, toColumnKey, toIndex) }));
+          setLastMove(`${key} ${details.fromColumnKey}:${details.fromIndex} → ${toColumnKey}:${toIndex} (${details.source})`);
+        }}
+        onColumnMove={(key, toIndex, details) => {
+          setColumns((current) => moveKanbanColumn(current, key, toIndex));
+          setLastColumnMove(`${key} ${details.fromIndex} → ${toIndex} (${details.source})`);
+        }}
+        onColumnEndReached={(key) => {
+          const loaded = data.cards.filter((card) => card.columnKey === key).length;
+          setEndCalls((current) => [...current, `${key}@${loaded}`]);
+          loadMore(key);
+        }}
+        renderColumnFooter={(column) => {
+          const more = data.remaining.some((card) => card.columnKey === column.key);
+          const drafting = draft === column.key;
+          if (!more && drafting) return null;
+          return <>
+            {more ? <button type="button" style={footButton} onClick={() => loadMore(column.key)}>تحميل المزيد</button> : null}
+            {drafting ? null : <button
+              type="button"
+              style={footButton}
+              aria-label={`بطاقة جديدة في ${column.title}`}
+              onClick={() => {
+                setDraftFocus(true);
+                setDraft(column.key);
+              }}
+            ><span aria-hidden="true">＋</span>بطاقة جديدة</button>}
+          </>;
+        }}
+        draftColumn={draft}
+        renderDraft={(column) => <CgInlineTextEditor
+          label={`عنوان البطاقة الجديدة في ${column.title}`}
+          defaultValue=""
+          placeholder="اكتب عنوان البطاقة"
+          autoFocus={draftFocus}
+          onCommit={(text) => {
+            const title = text.trim();
+            if (!title) return;
+            setDraftText(title);
+            setData((current) => ({
+              ...current,
+              added: current.added + 1,
+              cards: [...current.cards, { key: `new-${current.added + 1}`, columnKey: column.key, label: title, data: { owner: 'سارة', amount: 0 } }],
+            }));
+          }}
+          onDone={() => setDraft(null)}
+        />}
+      />
+      <output data-testid="last-column-move">{lastColumnMove}</output>
+      <output data-testid="end-reached">{endCalls.join(' ')}</output>
+      <output data-testid="draft-text">{draftText}</output>
+      <output data-testid="last-move">{lastMove}</output>
+    </div>
+  </StoryFrame>;
+}
+
+export const ArabicColumnsAndPaging: Story = {
+  args: { columns: [], cards: [], labels: arabicLabels, renderCard: () => null } as never,
+  render: () => <ColumnsFixture />,
+  globals: { direction: 'rtl' },
 };

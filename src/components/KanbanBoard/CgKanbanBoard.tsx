@@ -14,16 +14,19 @@ import type { CgKanbanBoardProps, CgKanbanCard, CgKanbanColumn } from './CgKanba
 import {
   groupKanbanCards,
   kanbanCardsInWindow,
+  kanbanColumnDropGap,
   kanbanColumnLayout,
+  kanbanColumnLine,
   kanbanDropGap,
   kanbanGapOf,
   kanbanKeyMove,
+  kanbanMoveColumn,
   kanbanMoveDrop,
   kanbanMoveFocus,
   kanbanNearestColumn,
   kanbanTargetIndex,
 } from './kanbanLayout';
-import type { KanbanColumnLayout, KanbanKeyMove, KanbanPosition } from './kanbanLayout';
+import type { KanbanColumnBox, KanbanColumnLayout, KanbanKeyMove, KanbanPosition } from './kanbanLayout';
 
 /** The window's top is kept in steps of this many pixels, so a scroll draws again only now and then. */
 const STEP = 160;
@@ -62,6 +65,19 @@ interface PendingFocus {
   readonly index: number | null;
 }
 
+/** A column its grip picked up: its index and where it would land, both among the shown columns. */
+interface PickedColumn {
+  readonly key: string;
+  readonly from: number;
+  to: number;
+}
+
+/** A column grip to focus again once its column is drawn at `index` (a move draws it elsewhere). */
+interface PendingGrip {
+  readonly key: string;
+  readonly index: number;
+}
+
 function required(value: unknown, name: string, reason: string): void {
   if (value === undefined || (typeof value === 'string' && !value.trim())) {
     throw new Error(`CgKanbanBoard labels.${name} is required ${reason}.`);
@@ -82,23 +98,27 @@ function track<T>(map: Map<string, T>, key: string, value: T | null): (() => voi
   };
 }
 
-/** The copy that follows the pointer: the card's box without its identity, in the card's theme. */
-function cardGhost(source: HTMLElement): HTMLElement {
+/** A copy that follows the pointer: the box of `source` without its identity, in its theme. */
+function ghostOf(source: HTMLElement, strip: readonly string[]): HTMLElement {
   const rect = source.getBoundingClientRect();
   const ghost = source.cloneNode(true) as HTMLElement;
   for (const element of [ghost, ...ghost.querySelectorAll('[id]')]) element.removeAttribute('id');
-  for (const name of ['role', 'tabindex', 'aria-label', 'aria-describedby', 'aria-posinset', 'aria-setsize', 'data-cg-kanban-card', 'data-cg-picked']) {
-    ghost.removeAttribute(name);
-  }
+  for (const name of strip) ghost.removeAttribute(name);
   ghost.inert = true;
   ghost.style.removeProperty('inset-block-start');
   ghost.style.inlineSize = `${rect.width}px`;
   ghost.style.blockSize = `${rect.height}px`;
-  // The copy is put in the body, outside the board's theme: it takes the card's along.
+  // The copy is put in the body, outside the board's theme: it takes the source's along.
   const theme = source.closest('[data-cg-theme]')?.getAttribute('data-cg-theme');
   if (theme) ghost.setAttribute('data-cg-theme', theme);
   return ghost;
 }
+
+const CARD_IDENTITY = ['role', 'tabindex', 'aria-label', 'aria-describedby', 'aria-posinset', 'aria-setsize', 'data-cg-kanban-card', 'data-cg-picked'];
+/** The copy of a dragged card. */
+const cardGhost = (source: HTMLElement) => ghostOf(source, CARD_IDENTITY);
+/** The copy of a dragged column: its header. */
+const headGhost = (source: HTMLElement) => ghostOf(source, ['data-cg-kanban-column-head']);
 
 interface CardItemProps<TData, TColumnData> {
   card: CgKanbanCard<TData>;
@@ -158,7 +178,9 @@ const KanbanCardItem = memo(KanbanCardItemInner) as typeof KanbanCardItemInner;
  * pointer and one line shows where it lands; no card is drawn again during the drag), by keys
  * (Space picks it up, the arrows move it, Space or Enter drops it, Escape cancels), or from its
  * handle's menu; the board tells `onCardMove` and never reorders its own data. The board scrolls
- * as one with sticky headers, and each column draws only the cards in view.
+ * as one with sticky headers, and each column draws only the cards in view. Columns move too, by
+ * their header (dragged, or its grip by keys or its menu), told to `onColumnMove`; a column can
+ * end with a footer, report that its end came into view, and show a draft card.
  */
 function CgKanbanBoardInner<TData, TColumnData>(
   {
@@ -182,6 +204,14 @@ function CgKanbanBoardInner<TData, TColumnData>(
     onShowColumn,
     renderColumnActions,
     locale,
+    onColumnMove,
+    canMoveColumn,
+    renderColumnFooter,
+    onColumnEndReached,
+    draftColumn,
+    renderDraft,
+    draftPlacement = 'end',
+    renderColumnTitle,
     className,
     style,
     ...nativeProps
@@ -216,9 +246,23 @@ function CgKanbanBoardInner<TData, TColumnData>(
     required(labels.hiddenColumns, 'hiddenColumns', 'with onShowColumn');
     required(labels.showColumn, 'showColumn', 'with onShowColumn');
   }
+  const columnsMovable = onColumnMove !== undefined;
+  if (columnsMovable) {
+    const reason = 'when columns can move (onColumnMove)';
+    required(labels.columnHandle, 'columnHandle', reason);
+    required(labels.columnHint, 'columnHint', reason);
+    required(labels.columnPickedUp, 'columnPickedUp', reason);
+    required(labels.columnPosition, 'columnPosition', reason);
+    required(labels.columnMoved, 'columnMoved', reason);
+    required(labels.columnCancelled, 'columnCancelled', reason);
+    required(labels.moveColumnPrevious, 'moveColumnPrevious', reason);
+    required(labels.moveColumnNext, 'moveColumnNext', reason);
+  }
 
   const hintId = useCgId();
   const hint = labels.cardHint?.trim() ? labels.cardHint : undefined;
+  const columnHintId = useCgId();
+  const columnHint = columnsMovable ? labels.columnHint : undefined;
   const counter = useMemo(() => new Intl.NumberFormat(locale), [locale]);
 
   const models = useMemo<Array<ColumnModel<TData, TColumnData>>>(() => {
@@ -259,6 +303,17 @@ function CgKanbanBoardInner<TData, TColumnData>(
   const shownDrop = useRef<{ columnKey: string; whole: boolean } | null>(null);
   const pendingFocus = useRef<PendingFocus | null>(null);
   const stopDrag = useRef<(() => void) | null>(null);
+  const [columnMenuKey, setColumnMenuKey] = useState<string>();
+  const columnsBox = useRef<HTMLDivElement>(null);
+  const columnLine = useRef<CgDropIndicatorHandle>(null);
+  const shownColumnGap = useRef<number | null>(null);
+  const pickedColumn = useRef<PickedColumn | null>(null);
+  const pendingGrip = useRef<PendingGrip | null>(null);
+  const grips = useRef(new Map<string, HTMLButtonElement>());
+  const drafts = useRef(new Map<string, HTMLDivElement>());
+  const columnMenu = useRef<CgContextMenuActions<string>>(null);
+  /** Each column's number of cards when `onColumnEndReached` was last called for it. */
+  const endReached = useRef(new Map<string, number>());
 
   const cardOf = (key: string): CgKanbanCard<TData> | undefined => {
     const position = positions.get(key);
@@ -267,15 +322,23 @@ function CgKanbanBoardInner<TData, TColumnData>(
   const allowed = (cardKey: string, columnKey: string, toIndex: number) => !canMove || canMove(cardKey, columnKey, toIndex);
   /** A collapsed column, or any with `fixedOrder`, takes a drop as a whole, at its end. */
   const whole = (col: number) => fixedOrder || collapsed.has(models[col]?.column.key ?? '');
+  /** A shown column's index; -1 when it is not drawn. */
+  const columnIndex = (key: string) => models.findIndex((model) => model.column.key === key);
+  const columnAllowed = (key: string, toIndex: number) => !canMoveColumn || canMoveColumn(key, toIndex);
 
   // ---- The window ----------------------------------------------------------------------------
-  const measure = useStableCallback(() => {
-    const scroller = scrollerRef.current;
-    if (!scroller) return;
+  /** The window the scroller shows now: its top (in steps), its height and where the column bodies start. */
+  const readView = (scroller: HTMLElement) => {
     const top = Math.floor(scroller.scrollTop / STEP) * STEP;
     const height = scroller.clientHeight || FALLBACK_HEIGHT;
     const body = bodies.current.values().next().value;
     const offset = body ? Math.max(0, Math.round(body.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop)) : 0;
+    return { top, height, offset };
+  };
+  const measure = useStableCallback(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    const { top, height, offset } = readView(scroller);
     setView((current) => (current.top === top && current.height === height && current.offset === offset ? current : { top, height, offset }));
   });
   useLayoutEffect(() => {
@@ -288,6 +351,30 @@ function CgKanbanBoardInner<TData, TColumnData>(
   }, [measure]);
   const windowTop = view.top - view.offset - OVERSCAN;
   const windowBottom = view.top - view.offset + view.height + OVERSCAN + STEP;
+
+  // A column whose last card came inside the window (the overscan included) says so, once for
+  // each number of cards it has. The window is read again here: before the board is first
+  // measured it is drawn with a fallback height, which must not count as reaching an end.
+  const reportEnd = useStableCallback(onColumnEndReached);
+  const reportsEnd = onColumnEndReached !== undefined;
+  const checkEnds = useStableCallback(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    const seen = readView(scroller);
+    const bottom = seen.top - seen.offset + seen.height + OVERSCAN + STEP;
+    for (const model of models) {
+      const key = model.column.key;
+      const count = model.cards.length;
+      if (collapsed.has(key) || bottom < model.layout.total) continue;
+      if (model.column.count !== undefined && count >= model.column.count) continue;
+      if (endReached.current.get(key) === count) continue;
+      endReached.current.set(key, count);
+      reportEnd(key);
+    }
+  });
+  useEffect(() => {
+    if (reportsEnd) checkEnds();
+  }, [reportsEnd, models, collapsed, windowBottom, checkEnds]);
 
   // ---- Scrolling into view and focus ---------------------------------------------------------
   /** Scrolls the column at `col` into view along the row and, given a range of its body, that range down the board. */
@@ -318,6 +405,21 @@ function CgKanbanBoardInner<TData, TColumnData>(
     revealRange(position.col, layout.offsets[position.index], (layout.offsets[position.index + 1] ?? layout.total) - layout.gap);
   };
 
+  /** Scrolls a column's draft card into view when it opens (its editor focuses without scrolling). */
+  const revealDraft = useStableCallback((key: string) => {
+    const element = drafts.current.get(key);
+    const body = bodies.current.get(key);
+    const col = columnIndex(key);
+    if (!element || !body || col < 0) return;
+    const origin = body.getBoundingClientRect().top;
+    const box = element.getBoundingClientRect();
+    revealRange(col, box.top - origin, box.bottom - origin);
+  });
+  const draftKey = renderDraft !== undefined && draftColumn != null ? draftColumn : null;
+  useLayoutEffect(() => {
+    if (draftKey !== null) revealDraft(draftKey);
+  }, [draftKey, draftPlacement, revealDraft]);
+
   /** Focuses the card a move or a key asked for, once it is drawn where it was sent, unless the focus has gone elsewhere. */
   const applyPendingFocus = useStableCallback(() => {
     const pending = pendingFocus.current;
@@ -333,6 +435,30 @@ function CgKanbanBoardInner<TData, TColumnData>(
     revealCard(position);
   });
   useLayoutEffect(() => applyPendingFocus());
+
+  /** Focuses a moved column's grip again once it is drawn at its new place (moving it in the DOM lost the focus). */
+  const applyPendingGrip = useStableCallback(() => {
+    const pending = pendingGrip.current;
+    if (!pending) return;
+    const grip = grips.current.get(pending.key);
+    if (!grip) {
+      pendingGrip.current = null;
+      return;
+    }
+    const doc = grip.ownerDocument;
+    const lost = doc.activeElement === null || doc.activeElement === doc.body;
+    // The focus went elsewhere: the grip does not take it back.
+    if (!lost && doc.activeElement !== grip) {
+      pendingGrip.current = null;
+      return;
+    }
+    if (columnIndex(pending.key) !== pending.index) return;
+    pendingGrip.current = null;
+    if (!lost) return;
+    grip.focus({ preventScroll: true });
+    revealRange(pending.index);
+  });
+  useLayoutEffect(() => applyPendingGrip());
 
   // ---- The drop line ---------------------------------------------------------------------------
   const hideDrop = useStableCallback(() => {
@@ -500,6 +626,182 @@ function CgKanbanBoardInner<TData, TColumnData>(
     if (card) live.current?.announce(labels.cancelled?.(card) ?? '');
   };
 
+  // ---- Moving a column -------------------------------------------------------------------------------
+  /**
+   * Draws the line down the gap `gap` among the shown columns (0 to their count), or hides it on
+   * null: measured only when the gap changes, and written to the DOM directly.
+   */
+  const showColumnGap = useStableCallback((gap: number | null) => {
+    if (gap === shownColumnGap.current) return;
+    shownColumnGap.current = gap;
+    const line = columnLine.current;
+    const box = columnsBox.current;
+    if (!line) return;
+    if (gap === null || !box) {
+      line.hide();
+      return;
+    }
+    const boxes = models.map((model): KanbanColumnBox => {
+      const rect = sections.current.get(model.column.key)?.getBoundingClientRect();
+      return { left: rect?.left ?? 0, right: rect?.right ?? 0, top: rect?.top ?? 0, bottom: rect?.bottom ?? 0 };
+    });
+    const computed = getComputedStyle(box);
+    const rtl = computed.direction === 'rtl';
+    const place = kanbanColumnLine(boxes, gap, rtl, (Number.parseFloat(computed.columnGap) || 0) / 2);
+    if (!place) {
+      line.hide();
+      return;
+    }
+    // From the columns' inline start: their right edge in RTL.
+    const outer = box.getBoundingClientRect();
+    line.show({
+      orientation: 'vertical',
+      inline: rtl ? outer.right - place.x : place.x - outer.left,
+      block: place.top - outer.top,
+      length: place.bottom - place.top,
+    });
+  });
+
+  /** Tells the caller of a column's move and says it. False when it is no move or is vetoed. */
+  const commitColumn = useStableCallback((key: string, toIndex: number, source: 'pointer' | 'keyboard'): boolean => {
+    const from = columnIndex(key);
+    const model = models[from];
+    if (!onColumnMove || !model || toIndex === from || toIndex < 0 || toIndex >= models.length) return false;
+    if (!columnAllowed(key, toIndex)) return false;
+    // A focused grip keeps the focus once the caller draws its column elsewhere.
+    const grip = grips.current.get(key);
+    pendingGrip.current = grip && grip.ownerDocument.activeElement === grip ? { key, index: toIndex } : null;
+    onColumnMove(key, toIndex, Object.freeze({ fromIndex: from, source }));
+    live.current?.announce(labels.columnMoved?.(model.column, toIndex, models.length) ?? '');
+    return true;
+  });
+
+  const beginColumnDrag = (press: globalThis.PointerEvent, head: HTMLElement, key: string) => {
+    const scroller = scrollerRef.current;
+    const section = sections.current.get(key);
+    const from = columnIndex(key);
+    if (!scroller || !section || from < 0) return;
+    let boxes: Array<{ left: number; right: number }> = [];
+    let startLeft = 0;
+    let rtl = false;
+    const locate = (x: number): number | null => {
+      const dx = scroller.scrollLeft - startLeft;
+      const toIndex = kanbanTargetIndex(from, kanbanColumnDropGap(boxes.map((box) => ({ left: box.left - dx, right: box.right - dx })), x, rtl));
+      return toIndex !== null && columnAllowed(key, toIndex) ? toIndex : null;
+    };
+    const end = () => {
+      showColumnGap(null);
+      section.removeAttribute('data-cg-dragging');
+      stopDrag.current = null;
+    };
+    stopDrag.current?.();
+    stopDrag.current = cgTrackDrag(press, head, {
+      scroller,
+      ghost: headGhost,
+      ...(styles.columnGhost ? { ghostClassName: styles.columnGhost } : {}),
+      onStart() {
+        startLeft = scroller.scrollLeft;
+        rtl = getComputedStyle(scroller).direction === 'rtl';
+        boxes = models.map((model) => {
+          const box = sections.current.get(model.column.key)?.getBoundingClientRect();
+          return { left: box?.left ?? 0, right: box?.right ?? 0 };
+        });
+        section.setAttribute('data-cg-dragging', '');
+      },
+      onMove(x) {
+        const toIndex = locate(x);
+        showColumnGap(toIndex === null ? null : kanbanGapOf(from, toIndex));
+      },
+      onDrop(x) {
+        end();
+        // Where the pointer was let go, as for a card.
+        const toIndex = locate(x);
+        if (toIndex !== null) commitColumn(key, toIndex, 'pointer');
+      },
+      onCancel: end,
+    });
+  };
+
+  /** The next place a key takes a picked-up column to, past places `canMoveColumn` refuses. */
+  const nextColumnPlace = (current: PickedColumn, move: KanbanKeyMove): number | null => {
+    let place: number | null = current.to;
+    for (;;) {
+      place = kanbanMoveColumn(models.length, place, move);
+      if (place === null || place === current.from || columnAllowed(current.key, place)) return place;
+    }
+  };
+  const endColumnPick = (drop: boolean) => {
+    const current = pickedColumn.current;
+    pickedColumn.current = null;
+    showColumnGap(null);
+    if (!current) return;
+    sections.current.get(current.key)?.removeAttribute('data-cg-picked');
+    if (drop && commitColumn(current.key, current.to, 'keyboard')) return;
+    const model = models[columnIndex(current.key)];
+    if (model) live.current?.announce(labels.columnCancelled?.(model.column) ?? '');
+  };
+
+  const columnMenuItemsFor = useStableCallback((key: string): Array<CgContextMenuItem<string>> => {
+    const from = columnIndex(key);
+    if (!columnsMovable || from < 0) return [];
+    const item = (itemKey: string, text: string, toIndex: number): CgContextMenuItem<string> => ({
+      key: itemKey,
+      text,
+      disabled: toIndex < 0 || toIndex >= models.length || !columnAllowed(key, toIndex),
+      command: ({ source }) => { commitColumn(key, toIndex, source); },
+    });
+    return [
+      item('cg-kanban-column-previous', labels.moveColumnPrevious ?? '', from - 1),
+      item('cg-kanban-column-next', labels.moveColumnNext ?? '', from + 1),
+    ];
+  });
+  /** Opens a column's grip menu by `anchor`; false when the column has no items. */
+  const openColumnMenu = useStableCallback((key: string, anchor: HTMLElement): boolean => {
+    if (!columnMenuItemsFor(key).length) return false;
+    // The menu gives the focus back to the grip.
+    grips.current.get(key)?.focus({ preventScroll: true });
+    setColumnMenuKey(key);
+    void columnMenu.current?.showNear(anchor, key);
+    return true;
+  });
+  // Stable: the menu drops an opening invocation when these change.
+  const customizeColumnMenu = useCallback(({ invocation }: { invocation: { context: string } }) => columnMenuItemsFor(invocation.context), [columnMenuItemsFor]);
+
+  /** Keys on a column's grip: Space or Enter picks the column up; then the arrows carry it, Space or Enter drops it, Escape or Tab cancels. */
+  const onGripKeyDown = (event: KeyboardEvent<HTMLDivElement>, grip: HTMLElement) => {
+    const key = grip.dataset.cgKanbanColumnGrip ?? '';
+    const from = columnIndex(key);
+    const model = models[from];
+    if (!model) return;
+    const current = pickedColumn.current;
+    if (!current) {
+      if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
+        if (openColumnMenu(key, grip)) event.preventDefault();
+        return;
+      }
+      if (event.altKey || event.ctrlKey || event.metaKey || (event.key !== ' ' && event.key !== 'Enter')) return;
+      // Prevented, so the key does not also click the grip (which opens its menu).
+      event.preventDefault();
+      pendingGrip.current = null;
+      pickedColumn.current = { key, from, to: from };
+      sections.current.get(key)?.setAttribute('data-cg-picked', '');
+      live.current?.announce(labels.columnPickedUp?.(model.column, from, models.length) ?? '');
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.key === 'Escape' || event.key === 'Tab') return endColumnPick(false);
+    if (event.key === ' ' || event.key === 'Enter') return endColumnPick(true);
+    const move = kanbanKeyMove(event.key, getComputedStyle(grip).direction === 'rtl');
+    const place = move ? nextColumnPlace(current, move) : null;
+    const moving = models[columnIndex(current.key)];
+    if (place === null || !moving) return;
+    current.to = place;
+    showColumnGap(place === current.from ? null : kanbanGapOf(current.from, place));
+    live.current?.announce(labels.columnPosition?.(moving.column, place, models.length) ?? '');
+    revealRange(place);
+  };
+
   // ---- The card menu -------------------------------------------------------------------------------
   const menuItemsFor = useStableCallback((cardKey: string): Array<CgContextMenuItem<string>> => {
     const from = positions.get(cardKey);
@@ -561,11 +863,21 @@ function CgKanbanBoardInner<TData, TColumnData>(
   };
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0 || !movable) return;
+    if (event.button !== 0) return;
     if (picked.current) {
       endPick(false);
       return;
     }
+    if (pickedColumn.current) endColumnPick(false);
+    // A column is dragged by its header (not by a control in it) or by its grip.
+    const head = columnsMovable && event.target instanceof Element ? event.target.closest<HTMLElement>('[data-cg-kanban-column-head]') : null;
+    if (head && event.target instanceof Element && event.currentTarget.contains(head)) {
+      if (event.target.closest('[data-cg-kanban-column-grip]') !== null || cgStartsDrag(event.target, head)) {
+        beginColumnDrag(event.nativeEvent, head, head.dataset.cgKanbanColumnHead ?? '');
+      }
+      return;
+    }
+    if (!movable) return;
     const element = cardFrom(event.target, event.currentTarget);
     if (!element || !(event.target instanceof Element)) return;
     const onHandle = event.target.closest('[data-cg-kanban-grip]') !== null;
@@ -578,6 +890,10 @@ function CgKanbanBoardInner<TData, TColumnData>(
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const target = event.target;
+    if (columnsMovable && target instanceof HTMLElement && target.dataset.cgKanbanColumnGrip !== undefined) {
+      onGripKeyDown(event, target);
+      return;
+    }
     if (!(target instanceof HTMLElement) || target.dataset.cgKanbanCard === undefined) return;
     const cardKey = target.dataset.cgKanbanCard;
     const position = positions.get(cardKey);
@@ -671,6 +987,9 @@ function CgKanbanBoardInner<TData, TColumnData>(
   const tabPosition = tabKey === undefined ? undefined : positions.get(tabKey);
   const menuCard = menuKey === undefined ? undefined : cardOf(menuKey);
   const menuName = menuCard ? labels.cardHandle?.(menuCard) ?? menuCard.label : labels.board;
+  const menuColumn = columnMenuKey === undefined ? undefined : models[columnIndex(columnMenuKey)]?.column;
+  const columnMenuName = (menuColumn ? labels.columnHandle?.(menuColumn) : undefined) ?? labels.board;
+  const titleOf = (column: CgKanbanColumn<TColumnData>) => (renderColumnTitle ? renderColumnTitle(column) : column.title);
 
   const renderColumn = (model: ColumnModel<TData, TColumnData>, col: number) => {
     const { column, layout } = model;
@@ -688,6 +1007,20 @@ function CgKanbanBoardInner<TData, TColumnData>(
     }
     const toggleName = collapsible ? named((isCollapsed ? labels.expandColumn : labels.collapseColumn)?.(column) ?? '', isCollapsed ? 'expandColumn' : 'collapseColumn') : '';
     const addName = onAddCard && !isCollapsed ? named(labels.addCard?.(column) ?? '', 'addCard') : '';
+    const gripName = columnsMovable ? named(labels.columnHandle?.(column) ?? '', 'columnHandle') : '';
+    const footer = isCollapsed ? undefined : renderColumnFooter?.(column);
+    const hasDraft = !isCollapsed && renderDraft !== undefined && draftColumn === column.key;
+    const draftAtEnd = hasDraft && draftPlacement !== 'start';
+    const draft = hasDraft ? <div
+      ref={(element) => track(drafts.current, column.key, element)}
+      className={cx(styles.draft, !draftAtEnd && styles.draftStart)}
+      style={draftAtEnd ? undefined : { marginBlockEnd: cardGap }}
+      data-cg-kanban-draft={column.key}
+    >{renderDraft(column)}</div> : null;
+    // A draft after the cards is laid out under them: the body's padding keeps their place.
+    const bodyStyle: CSSProperties = draftAtEnd
+      ? { paddingBlockStart: layout.total }
+      : hasDraft && model.cards.length === 0 ? { blockSize: layout.total, minBlockSize: 0 } : { blockSize: layout.total };
     return <section
       key={column.key}
       ref={(element) => track(sections.current, column.key, element)}
@@ -696,7 +1029,17 @@ function CgKanbanBoardInner<TData, TColumnData>(
       data-cg-kanban-column={column.key}
       data-collapsed={isCollapsed ? '' : undefined}
     >
-      <div className={styles.head}>
+      <div className={cx(styles.head, columnsMovable && styles.movableHead)} data-cg-kanban-column-head={columnsMovable ? column.key : undefined}>
+        {columnsMovable ? <CgDragHandle
+          ref={(element) => track(grips.current, column.key, element)}
+          className={styles.columnGrip}
+          label={gripName}
+          aria-describedby={columnHint ? columnHintId : undefined}
+          aria-haspopup="menu"
+          data-cg-kanban-column-grip={column.key}
+          onClick={(event) => openColumnMenu(column.key, event.currentTarget)}
+          onBlur={() => { if (pickedColumn.current?.key === column.key) endColumnPick(false); }}
+        /> : null}
         {collapsible ? <button
           type="button"
           className={styles.iconButton}
@@ -706,7 +1049,7 @@ function CgKanbanBoardInner<TData, TColumnData>(
           onClick={() => toggleColumn(column.key)}
         ><CgIcon name={isCollapsed ? 'chevron-end' : 'chevron-down'} /></button> : null}
         {column.icon !== undefined ? <span className={styles.columnIcon} aria-hidden="true">{column.icon}</span> : null}
-        <span className={styles.title} dir="auto" title={column.title}>{column.title}</span>
+        <span className={styles.title} dir="auto" title={column.title}>{titleOf(column)}</span>
         <span className={styles.count} aria-hidden="true">{counter.format(count)}</span>
         {!isCollapsed && renderColumnActions ? <span className={styles.actions}>{renderColumnActions(column)}</span> : null}
         {addName ? <button
@@ -717,10 +1060,11 @@ function CgKanbanBoardInner<TData, TColumnData>(
           onClick={() => onAddCard?.(column.key)}
         ><CgIcon name="add" /></button> : null}
       </div>
+      {draftAtEnd ? null : draft}
       {isCollapsed ? null : <div
         ref={(element) => track(bodies.current, column.key, element)}
         className={styles.body}
-        style={{ blockSize: layout.total }}
+        style={bodyStyle}
       >
         {model.cards.length > 0 ? <div role="list" className={styles.list}>
           {drawn.map((index) => {
@@ -742,9 +1086,11 @@ function CgKanbanBoardInner<TData, TColumnData>(
               onHandleClick={openMenu}
             />;
           })}
-        </div> : <p className={styles.empty}>{labels.emptyColumn}</p>}
+        </div> : hasDraft ? null : <p className={styles.empty}>{labels.emptyColumn}</p>}
+        {draftAtEnd ? draft : null}
         <CgDropIndicator ref={(handle) => track(indicators.current, column.key, handle)} />
       </div>}
+      {footer === undefined || footer === null || typeof footer === 'boolean' ? null : <div className={styles.foot}>{footer}</div>}
     </section>;
   };
 
@@ -766,7 +1112,7 @@ function CgKanbanBoardInner<TData, TColumnData>(
       onClick={onClick}
       onContextMenu={onContextMenu}
     >
-      <div className={styles.columns}>
+      <div ref={columnsBox} className={cx(styles.columns, columnsMovable && styles.movableColumns)}>
         {models.map(renderColumn)}
         {onShowColumn && hiddenColumns.length > 0 ? <section className={cx(styles.column, styles.hiddenList)} aria-label={labels.hiddenColumns}>
           <div className={styles.head}><span className={styles.title}>{labels.hiddenColumns}</span></div>
@@ -775,7 +1121,7 @@ function CgKanbanBoardInner<TData, TColumnData>(
               const name = named(labels.showColumn?.(column) ?? '', 'showColumn');
               return <li key={column.key} className={styles.hiddenItem}>
                 {column.icon !== undefined ? <span className={styles.columnIcon} aria-hidden="true">{column.icon}</span> : null}
-                <span className={styles.title} dir="auto">{column.title}</span>
+                <span className={styles.title} dir="auto">{titleOf(column)}</span>
                 <button type="button" className={styles.iconButton} aria-label={name} title={name} onClick={() => onShowColumn(column.key)}>
                   <CgIcon name="eye" />
                 </button>
@@ -783,10 +1129,19 @@ function CgKanbanBoardInner<TData, TColumnData>(
             })}
           </ul>
         </section> : null}
+        {columnsMovable ? <CgDropIndicator ref={columnLine} className={styles.columnLine} /> : null}
       </div>
     </div>
     {hint ? <span id={hintId} hidden>{hint}</span> : null}
+    {columnHint ? <span id={columnHintId} hidden>{columnHint}</span> : null}
     <CgLiveAnnouncer ref={live} />
+    {columnsMovable ? <CgContextMenu<string>
+      items={NO_ITEMS}
+      actionsRef={columnMenu}
+      ariaLabel={columnMenuName}
+      loadingContent={null}
+      customizeMenu={customizeColumnMenu}
+    /> : null}
     <CgContextMenu<string>
       items={NO_ITEMS}
       actionsRef={menu}

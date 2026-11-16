@@ -49,6 +49,16 @@ export interface CgKanbanOpenDetails {
   readonly source: 'pointer' | 'keyboard';
 }
 
+export interface CgKanbanColumnMoveDetails {
+  /** The column's index among the shown columns (those not `hidden`) before the move. */
+  readonly fromIndex: number;
+  /** `pointer`: a drag of the header or a grip menu item chosen by pointer. `keyboard`: a keyboard drop or a menu item chosen by key. */
+  readonly source: 'pointer' | 'keyboard';
+}
+
+/** Where the draft card is drawn in its column: after the cards (`end`, default) or before them. */
+export type CgKanbanDraftPlacement = 'start' | 'end';
+
 /**
  * Every string the board shows or speaks. `index` arguments are 0-based places (add 1 to show
  * them) and `count` is the column's number of cards after the move.
@@ -85,6 +95,28 @@ export interface CgKanbanBoardLabels<TData = unknown, TColumnData = unknown> {
   /** The title and region name of the list of hidden columns, and each one's show button. Needed with `onShowColumn`. */
   hiddenColumns?: string;
   showColumn?: (column: CgKanbanColumn<TColumnData>) => string;
+  /**
+   * The column grip's name and tooltip, and the name of the menu it opens, such as "Move the
+   * column To do". Needed with `onColumnMove`, as are all the column labels below. Their `index`
+   * is a place among the shown columns and `count` the number of shown columns.
+   */
+  columnHandle?: (column: CgKanbanColumn<TColumnData>) => string;
+  /** Read with every column grip, such as "Space picks the column up and the arrows move it, Shift+F10 opens its menu". */
+  columnHint?: string;
+  /** Spoken when Space or Enter on its grip picks a column up. */
+  columnPickedUp?: (column: CgKanbanColumn<TColumnData>, index: number, count: number) => string;
+  /** Spoken as a picked-up column moves, such as "To do, position 3 of 5". */
+  columnPosition?: (column: CgKanbanColumn<TColumnData>, index: number, count: number) => string;
+  /** Spoken after a column moved, such as "Moved the column To do to position 3 of 5". */
+  columnMoved?: (column: CgKanbanColumn<TColumnData>, index: number, count: number) => string;
+  /** Spoken when a keyboard move of a column is cancelled. */
+  columnCancelled?: (column: CgKanbanColumn<TColumnData>) => string;
+  /**
+   * The grip menu's items that move the column one place towards the row's start or its end,
+   * such as "Move left" and "Move right" (in right to left the start is on the right).
+   */
+  moveColumnPrevious?: string;
+  moveColumnNext?: string;
 }
 
 export interface CgKanbanBoardProps<TData = unknown, TColumnData = unknown> extends Omit<HTMLAttributes<HTMLDivElement>,
@@ -132,4 +164,37 @@ export interface CgKanbanBoardProps<TData = unknown, TColumnData = unknown> exte
   renderColumnActions?: (column: CgKanbanColumn<TColumnData>) => ReactNode;
   /** The locale of the counts in the headers, such as `ar-EG`. Default: the runtime's. */
   locale?: string;
+  /**
+   * A column was moved: `toIndex` is its index among the shown columns (those not `hidden`)
+   * after the move. One call per drop of a dragged header, keyboard drop (Space or Enter on the
+   * header's grip, the arrows, Space or Enter) or grip menu item; the board never reorders
+   * `columns` itself (`moveKanbanColumn` applies a move to the whole list). Without it columns
+   * stay where they are: no grip, no header drag.
+   */
+  onColumnMove?: (columnKey: string, toIndex: number, details: CgKanbanColumnMoveDetails) => void;
+  /** Vetoes a column's place before it is shown or dropped on. */
+  canMoveColumn?: (columnKey: string, toIndex: number) => boolean;
+  /** Drawn at a column's end, after its cards and inside the column, such as "Load more" or "New". Not in a collapsed column. */
+  renderColumnFooter?: (column: CgKanbanColumn<TColumnData>) => ReactNode;
+  /**
+   * A column's last card came inside the drawn window (the overscan included), as when it is
+   * scrolled near its end: called once, and not again for that column until its number of cards
+   * changes. Not for a collapsed column, nor one whose `count` says all its cards are here.
+   */
+  onColumnEndReached?: (columnKey: string) => void;
+  /** The column that shows a draft card, where a new card's title is typed before it exists. Needs `renderDraft`. */
+  draftColumn?: string | null;
+  /**
+   * The draft card's content, such as an inline text editor. It is drawn in a card's box, as
+   * tall as its content, outside the list of cards: it takes no drag, keyboard moves of the
+   * focus and of cards pass it by, and Tab reaches what is inside it.
+   */
+  renderDraft?: (column: CgKanbanColumn<TColumnData>) => ReactNode;
+  /** Where the draft card is drawn: after the column's cards (default) or before them. */
+  draftPlacement?: CgKanbanDraftPlacement;
+  /**
+   * Draws a column's title in its header and in the list of hidden columns, such as an option's
+   * coloured chip. The column region keeps its name from `labels.column`. Default: `column.title`.
+   */
+  renderColumnTitle?: (column: CgKanbanColumn<TColumnData>) => ReactNode;
 }

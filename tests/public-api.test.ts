@@ -103,6 +103,8 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'CgKanbanBoard',
   'CgMonthCalendar',
   'CgSelect',
+  'moveKanbanCard',
+  'moveKanbanColumn',
   'CgPopup',
   'CgProgressBar',
   'CgRadio',

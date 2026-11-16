@@ -7,15 +7,19 @@ import type { CgKanbanBoardLabels, CgKanbanBoardProps, CgKanbanCard, CgKanbanCol
 import {
   groupKanbanCards,
   kanbanCardsInWindow,
+  kanbanColumnDropGap,
   kanbanColumnLayout,
+  kanbanColumnLine,
   kanbanDropGap,
   kanbanGapOf,
   kanbanKeyMove,
+  kanbanMoveColumn,
   kanbanMoveDrop,
   kanbanMoveFocus,
   kanbanNearestColumn,
   kanbanTargetIndex,
   moveKanbanCard,
+  moveKanbanColumn,
 } from './kanbanLayout';
 
 const columns: CgKanbanColumn[] = [
@@ -473,5 +477,409 @@ describe('CgKanbanBoard', () => {
     expect(() => render(<CgKanbanBoard {...base} labels={{ ...labels, column: () => '' }} />)).toThrow(/labels\.column/u);
     expect(() => render(<CgKanbanBoard {...base} cards={[{ key: 'a', columnKey: 'todo', label: '' }]} labels={labels} />)).toThrow(/label/u);
     expect(() => render(<CgKanbanBoard {...base} labels={labels} cardSize={0} />)).toThrow(RangeError);
+  });
+});
+
+// ---- Columns that move, footers, the end of a column, the draft card and drawn titles -------------
+
+const columnLabels: CgKanbanBoardLabels = {
+  ...labels,
+  columnHandle: (column) => `Move the column ${column.title}`,
+  columnHint: 'Space picks the column up and the arrows move it',
+  columnPickedUp: (column, index, count) => `Picked up the column ${column.title}, ${index + 1} of ${count}`,
+  columnPosition: (column, index, count) => `${column.title}, position ${index + 1} of ${count}`,
+  columnMoved: (column, index, count) => `Moved the column ${column.title} to ${index + 1} of ${count}`,
+  columnCancelled: (column) => `The column ${column.title} stays`,
+  moveColumnPrevious: 'Move left',
+  moveColumnNext: 'Move right',
+};
+
+/** A board that applies its column moves too, as a caller does. */
+function ColumnBoard({ onColumnMove, initialColumns = columns, ...props }: BoardProps & { initialColumns?: CgKanbanColumn[] }) {
+  const [list, setList] = useState(initialColumns);
+  return <Board
+    columns={list}
+    labels={columnLabels}
+    onColumnMove={(key, toIndex, details) => {
+      onColumnMove?.(key, toIndex, details);
+      setList((current) => moveKanbanColumn(current, key, toIndex));
+    }}
+    {...props}
+  />;
+}
+
+const grip = (title: string) => screen.getByRole('button', { name: `Move the column ${title}` });
+const columnOrder = () => [...document.querySelectorAll('section[data-cg-kanban-column]')].map((section) => section.getAttribute('data-cg-kanban-column'));
+/** The line among the columns (the columns' own child, not a column's). */
+const columnLine = () => screen.getByRole('region', { name: 'Tasks board' }).querySelector<HTMLElement>(':scope > div > [data-cg-drop-indicator]')!;
+
+describe('the column arithmetic', () => {
+  it('moves a column among the shown ones, hidden columns keeping their places', () => {
+    const list = [{ key: 'a' }, { key: 'h', hidden: true }, { key: 'b' }, { key: 'c' }];
+    expect(moveKanbanColumn(list, 'a', 1).map((column) => column.key)).toEqual(['h', 'b', 'a', 'c']);
+    expect(moveKanbanColumn(list, 'a', 2).map((column) => column.key)).toEqual(['h', 'b', 'c', 'a']);
+    expect(moveKanbanColumn(list, 'c', 0).map((column) => column.key)).toEqual(['c', 'a', 'h', 'b']);
+    expect(moveKanbanColumn(list, 'x', 0)).toEqual(list);
+  });
+
+  it('finds where a dragged column lands by the middles, right to left in RTL', () => {
+    const boxes = [{ left: 0, right: 100 }, { left: 110, right: 210 }, { left: 220, right: 320 }];
+    expect(kanbanColumnDropGap(boxes, 40, false)).toBe(0);
+    expect(kanbanColumnDropGap(boxes, 160, false)).toBe(1);
+    expect(kanbanColumnDropGap(boxes, 170, false)).toBe(2);
+    expect(kanbanColumnDropGap(boxes, 900, false)).toBe(3);
+    // In RTL the first column is the rightmost: left of its middle is after it.
+    const rtl = [...boxes].reverse();
+    expect(kanbanColumnDropGap(rtl, 290, true)).toBe(0);
+    expect(kanbanColumnDropGap(rtl, 260, true)).toBe(1);
+    expect(kanbanColumnDropGap(rtl, 10, true)).toBe(3);
+  });
+
+  it('draws the line halfway down a gap, outside the first and the last, mirrored in RTL', () => {
+    const boxes = [{ left: 0, right: 100 }, { left: 110, right: 210 }, { left: 220, right: 320 }].map((box, index) => ({ ...box, top: 0, bottom: 100 + index * 50 }));
+    expect(kanbanColumnLine(boxes, 1, false, 5)).toEqual({ x: 105, top: 0, bottom: 150 });
+    expect(kanbanColumnLine(boxes, 0, false, 5)).toEqual({ x: -5, top: 0, bottom: 100 });
+    expect(kanbanColumnLine(boxes, 3, false, 5)).toEqual({ x: 325, top: 0, bottom: 200 });
+    const rtl = [...boxes].reverse();
+    expect(kanbanColumnLine(rtl, 0, true, 5)).toEqual({ x: 325, top: 0, bottom: 200 });
+    expect(kanbanColumnLine(rtl, 1, true, 5)).toEqual({ x: 215, top: 0, bottom: 200 });
+    expect(kanbanColumnLine(rtl, 3, true, 5)).toEqual({ x: -5, top: 0, bottom: 100 });
+    expect(kanbanColumnLine([], 0, false, 5)).toBeNull();
+  });
+
+  it('moves a picked-up column along the row, never up or down', () => {
+    expect(kanbanMoveColumn(4, 0, 'previous')).toBeNull();
+    expect(kanbanMoveColumn(4, 0, 'next')).toBe(1);
+    expect(kanbanMoveColumn(4, 3, 'next')).toBeNull();
+    expect(kanbanMoveColumn(4, 2, 'first')).toBe(0);
+    expect(kanbanMoveColumn(4, 1, 'last')).toBe(3);
+    expect(kanbanMoveColumn(4, 3, 'last')).toBeNull();
+    expect(kanbanMoveColumn(4, 1, 'up')).toBeNull();
+  });
+});
+
+describe('CgKanbanBoard columns', () => {
+  it('picks a column up by its grip, carries it with the arrows, drops it and keeps the focus on its grip', async () => {
+    const onColumnMove = vi.fn();
+    render(<ColumnBoard onColumnMove={onColumnMove} />);
+    const handle = grip('To do');
+    expect(region(/^To do,/u)).toContainElement(handle);
+    expect(handle).toHaveAccessibleDescription('Space picks the column up and the arrows move it');
+    expect(handle).toHaveAttribute('aria-haspopup', 'menu');
+    expect(handle).not.toHaveAttribute('tabindex', '-1');
+    handle.focus();
+    fireEvent.keyDown(handle, { key: ' ' });
+    expect(region(/^To do,/u)).toHaveAttribute('data-cg-picked');
+    await waitFor(() => expect(status()).toHaveTextContent('Picked up the column To do, 1 of 3'));
+    fireEvent.keyDown(handle, { key: 'ArrowRight' });
+    await waitFor(() => expect(status()).toHaveTextContent('To do, position 2 of 3'));
+    expect(columnLine().hidden).toBe(false);
+    expect(columnLine()).toHaveAttribute('data-orientation', 'vertical');
+    // Up and down do not move a column; past the last place it stays.
+    fireEvent.keyDown(handle, { key: 'ArrowDown' });
+    fireEvent.keyDown(handle, { key: 'ArrowRight' });
+    fireEvent.keyDown(handle, { key: 'ArrowRight' });
+    await waitFor(() => expect(status()).toHaveTextContent('To do, position 3 of 3'));
+    expect(onColumnMove).not.toHaveBeenCalled();
+    fireEvent.keyDown(handle, { key: 'Enter' });
+    expect(onColumnMove).toHaveBeenCalledTimes(1);
+    expect(onColumnMove).toHaveBeenCalledWith('todo', 2, { fromIndex: 0, source: 'keyboard' });
+    expect(Object.isFrozen(onColumnMove.mock.calls[0]![2])).toBe(true);
+    expect(columnOrder()).toEqual(['doing', 'done', 'todo']);
+    await waitFor(() => expect(status()).toHaveTextContent('Moved the column To do to 3 of 3'));
+    expect(document.activeElement).toBe(grip('To do'));
+    expect(region(/^To do,/u)).not.toHaveAttribute('data-cg-picked');
+    expect(columnLine().hidden).toBe(true);
+    // Dropped where it was: no move, and it says so.
+    fireEvent.keyDown(handle, { key: ' ' });
+    fireEvent.keyDown(handle, { key: ' ' });
+    expect(onColumnMove).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(status()).toHaveTextContent('The column To do stays'));
+  });
+
+  it('cancels with Escape, Tab or leaving the grip, mirrors the arrows in RTL and skips refused places', async () => {
+    const onColumnMove = vi.fn();
+    render(<div dir="rtl"><ColumnBoard onColumnMove={onColumnMove} canMoveColumn={(key, toIndex) => !(key === 'done' && toIndex === 1)} /></div>);
+    const handle = grip('Done');
+    handle.focus();
+    fireEvent.keyDown(handle, { key: 'Enter' });
+    // In RTL ArrowLeft is the next place: the last column has none.
+    fireEvent.keyDown(handle, { key: 'ArrowLeft' });
+    fireEvent.keyDown(handle, { key: 'Escape' });
+    expect(onColumnMove).not.toHaveBeenCalled();
+    await waitFor(() => expect(status()).toHaveTextContent('The column Done stays'));
+    fireEvent.keyDown(handle, { key: ' ' });
+    // ArrowRight is the earlier place; index 1 is refused, so it goes on to the first.
+    fireEvent.keyDown(handle, { key: 'ArrowRight' });
+    await waitFor(() => expect(status()).toHaveTextContent('Done, position 1 of 3'));
+    fireEvent.keyDown(handle, { key: ' ' });
+    expect(onColumnMove).toHaveBeenCalledWith('done', 0, { fromIndex: 2, source: 'keyboard' });
+    expect(columnOrder()).toEqual(['done', 'todo', 'doing']);
+    expect(document.activeElement).toBe(grip('Done'));
+    fireEvent.keyDown(handle, { key: ' ' });
+    fireEvent.keyDown(handle, { key: 'End' });
+    fireEvent.keyDown(handle, { key: 'Tab' });
+    expect(region(/^Done,/u)).not.toHaveAttribute('data-cg-picked');
+    fireEvent.keyDown(handle, { key: ' ' });
+    fireEvent.keyDown(handle, { key: 'End' });
+    act(() => cardIn('To do', 'todo card 1').focus());
+    expect(region(/^Done,/u)).not.toHaveAttribute('data-cg-picked');
+    expect(columnLine().hidden).toBe(true);
+    expect(onColumnMove).toHaveBeenCalledTimes(1);
+  });
+
+  it('drags a column by its header to between two others, with a line down the gap', () => {
+    vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'setTimeout'] });
+    const onColumnMove = vi.fn();
+    const renderCard = vi.fn((card: CgKanbanCard) => <span>{card.label}</span>);
+    render(<ColumnBoard onColumnMove={onColumnMove} renderCard={renderCard} collapsible />);
+    const scroller = screen.getByRole('region', { name: 'Tasks board' });
+    place(scroller, 0, 0, 1000, 800);
+    place(scroller.firstElementChild!, 0, 0, 1000, 700);
+    columns.forEach((column, index) => place(region(new RegExp(`^${column.title},`, 'u')), 10 + index * 300, 0, 272, 600 - index * 100));
+    // A press on a control in the header does not drag.
+    act(() => { screen.getByRole('button', { name: 'Collapse To do' }).dispatchEvent(pointer('pointerdown', { x: 60, y: 100 })); });
+    act(() => { window.dispatchEvent(pointer('pointermove', { x: 300, y: 102 })); vi.advanceTimersByTime(20); });
+    expect(document.querySelector('[data-cg-drag-ghost]')).toBeNull();
+    act(() => { window.dispatchEvent(pointer('pointerup', { x: 300, y: 102 })); });
+    const title = within(region(/^To do,/u)).getByText('To do');
+    act(() => { title.dispatchEvent(pointer('pointerdown', { x: 100, y: 100 })); });
+    act(() => { window.dispatchEvent(pointer('pointermove', { x: 106, y: 102 })); vi.advanceTimersByTime(20); });
+    expect(region(/^To do,/u)).toHaveAttribute('data-cg-dragging');
+    expect(document.querySelector('body > [data-cg-drag-ghost]')).toHaveAttribute('aria-hidden', 'true');
+    const drawn = renderCard.mock.calls.length;
+    // Past the middle of the second column (446), before that of the third (746): between them.
+    act(() => { window.dispatchEvent(pointer('pointermove', { x: 500, y: 104 })); vi.advanceTimersByTime(20); });
+    expect(columnLine().hidden).toBe(false);
+    expect(columnLine().style.insetInlineStart).toBe('596px');
+    expect(columnLine().style.insetBlockStart).toBe('0px');
+    expect(columnLine().style.blockSize).toBe('500px');
+    // Back over its own place: no line.
+    act(() => { window.dispatchEvent(pointer('pointermove', { x: 200, y: 104 })); vi.advanceTimersByTime(20); });
+    expect(columnLine().hidden).toBe(true);
+    act(() => { window.dispatchEvent(pointer('pointermove', { x: 500, y: 104 })); vi.advanceTimersByTime(20); });
+    expect(renderCard.mock.calls.length).toBe(drawn);
+    expect(onColumnMove).not.toHaveBeenCalled();
+    act(() => { window.dispatchEvent(pointer('pointerup', { x: 500, y: 104 })); });
+    expect(onColumnMove).toHaveBeenCalledTimes(1);
+    expect(onColumnMove).toHaveBeenCalledWith('todo', 1, { fromIndex: 0, source: 'pointer' });
+    expect(columnOrder()).toEqual(['doing', 'todo', 'done']);
+    expect(columnLine().hidden).toBe(true);
+    expect(document.querySelector('[data-cg-drag-ghost]')).toBeNull();
+    expect(region(/^To do,/u)).not.toHaveAttribute('data-cg-dragging');
+    act(() => { vi.advanceTimersByTime(20); });
+  });
+
+  it('places the line from the right in RTL, and still drags cards', () => {
+    vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'setTimeout'] });
+    const onColumnMove = vi.fn();
+    const onCardMove = vi.fn();
+    render(<div dir="rtl"><ColumnBoard onColumnMove={onColumnMove} onCardMove={onCardMove} /></div>);
+    const scroller = screen.getByRole('region', { name: 'Tasks board' });
+    place(scroller, 0, 0, 1000, 800);
+    place(scroller.firstElementChild!, 0, 0, 1000, 700);
+    // The first column is the rightmost.
+    columns.forEach((column, index) => place(region(new RegExp(`^${column.title},`, 'u')), 10 + (2 - index) * 300, 0, 272, 600));
+    const title = within(region(/^To do,/u)).getByText('To do');
+    act(() => { title.dispatchEvent(pointer('pointerdown', { x: 800, y: 100 })); });
+    act(() => { window.dispatchEvent(pointer('pointermove', { x: 794, y: 102 })); vi.advanceTimersByTime(20); });
+    // Left of the middles of the first two (746 and 446): between the second and the third.
+    act(() => { window.dispatchEvent(pointer('pointermove', { x: 300, y: 104 })); vi.advanceTimersByTime(20); });
+    expect(columnLine().style.insetInlineStart).toBe(`${1000 - 296}px`);
+    act(() => { window.dispatchEvent(pointer('pointerup', { x: 300, y: 104 })); });
+    expect(onColumnMove).toHaveBeenCalledWith('todo', 1, { fromIndex: 0, source: 'pointer' });
+    act(() => { vi.advanceTimersByTime(20); });
+    // A press on a card still drags the card.
+    const card = cardIn('To do', 'todo card 1');
+    act(() => { card.dispatchEvent(pointer('pointerdown', { x: 400, y: 80 })); });
+    act(() => { window.dispatchEvent(pointer('pointermove', { x: 390, y: 84 })); vi.advanceTimersByTime(20); });
+    expect(card).toHaveAttribute('data-cg-dragging');
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
+    expect(onCardMove).not.toHaveBeenCalled();
+  });
+
+  it('moves a column from its grip menu, as a single-pointer way to move', async () => {
+    const onColumnMove = vi.fn();
+    render(<ColumnBoard onColumnMove={onColumnMove} canMoveColumn={(key, toIndex) => !(key === 'todo' && toIndex === 2)} />);
+    await userEvent.click(grip('To do'));
+    const menu = await screen.findByRole('menu', { hidden: true });
+    expect(menu).toHaveAttribute('aria-label', 'Move the column To do');
+    const items = within(menu).getAllByRole('menuitem', { hidden: true });
+    expect(items.map((item) => item.textContent)).toEqual(['Move left', 'Move right']);
+    expect(items[0]).toHaveAttribute('aria-disabled', 'true');
+    await userEvent.click(within(menu).getByText('Move right'));
+    expect(onColumnMove).toHaveBeenCalledWith('todo', 1, { fromIndex: 0, source: 'pointer' });
+    expect(columnOrder()).toEqual(['doing', 'todo', 'done']);
+    await waitFor(() => expect(screen.queryByRole('menu', { hidden: true })).toBeNull());
+    // Shift+F10 opens it from the keys; a refused place is a disabled item.
+    grip('To do').focus();
+    fireEvent.keyDown(grip('To do'), { key: 'F10', shiftKey: true });
+    const again = await screen.findByRole('menu', { hidden: true });
+    expect(again).toHaveAttribute('aria-label', 'Move the column To do');
+    expect(within(again).getAllByRole('menuitem', { hidden: true }).map((item) => item.getAttribute('aria-disabled'))).toEqual([null, 'true']);
+  });
+
+  it('draws no grip and takes no header drag without onColumnMove, and needs the column labels with it', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { unmount } = render(<Board />);
+    expect(screen.queryByRole('button', { name: /^Move the column/u })).toBeNull();
+    expect(document.querySelector('[data-cg-kanban-column-head]')).toBeNull();
+    unmount();
+    const base = { columns, cards: makeCards({ todo: 1 }), renderCard: (card: CgKanbanCard) => card.label, onColumnMove: () => undefined };
+    expect(() => render(<CgKanbanBoard {...base} labels={labels} />)).toThrow(/labels\.columnHandle/u);
+    for (const name of ['columnHint', 'columnPickedUp', 'columnPosition', 'columnMoved', 'columnCancelled', 'moveColumnPrevious', 'moveColumnNext'] as const) {
+      expect(() => render(<CgKanbanBoard {...base} labels={{ ...columnLabels, [name]: undefined }} />)).toThrow(new RegExp(`labels\\.${name}`, 'u'));
+    }
+    expect(() => render(<CgKanbanBoard {...base} labels={{ ...columnLabels, columnHandle: () => ' ' }} />)).toThrow(/labels\.columnHandle/u);
+  });
+});
+
+describe('CgKanbanBoard column ends, drafts and titles', () => {
+  it('draws a footer at the end of each open column, after its cards', async () => {
+    render(<Board collapsible renderColumnFooter={(column) => (column.key === 'done' ? null : <button type="button">{`Load more in ${column.title}`}</button>)} />);
+    const todo = region(/^To do,/u);
+    const button = within(todo).getByRole('button', { name: 'Load more in To do' });
+    expect(within(todo).getByRole('list').compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(todo).getByRole('list')).not.toContainElement(button);
+    expect(within(region(/^Done,/u)).queryByRole('button', { name: /^Load more/u })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Collapse To do' }));
+    expect(within(region(/^To do,/u)).queryByRole('button', { name: 'Load more in To do' })).toBeNull();
+  });
+
+  it('says once when a column comes to its end, and again only when its number of cards changed', () => {
+    const onColumnEndReached = vi.fn();
+    const paged: CgKanbanColumn[] = [
+      { key: 'todo', title: 'To do', count: 9 },
+      { key: 'doing', title: 'In progress' },
+      { key: 'done', title: 'Done', count: 2 },
+      { key: 'later', title: 'Later' },
+    ];
+    const more = (current: CgKanbanCard[], columnKey: string, count: number) => {
+      const have = current.filter((card) => card.columnKey === columnKey).length;
+      return [...current, ...Array.from({ length: count }, (_, index) => ({ key: `${columnKey}-${have + index}`, columnKey, label: `${columnKey} card ${have + index + 1}` }))];
+    };
+    function Paged() {
+      const [cards, setCards] = useState(() => makeCards({ todo: 3, doing: 200, done: 2, later: 1 }));
+      return <CgKanbanBoard
+        columns={paged}
+        cards={cards}
+        labels={labels}
+        renderCard={(card) => card.label}
+        collapsible
+        defaultCollapsedColumns={['later']}
+        onColumnEndReached={(key) => {
+          onColumnEndReached(key);
+          // Pages of three: the third page brings the column to its count.
+          if (key === 'todo') setCards((current) => more(current, 'todo', 3));
+        }}
+      />;
+    }
+    render(<Paged />);
+    expect(onColumnEndReached.mock.calls).toEqual([['todo'], ['todo']]);
+    expect(within(region(/^To do,/u)).getAllByRole('listitem')).toHaveLength(9);
+    // A long column says so once it is scrolled to its end, and not again while it has as many cards.
+    const scroller = screen.getByRole('region', { name: 'Tasks board' });
+    const scrollTo = (top: number) => {
+      Object.defineProperty(scroller, 'scrollTop', { configurable: true, value: top });
+      for (const body of scroller.querySelectorAll('[role="list"]')) place(body.parentElement!, 0, -top, 256, 200 * 80);
+      fireEvent.scroll(scroller);
+    };
+    scrollTo(8000);
+    expect(onColumnEndReached).toHaveBeenCalledTimes(2);
+    scrollTo(15_000);
+    expect(onColumnEndReached).toHaveBeenLastCalledWith('doing');
+    expect(onColumnEndReached).toHaveBeenCalledTimes(3);
+    scrollTo(15_400);
+    expect(onColumnEndReached).toHaveBeenCalledTimes(3);
+    // A collapsed column says nothing until it opens.
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Later' }));
+    expect(onColumnEndReached).toHaveBeenLastCalledWith('later');
+    expect(onColumnEndReached).toHaveBeenCalledTimes(4);
+  });
+
+  it('draws a draft card after the cards, outside the list: keys and drags pass it by, Tab reaches it', async () => {
+    const onCardMove = vi.fn();
+    const draftOf = (column: CgKanbanColumn) => <input aria-label={`New card in ${column.title}`} />;
+    const { rerender } = render(<Board onCardMove={onCardMove} draftColumn="doing" renderDraft={draftOf} />);
+    const doing = region(/^In progress,/u);
+    const input = within(doing).getByRole('textbox', { name: 'New card in In progress' });
+    const draft = input.closest<HTMLElement>('[data-cg-kanban-draft]')!;
+    expect(draft).not.toHaveAttribute('data-cg-kanban-card');
+    expect(draft).not.toHaveAttribute('role');
+    expect(within(doing).getByRole('list')).not.toContainElement(input);
+    expect(within(doing).getAllByRole('listitem')).toHaveLength(2);
+    // Laid out under the cards: the body keeps their block size as its padding.
+    expect(draft.parentElement!.style.paddingBlockStart).toBe('160px');
+    const last = cardIn('In progress', 'doing card 2');
+    last.focus();
+    fireEvent.keyDown(last, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(last);
+    fireEvent.keyDown(last, { key: ' ' });
+    fireEvent.keyDown(last, { key: 'ArrowDown' });
+    fireEvent.keyDown(last, { key: ' ' });
+    expect(onCardMove).not.toHaveBeenCalled();
+    await userEvent.tab();
+    expect(document.activeElement).toBe(input);
+    // Keys typed in it are its own.
+    fireEvent.keyDown(input, { key: ' ' });
+    fireEvent.keyDown(input, { key: 'ArrowLeft' });
+    expect(document.activeElement).toBe(input);
+    // A press on it starts no drag.
+    act(() => { draft.dispatchEvent(pointer('pointerdown', { x: 10, y: 10 })); });
+    act(() => { window.dispatchEvent(pointer('pointermove', { x: 60, y: 60 })); });
+    expect(document.querySelector('[data-cg-drag-ghost]')).toBeNull();
+    act(() => { window.dispatchEvent(pointer('pointerup', { x: 60, y: 60 })); });
+    // Before the cards, outside the column body.
+    rerender(<Board onCardMove={onCardMove} draftColumn="doing" renderDraft={draftOf} draftPlacement="start" />);
+    const first = within(region(/^In progress,/u)).getByRole('textbox').closest<HTMLElement>('[data-cg-kanban-draft]')!;
+    expect(first.nextElementSibling).toContainElement(within(region(/^In progress,/u)).getByRole('list'));
+    expect((first.nextElementSibling as HTMLElement).style.blockSize).toBe('160px');
+    // A collapsed column draws none.
+    rerender(<Board onCardMove={onCardMove} draftColumn="doing" renderDraft={draftOf} collapsible collapsedColumns={['doing']} />);
+    expect(screen.queryByRole('textbox')).toBeNull();
+  });
+
+  it('stands a draft card for the empty text of an empty column', () => {
+    const draftOf = (column: CgKanbanColumn) => <input aria-label={`New card in ${column.title}`} />;
+    render(<Board initial={makeCards({ todo: 2 })} draftColumn="done" renderDraft={draftOf} draftPlacement="start" />);
+    const done = region(/^Done,/u);
+    expect(within(done).getByRole('textbox', { name: 'New card in Done' })).toBeInTheDocument();
+    expect(within(done).queryByText('No cards')).toBeNull();
+    expect(within(region(/^In progress,/u)).getByText('No cards')).toBeInTheDocument();
+    // No hole left where the empty text was.
+    const body = done.querySelector<HTMLElement>('[data-cg-kanban-draft]')!.nextElementSibling as HTMLElement;
+    expect(body.style.minBlockSize).toBe('0px');
+  });
+
+  it('scrolls a draft card into view when it opens at the end of a long column', () => {
+    const rect = (top: number, height: number) => ({ left: 0, top, right: 256, bottom: top + height, width: 256, height, x: 0, y: top, toJSON: () => ({}) });
+    // jsdom lays nothing out: every box is empty but the draft's (and those placed below).
+    const empty = { left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0, x: 0, y: 0, toJSON: () => ({}) };
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      return this.dataset.cgKanbanDraft !== undefined ? rect(2000, 60) : empty;
+    });
+    const draftOf = (column: CgKanbanColumn) => <input aria-label={`New card in ${column.title}`} />;
+    const { rerender } = render(<Board renderDraft={draftOf} draftColumn={null} />);
+    const scroller = screen.getByRole('region', { name: 'Tasks board' });
+    const scrollBy = vi.fn();
+    scroller.scrollBy = scrollBy as typeof scroller.scrollBy;
+    place(scroller, 0, 0, 1000, 400);
+    place(region(/^To do,/u), 10, 0, 272, 3000);
+    place(within(region(/^To do,/u)).getByRole('list').parentElement!, 18, 50, 256, 2000);
+    rerender(<Board renderDraft={draftOf} draftColumn="todo" />);
+    // The draft ends at 2060, below the board's 400: scrolled by 2060 - 400 and the pad.
+    expect(scrollBy).toHaveBeenCalledWith({ left: 0, top: 1668 });
+  });
+
+  it('draws the caller’s column titles in headers and in the hidden list, while regions keep their names', () => {
+    render(<Board
+      columns={[...columns, { key: 'archive', title: 'Archive', hidden: true }]}
+      onShowColumn={() => undefined}
+      renderColumnTitle={(column) => <span data-testid={`chip-${column.key}`}>{`[${column.title}]`}</span>}
+    />);
+    const todo = region('To do, 4 cards');
+    expect(within(todo).getByTestId('chip-todo')).toHaveTextContent('[To do]');
+    expect(within(todo).queryByText('To do')).toBeNull();
+    expect(within(screen.getByRole('region', { name: 'Hidden columns' })).getByTestId('chip-archive')).toHaveTextContent('[Archive]');
   });
 });

@@ -264,6 +264,69 @@
   gap: var(--cg-space-2);
 }
 
+/* Columns that move: a header is dragged (its grip, or anywhere but its controls), and the line
+   where it lands is a CgDropIndicator in the gap between two columns, placed from the columns'
+   inline start so it mirrors in RTL. */
+.movableColumns {
+  position: relative;
+}
+
+.movableHead {
+  user-select: none;
+}
+
+/* Two classes, so the grip's 24 px target wins over the drag handle's own size. */
+.head .columnGrip {
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+}
+
+.columns > .columnLine {
+  z-index: 4;
+}
+
+.column[data-cg-dragging] {
+  opacity: 0.5;
+}
+
+/* A column its grip picked up by keys. */
+.column[data-cg-picked] {
+  outline: var(--cg-focus-ring-width) dashed var(--cg-accent);
+  outline-offset: 2px;
+}
+
+.columnGhost {
+  box-sizing: border-box;
+  border-radius: var(--cg-radius-md);
+  color: var(--cg-text);
+  font: var(--cg-font-size-md)/var(--cg-line-height) var(--cg-font-family);
+  cursor: grabbing;
+}
+
+/* A draft card: a card's box, as tall as what it holds, outside the list of cards. */
+.draft {
+  box-sizing: border-box;
+  padding: var(--cg-space-2);
+  border: var(--cg-border-width) solid var(--cg-border);
+  border-radius: var(--cg-radius-md);
+  background: var(--cg-surface);
+  box-shadow: var(--cg-shadow-sm);
+  color: var(--cg-text);
+}
+
+.draftStart {
+  margin-inline: var(--cg-space-2);
+}
+
+.foot {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--cg-space-1);
+  padding-block: 0 var(--cg-space-2);
+  padding-inline: var(--cg-space-2);
+}
+
 @media (forced-colors: active) {
   .card:focus-visible,
   .iconButton:focus-visible {
@@ -271,11 +334,16 @@
   }
 
   .card[data-cg-picked],
-  .column[data-cg-drop-target] {
+  .column[data-cg-drop-target],
+  .column[data-cg-picked] {
     outline-color: Highlight;
   }
 
   .card[data-cg-dragging] {
     border-style: dashed;
+  }
+
+  .column[data-cg-dragging] {
+    outline: 2px dashed Highlight;
   }
 }

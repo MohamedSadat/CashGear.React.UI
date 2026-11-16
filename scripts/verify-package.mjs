@@ -141,6 +141,7 @@ expected.push('CgCommandMenu', 'CgSelectionToolbar', 'CgMenuPanel', 'CgMenuPanel
 expected.push('CG_DRAG_THRESHOLD', 'CgDragHandle', 'CgDropIndicator', 'cgEdgeScrollStep', 'cgStartsDrag', 'cgTrackDrag');
 expected.push('CgKanbanBoard', 'CgMonthCalendar');
 expected.push('CgSelect');
+expected.push('moveKanbanCard', 'moveKanbanColumn');
 assert.deepEqual(Object.keys(runtime).sort(), expected.sort());
 
 const npmCli = process.env.npm_execpath;

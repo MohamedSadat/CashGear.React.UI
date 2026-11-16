@@ -1,7 +1,8 @@
 // The board's arithmetic, pure and tested on its own: the cards of each column in their order,
 // a column's layout (fixed sizes, each card followed by the gap) and the cards inside a scrolled
 // window, where a dragged card lands and its index after the move, the column nearest the
-// pointer, and the keys as moves of the focus or of a picked-up card (mirrored in RTL).
+// pointer, and the keys as moves of the focus or of a picked-up card (mirrored in RTL); and the
+// columns' own order: a column's move, where a dragged column lands and where its line is drawn.
 import type { CgKanbanCard, CgKanbanColumn } from './CgKanbanBoard.types';
 
 /** A column's cards one under another: `offsets[i]` is card i's block start, `offsets[count]` the end. */
@@ -66,6 +67,26 @@ export function moveKanbanCard<TCard extends { key: string; columnKey: string }>
   const last = target[target.length - 1];
   const at = anchor ? rest.indexOf(anchor) : last ? rest.indexOf(last) + 1 : rest.length;
   rest.splice(at, 0, { ...moving, columnKey: toColumnKey });
+  return rest;
+}
+
+/**
+ * `columns` with the column `key` moved to `toIndex` among the shown columns (those not
+ * `hidden`), as `onColumnMove` gives it. Hidden columns keep their places among the others.
+ */
+export function moveKanbanColumn<TColumn extends { key: string; hidden?: boolean }>(
+  columns: readonly TColumn[],
+  key: string,
+  toIndex: number,
+): TColumn[] {
+  const moving = columns.find((column) => column.key === key);
+  if (!moving) return [...columns];
+  const rest = columns.filter((column) => column.key !== key);
+  const shown = rest.filter((column) => !column.hidden);
+  const anchor = shown[Math.max(0, toIndex)];
+  const last = shown[shown.length - 1];
+  const at = anchor ? rest.indexOf(anchor) : last ? rest.indexOf(last) + 1 : rest.length;
+  rest.splice(at, 0, moving);
   return rest;
 }
 
@@ -176,6 +197,63 @@ export function kanbanMoveFocus(counts: readonly number[], position: KanbanPosit
       }
       return null;
     }
+  }
+}
+
+/** A column's box in viewport pixels (physical, in either direction). */
+export interface KanbanColumnBox {
+  readonly left: number;
+  readonly right: number;
+  readonly top: number;
+  readonly bottom: number;
+}
+
+/**
+ * Where a column dropped at `x` (viewport pixels) goes: the gap among every shown column, the
+ * dragged one included (0 to their count), counting the columns whose middle `x` has passed in
+ * the reading direction: rightwards in LTR, leftwards in RTL.
+ */
+export function kanbanColumnDropGap(boxes: ReadonlyArray<{ left: number; right: number }>, x: number, rtl: boolean): number {
+  let gap = 0;
+  for (const box of boxes) {
+    const middle = (box.left + box.right) / 2;
+    if (rtl ? x < middle : x > middle) gap += 1;
+  }
+  return gap;
+}
+
+/**
+ * The line down the gap `gap` among the columns (in their order, 0 to their count): its `x` in
+ * viewport pixels, halfway between the two neighbours (`half` outside the first or the last), and
+ * the block extent of its neighbours. Null without columns.
+ */
+export function kanbanColumnLine(boxes: readonly KanbanColumnBox[], gap: number, rtl: boolean, half: number): { x: number; top: number; bottom: number } | null {
+  const before = boxes[gap - 1];
+  const after = boxes[gap];
+  // The inline end of the column before and the inline start of the one after.
+  const end = before ? (rtl ? before.left : before.right) : undefined;
+  const start = after ? (rtl ? after.right : after.left) : undefined;
+  let x: number;
+  if (end !== undefined && start !== undefined) x = (end + start) / 2;
+  else if (start !== undefined) x = start + (rtl ? half : -half);
+  else if (end !== undefined) x = end + (rtl ? -half : half);
+  else return null;
+  const neighbours = [before, after].filter((box): box is KanbanColumnBox => box !== undefined);
+  return { x, top: Math.min(...neighbours.map((box) => box.top)), bottom: Math.max(...neighbours.map((box) => box.bottom)) };
+}
+
+/**
+ * Where a picked-up column would land after a key, among `count` shown columns: one place
+ * towards the start or the end of the row, or to its first or last place. Up and down do not
+ * move it. Null when it stays.
+ */
+export function kanbanMoveColumn(count: number, index: number, move: KanbanKeyMove): number | null {
+  switch (move) {
+    case 'previous': return index > 0 ? index - 1 : null;
+    case 'next': return index < count - 1 ? index + 1 : null;
+    case 'first': return count > 0 && index !== 0 ? 0 : null;
+    case 'last': return count > 0 && index !== count - 1 ? count - 1 : null;
+    default: return null;
   }
 }
 
