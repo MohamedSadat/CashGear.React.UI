@@ -124,6 +124,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'CgTabs',
   'CgTagBox',
   'CgTextBox',
+  'CgTimeline',
   'CgTimeEdit',
   'CgToastProvider',
   'CgToolbar',

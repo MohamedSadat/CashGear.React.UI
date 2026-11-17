@@ -1,0 +1,254 @@
+/* A toolbar over a scroller holding a canvas as wide as the days the timeline reaches: a sticky
+   two-tier header, grid lines behind the lines, and each line's bar. Positions are custom
+   properties written by script (--cg-timeline-x, -w, -y) and read with logical properties, so time
+   runs from the inline start and mirrors in right to left. A drag writes --cg-timeline-drag-x and
+   -w on the bar, over the drawn ones, and removes them when it ends. */
+.root {
+  --cg-timeline-line: 36px;
+  --cg-timeline-header: 56px;
+  display: flex;
+  box-sizing: border-box;
+  min-inline-size: 0;
+  flex-direction: column;
+  gap: var(--cg-space-3);
+  color: var(--cg-text);
+  font: var(--cg-font-size-md)/var(--cg-line-height) var(--cg-font-family);
+}
+
+.toolbar { display: flex; flex: none; flex-wrap: wrap; align-items: center; gap: var(--cg-space-3); }
+.navigation { display: flex; align-items: center; gap: var(--cg-space-2); }
+.range { flex: 1 1 auto; min-inline-size: 0; color: var(--cg-text-secondary); font-size: var(--cg-font-size-sm); }
+.scales { display: flex; flex-wrap: wrap; gap: var(--cg-space-1); }
+
+/* Its inline size comes from the timeline's box, never from the canvas: a container sized by its
+   content would otherwise take the whole reach of days as its width. */
+.scroller {
+  position: relative;
+  flex: 1 1 0;
+  min-block-size: 0;
+  contain: inline-size;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: var(--cg-border-width) solid var(--cg-border);
+  border-radius: var(--cg-radius-md);
+  background: var(--cg-surface);
+}
+.canvas { position: relative; inline-size: var(--cg-timeline-canvas-w); block-size: var(--cg-timeline-canvas-h); }
+
+/* ---- The header ---------------------------------------------------------------------------- */
+.header {
+  position: sticky;
+  z-index: 3;
+  inset-block-start: 0;
+  box-sizing: border-box;
+  block-size: var(--cg-timeline-header);
+  border-block-end: var(--cg-border-width) solid var(--cg-border-strong);
+  background: var(--cg-surface);
+}
+.tier { position: relative; block-size: 24px; }
+.lowerTier { block-size: 31px; border-block-start: 1px solid var(--cg-border); }
+.unit {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: var(--cg-timeline-x);
+  display: flex;
+  box-sizing: border-box;
+  inline-size: var(--cg-timeline-w);
+  align-items: center;
+  overflow: clip;
+  border-inline-start: 1px solid var(--cg-border);
+  color: var(--cg-text);
+  font-size: var(--cg-font-size-sm);
+  font-weight: var(--cg-font-weight-medium);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.lowerTier .unit { color: var(--cg-text-secondary); font-weight: var(--cg-font-weight-regular); }
+/* A unit's text stays in view while the start of its unit is scrolled away. */
+.unitText {
+  position: sticky;
+  inset-inline-start: 0;
+  box-sizing: border-box;
+  max-inline-size: 100%;
+  overflow: hidden;
+  padding-inline: var(--cg-space-2);
+  text-overflow: ellipsis;
+}
+.root[data-scale='day'] .lowerTier .unit { flex-direction: column; justify-content: center; gap: 1px; }
+.root[data-scale='day'] .lowerTier .unitText { position: static; padding-inline: var(--cg-space-1); border-radius: var(--cg-radius-sm); font-variant-numeric: tabular-nums; }
+.weekday { font-size: 0.6875rem; line-height: 1; }
+.unit[data-today] { color: var(--cg-text); }
+.unit[data-today] .unitText { background: var(--cg-accent); color: var(--cg-color-fg-on-accent); font-weight: var(--cg-font-weight-medium); }
+.todayMark {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline-start: var(--cg-timeline-x);
+  block-size: 8px;
+  margin-inline-start: -1px;
+  border-inline-start: 2px solid var(--cg-accent);
+}
+
+/* ---- Behind the lines ---------------------------------------------------------------------- */
+.body {
+  position: absolute;
+  inset-block-start: var(--cg-timeline-header);
+  inset-inline: 0;
+  block-size: calc(var(--cg-timeline-canvas-h) - var(--cg-timeline-header));
+}
+.backdrop { position: absolute; inset: 0; pointer-events: none; }
+.gridLine {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: var(--cg-timeline-x);
+  border-inline-start: 1px solid color-mix(in srgb, var(--cg-border) 55%, transparent);
+}
+.gridLine[data-major] { border-inline-start-color: var(--cg-border); }
+.todayLine {
+  position: absolute;
+  z-index: 1;
+  inset-block: 0;
+  inset-inline-start: var(--cg-timeline-x);
+  margin-inline-start: -1px;
+  border-inline-start: 2px solid var(--cg-accent);
+}
+.dropMark {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: var(--cg-timeline-x, 0);
+  display: none;
+  inline-size: var(--cg-timeline-w, 2px);
+  background: var(--cg-accent-soft);
+  box-shadow: inset 0 0 0 2px var(--cg-accent);
+}
+.dropMark[data-shown] { display: block; }
+/* Placed over a day on a line for a create: what the caller's editor is placed by. */
+.anchor {
+  position: absolute;
+  inset-block-start: var(--cg-timeline-y, 0);
+  inset-inline-start: var(--cg-timeline-x, 0);
+  inline-size: var(--cg-timeline-w, 1px);
+  block-size: var(--cg-timeline-line);
+}
+
+/* ---- The lines ----------------------------------------------------------------------------- */
+.grid { position: absolute; inset: 0; }
+.line {
+  position: absolute;
+  inset-block-start: var(--cg-timeline-y);
+  inset-inline: 0;
+  box-sizing: border-box;
+  block-size: var(--cg-timeline-line);
+  border-block-end: 1px solid color-mix(in srgb, var(--cg-border) 45%, transparent);
+}
+.line:focus-within { background: color-mix(in srgb, var(--cg-hover) 60%, transparent); }
+.laneLine { z-index: 1; border-block-end-color: var(--cg-border); background: var(--cg-surface-subtle); }
+.cell { position: relative; block-size: 100%; outline: none; }
+.cell:focus-visible { outline: var(--cg-focus-ring-width) solid var(--cg-focus-ring-color); outline-offset: calc(-1 * var(--cg-focus-ring-width)); }
+
+/* A lane's header stays at the inline start of the view whatever days are scrolled to. */
+.laneHead {
+  position: sticky;
+  inset-inline-start: 0;
+  display: flex;
+  box-sizing: border-box;
+  inline-size: max-content;
+  max-inline-size: 100%;
+  block-size: 100%;
+  align-items: center;
+  gap: var(--cg-space-2);
+  padding-inline: var(--cg-space-2);
+}
+.laneToggle {
+  display: inline-flex;
+  box-sizing: border-box;
+  min-block-size: 28px;
+  min-inline-size: 0;
+  align-items: center;
+  gap: var(--cg-space-2);
+  padding-block: 0;
+  padding-inline: var(--cg-space-2);
+  border: 0;
+  border-radius: var(--cg-radius-sm);
+  background: transparent;
+  color: var(--cg-text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: var(--cg-font-weight-medium);
+}
+.laneToggle:hover { background: var(--cg-hover); }
+.laneToggle:focus-visible { outline: var(--cg-focus-ring-width) solid var(--cg-focus-ring-color); outline-offset: -2px; }
+.laneTitle { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.laneCount { color: var(--cg-text-secondary); font-size: var(--cg-font-size-sm); font-variant-numeric: tabular-nums; }
+
+/* ---- Bars ---------------------------------------------------------------------------------- */
+.bar {
+  --cg-timeline-item-color: var(--cg-accent);
+  position: absolute;
+  z-index: 1;
+  inset-block: 4px;
+  inset-inline-start: var(--cg-timeline-drag-x, var(--cg-timeline-x));
+  display: flex;
+  box-sizing: border-box;
+  inline-size: var(--cg-timeline-drag-w, var(--cg-timeline-w));
+  align-items: center;
+  overflow: clip;
+  border: 1px solid color-mix(in srgb, var(--cg-timeline-item-color) 55%, var(--cg-surface));
+  border-radius: var(--cg-radius-sm);
+  background: color-mix(in srgb, var(--cg-timeline-item-color) 20%, var(--cg-surface));
+  color: var(--cg-text);
+  cursor: pointer;
+  font-size: var(--cg-font-size-sm);
+  line-height: 1.25;
+  white-space: nowrap;
+  user-select: none;
+}
+.bar[data-movable], .bar[data-resizable] { touch-action: none; }
+.bar:hover { background: color-mix(in srgb, var(--cg-timeline-item-color) 30%, var(--cg-surface)); }
+.bar:focus-visible { outline: var(--cg-focus-ring-width) solid var(--cg-focus-ring-color); outline-offset: 2px; }
+.bar[data-cg-dragging] { z-index: 2; box-shadow: var(--cg-shadow); cursor: grabbing; }
+.bar[data-outside], .bar[data-narrow] { overflow: visible; }
+/* The title stays in view while the bar's start is scrolled away (`overflow: clip` keeps the scroller its scroll box). */
+.inside {
+  position: sticky;
+  inset-inline-start: 0;
+  box-sizing: border-box;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  overflow: hidden;
+  padding-inline: var(--cg-space-2);
+  text-overflow: ellipsis;
+}
+.outside { position: absolute; inset-inline-start: calc(100% + var(--cg-space-2)); color: var(--cg-text); }
+.bar[data-narrow] .outside { inset-inline-start: calc(100% + 12px); }
+.text { unicode-bidi: plaintext; }
+
+/* Resize edges: inside a bar, outside a narrow one. The keys do the same at any size. */
+.edge { position: absolute; z-index: 1; inset-block: 0; inline-size: 10px; cursor: ew-resize; }
+.edge[data-cg-timeline-edge='start'] { inset-inline-start: 0; }
+.edge[data-cg-timeline-edge='end'] { inset-inline-end: 0; }
+.bar[data-narrow] .edge[data-cg-timeline-edge='start'] { inset-inline-start: -10px; }
+.bar[data-narrow] .edge[data-cg-timeline-edge='end'] { inset-inline-end: -10px; }
+.edge::after {
+  position: absolute;
+  inset-block: 25%;
+  inset-inline-start: 4px;
+  inline-size: 2px;
+  border-radius: 1px;
+  background: var(--cg-text-secondary);
+  content: '';
+  opacity: 0;
+}
+.bar:hover .edge::after, .bar[data-cg-dragging] .edge::after { opacity: 1; }
+@media (hover: none) {
+  .edge { inline-size: 14px; }
+}
+
+@media (forced-colors: active) {
+  .bar { border-color: CanvasText; }
+  .bar:focus-visible, .laneToggle:focus-visible, .cell:focus-visible { outline-color: Highlight; }
+  .todayLine, .todayMark { border-inline-start-color: Highlight; }
+  .unit[data-today] .unitText { background: Highlight; color: HighlightText; forced-color-adjust: none; }
+  .dropMark { outline: 2px solid Highlight; outline-offset: -2px; }
+  .edge::after { background: CanvasText; }
+  .line:focus-within { outline: 1px dashed Highlight; outline-offset: -2px; }
+}

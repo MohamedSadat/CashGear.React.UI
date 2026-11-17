@@ -83,3 +83,4 @@ export * from './DragDrop';
 export * from './KanbanBoard';
 export * from './MonthCalendar';
 export * from './Select';
+export * from './Timeline';
