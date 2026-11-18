@@ -1,2 +1,2 @@
 export { CgRadioGroup } from './CgRadioGroup';
-export type { CgRadioGroupProps, CgRadioOption, CgRadioRenderContext } from './CgRadioGroup.types';
+export type { CgRadioGroupProps, CgRadioItemAlignment, CgRadioOption, CgRadioRenderContext } from './CgRadioGroup.types';

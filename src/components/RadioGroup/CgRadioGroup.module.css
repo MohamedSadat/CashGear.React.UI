@@ -3,3 +3,9 @@
 .options { display: flex; flex-direction: column; gap: var(--cg-space-3); }
 .group[data-orientation='horizontal'] .options { flex-direction: row; }
 .group[data-wrap='true'] .options { flex-wrap: wrap; }
+.item[data-align='center'] { align-self: center; justify-content: center; }
+.item[data-align='end'] { align-self: flex-end; justify-content: end; }
+.item[data-align='stretch'] { align-self: stretch; }
+.group[data-orientation='horizontal'] .item[data-align] { align-self: auto; }
+.group[data-orientation='horizontal'] .item[data-align='stretch'] { flex: 1 1 0; }
+.item[data-label-wrap='false'] > :last-child { white-space: nowrap; }

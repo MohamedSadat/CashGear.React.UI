@@ -1,2 +1,2 @@
 export { CgLoadingPanel } from './CgLoadingPanel';
-export type { CgLoadingPanelProps, CgLoadingPanelMode, CgLoadingIndicator } from './CgLoadingPanel.types';
+export type { CgLoadingPanelProps, CgLoadingPanelMode, CgLoadingIndicator, CgLoadingPanelTextAlignment } from './CgLoadingPanel.types';

@@ -43,6 +43,7 @@ function CgTagBoxInner<TItem>(
     minimumSearchLength = 0,
     maxVisibleItems = 50,
     maxSelectedItems,
+    hideSelectedItems = false,
     loadingMessage: loadingMessageProp,
     errorMessage = 'Unable to load results.',
     emptyMessage: emptyMessageProp,
@@ -180,12 +181,13 @@ function CgTagBoxInner<TItem>(
 
   const matchingItems = useMemo(() => {
     if (draft.trim().length < minimumSearchLength) return [];
-    if (loadOptions) return sourceItems;
+    const candidates = hideSelectedItems ? sourceItems.filter((item) => !selectedTokens.has(tagBoxKeyToken(getOptionKey(item)))) : sourceItems;
+    if (loadOptions) return candidates;
     const normalizedQuery = normalizeTagBoxSearch(draft, locale, ignoreDiacritics);
-    if (!normalizedQuery) return sourceItems;
-    return sourceItems
+    if (!normalizedQuery) return candidates;
+    return candidates
       .filter((item) => tagBoxTextMatches(getOptionSearchText(item) ?? '', normalizedQuery, searchMode, locale, ignoreDiacritics));
-  }, [draft, getOptionSearchText, ignoreDiacritics, loadOptions, locale, minimumSearchLength, searchMode, sourceItems]);
+  }, [draft, getOptionKey, getOptionSearchText, hideSelectedItems, ignoreDiacritics, loadOptions, locale, minimumSearchLength, searchMode, selectedTokens, sourceItems]);
   const filteredItems = matchingItems.slice(0, maxVisibleItems);
   const incompleteResults = matchingItems.length > maxVisibleItems;
 

@@ -25,7 +25,7 @@ export type { CgConfirmationApi, CgConfirmationConfirm, CgConfirmationInitialFoc
 export { CgDateEdit } from './components/DateEdit';
 export type { CgDateEditActions, CgDateEditBeforeValueChangeDetails, CgDateEditCancelableResult, CgDateEditChangeReason, CgDateEditDayRenderContext, CgDateEditLabels, CgDateEditOpenChangeDetails, CgDateEditOpenChangeReason, CgDateEditProps, CgDateEditValueChangeDetails, CgDateValue, CgDayOfWeek } from './components/DateEdit';
 export { CgDateRangePicker } from './components/DateRangePicker';
-export type { CgDateRangePickerActions, CgDateRangePickerBeforeValueChangeDetails, CgDateRangePickerCancelableResult, CgDateRangePickerChangeReason, CgDateRangePickerCommitMode, CgDateRangePickerLabels, CgDateRangePickerOpenChangeDetails, CgDateRangePickerOpenChangeReason, CgDateRangePickerProps, CgDateRangePickerValueChangeDetails, CgDateRangePreset, CgDateRangePresetContext } from './components/DateRangePicker';
+export type { CgDateRangePickerActions, CgDateRangePickerBeforeValueChangeDetails, CgDateRangePickerCancelableResult, CgDateRangePickerChangeReason, CgDateRangePickerCommitMode, CgDateRangePickerLabels, CgDateRangePickerOpenChangeDetails, CgDateRangePickerOpenChangeReason, CgDateRangePickerPlacement, CgDateRangePickerProps, CgDateRangePickerValueChangeDetails, CgDateRangePreset, CgDateRangePresetContext } from './components/DateRangePicker';
 export type { CgDateRangeValue } from './types';
 export { CgPager, CG_PAGER_DEFAULT_AUTO_INPUT_THRESHOLD, CG_PAGER_DEFAULT_NUMERIC_BUTTONS, calculateNumericWindow, calculatePageCount, calculatePageSkip, calculatePageSkipChecked, calculateVisibleItemRange, clampPageIndex, normalizeNumericButtonCount, normalizePageCount, normalizePageSize, normalizePageSizeOptions, parsePagerDisplayNumber, preserveFirstItemPageIndex, shouldUsePagerInput, toDisplayPageNumber, toPageIndex } from './components/Pager';
 export type { CgPagerActions, CgPagerButtonContext, CgPagerItemRange, CgPagerLabels, CgPagerMode, CgPagerNavigationDetails, CgPagerNavigationReason, CgPagerPageSizeChangeDetails, CgPagerProps, CgPagerSummaryContext, CgPagerWindow } from './components/Pager';
@@ -52,7 +52,7 @@ export type { CgIconProps } from './components/Icon';
 export { CgKeyComboBox } from './components/KeyComboBox';
 export type { CgKeyComboBoxActions, CgKeyComboBoxProps, CgKeyComboBoxResolverContext, CgKeyComboBoxValueChangeDetails } from './components/KeyComboBox';
 export { CgLoadingPanel } from './components/LoadingPanel';
-export type { CgLoadingIndicator, CgLoadingPanelMode, CgLoadingPanelProps } from './components/LoadingPanel';
+export type { CgLoadingIndicator, CgLoadingPanelMode, CgLoadingPanelProps, CgLoadingPanelTextAlignment } from './components/LoadingPanel';
 export { CgGridLayout, CgGridLayoutItem } from './components/GridLayout';
 export type { CgGridLayoutColumnDescriptor, CgGridLayoutItemProps, CgGridLayoutProps, CgGridLayoutRowDescriptor } from './components/GridLayout';
 export { CgAccordion } from './components/Accordion';
@@ -86,7 +86,7 @@ export type { CgMessageBoxActions, CgMessageBoxAlert, CgMessageBoxClosedDetails,
 export { CgRadio } from './components/Radio';
 export type { CgRadioProps } from './components/Radio';
 export { CgRadioGroup } from './components/RadioGroup';
-export type { CgRadioGroupProps, CgRadioOption, CgRadioRenderContext } from './components/RadioGroup';
+export type { CgRadioGroupProps, CgRadioItemAlignment, CgRadioOption, CgRadioRenderContext } from './components/RadioGroup';
 export { CgRibbon } from './components/Ribbon';
 export type { CgRibbonActions, CgRibbonActiveKeyChangeDetails, CgRibbonCollapseDetails, CgRibbonCollapseSource, CgRibbonGroup, CgRibbonGroupLayout, CgRibbonItem, CgRibbonItemSize, CgRibbonLabels, CgRibbonProps, CgRibbonTab } from './components/Ribbon';
 export { CgRichTextEditor } from './components/RichTextEditor';

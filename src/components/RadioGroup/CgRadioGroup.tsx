@@ -8,7 +8,7 @@ import styles from './CgRadioGroup.module.css';
 import type { CgRadioGroupProps } from './CgRadioGroup.types';
 
 function CgRadioGroupInner<TValue extends string | number>(
-  { options, value, defaultValue, onValueChange, legend, orientation = 'vertical', wrap = true, size = 'medium', readOnly = false, validationState = 'none', direction = 'auto', renderOption, name, form, id, required, disabled, className, style, 'data-testid': testId, 'aria-describedby': ariaDescribedBy, 'aria-label': ariaLabel, 'aria-labelledby': ariaLabelledBy, ...nativeProps }: CgRadioGroupProps<TValue>,
+  { options, value, defaultValue, onValueChange, legend, orientation = 'vertical', wrap = true, itemLabelPosition = 'end', itemAlignment = 'start', itemLabelWrap = true, size = 'medium', readOnly = false, validationState = 'none', direction = 'auto', renderOption, name, form, id, required, disabled, className, style, 'data-testid': testId, 'aria-describedby': ariaDescribedBy, 'aria-label': ariaLabel, 'aria-labelledby': ariaLabelledBy, ...nativeProps }: CgRadioGroupProps<TValue>,
   forwardedRef: React.ForwardedRef<HTMLFieldSetElement>,
 ) {
   const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
@@ -53,7 +53,7 @@ function CgRadioGroupInner<TValue extends string | number>(
           const optionId = `${field.id}-option-${index}`;
           const descriptionId = option.description ? `${optionId}-description` : undefined;
           return (
-            <label key={`${typeof option.value}:${String(option.value)}`} className={cx(choiceStyles.root, choiceStyles[field.validationState])} data-size={size} data-disabled={field.disabled || option.disabled || undefined} data-readonly={field.readOnly || undefined}>
+            <label key={`${typeof option.value}:${String(option.value)}`} className={cx(choiceStyles.root, choiceStyles[field.validationState], styles.item)} data-position={itemLabelPosition} data-align={itemAlignment} data-label-wrap={itemLabelWrap ? undefined : 'false'} data-size={size} data-disabled={field.disabled || option.disabled || undefined} data-readonly={field.readOnly || undefined}>
               <input className={choiceStyles.input} id={optionId} type="radio" name={groupName} form={form} value={String(option.value)} checked={isChecked} required={field.required} disabled={field.disabled || option.disabled} aria-describedby={descriptionId} aria-readonly={field.readOnly || undefined} data-index={index} onClick={(event) => { if (field.readOnly) event.preventDefault(); }} onChange={(event) => { if (!field.readOnly && event.target.checked) choose(option.value); }} onKeyDown={(event) => onArrow(event, index)} />
               <span className={choiceStyles.content}>{renderOption ? renderOption({ option, checked: isChecked, index }) : <><span>{option.label}</span>{option.description ? <span id={descriptionId} className={choiceStyles.description}>{option.description}</span> : null}</>}</span>
             </label>

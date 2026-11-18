@@ -10,12 +10,15 @@ import styles from './CgLoadingPanel.module.css';
 import type { CgLoadingPanelProps } from './CgLoadingPanel.types';
 
 export const CgLoadingPanel = forwardRef<HTMLDivElement, CgLoadingPanelProps>(function CgLoadingPanel(
-  { children, visible, defaultVisible = false, onVisibleChange, mode = 'inline', target, text: textProp, indicator = 'spinner', customIndicator, shading = true, blocking = true, showContent = true, showDelay = 0, minimumVisibleDuration = 0, dismissOnClick = false, dismissOnEscape = false, trapFocus = false, className, style, 'data-testid': testId, ...nativeProps },
+  { children, visible, defaultVisible = false, onVisibleChange, mode = 'inline', target, text: textProp, indicator = 'spinner', customIndicator, shading = true, blocking = true, showContent = true, showDelay = 0, minimumVisibleDuration = 0, dismissOnClick = false, dismissOnEscape = false, trapFocus = false, textAlignment = 'inlineEnd', indicatorAreaVisible = true, size = 'medium', zIndex, className, style, 'data-testid': testId, ...nativeProps },
   ref,
 ) {
   const uiText = useCgUiText();
   const text = textProp ?? uiText.translate('Loading…');
   assertNonNegative('showDelay', showDelay);
+  if (!['top', 'inlineEnd', 'bottom', 'inlineStart'].includes(textAlignment)) throw new Error(`CgLoadingPanel textAlignment "${String(textAlignment)}" is invalid.`);
+  if (!['small', 'medium', 'large'].includes(size)) throw new Error(`CgLoadingPanel size "${String(size)}" is invalid.`);
+  if (zIndex !== undefined && (!Number.isInteger(zIndex) || zIndex <= 0)) throw new Error('CgLoadingPanel zIndex must be a positive integer.');
   assertNonNegative('minimumVisibleDuration', minimumVisibleDuration);
   if (trapFocus && (!blocking || mode === 'inline')) {
     throw new Error('trapFocus requires a blocking overlay or portal loading panel.');
@@ -97,11 +100,12 @@ export const CgLoadingPanel = forwardRef<HTMLDivElement, CgLoadingPanelProps>(fu
       {...nativeProps}
       ref={mergedRef}
       className={cx(styles.panel, mode === 'inline' && styles.inline, shading && mode !== 'inline' && styles.shading, className)}
-      style={{ ...style, ...(mode === 'portal' ? coverStyle : null), zIndex: mode === 'inline' ? undefined : stacked.rootKind === 'modal' ? `calc(var(--cg-z-modal) + ${stacked.order * 2 + 1})` : `calc(var(--cg-z-overlay) + ${stacked.order})` }}
+      style={{ ...style, ...(mode === 'portal' ? coverStyle : null), zIndex: mode === 'inline' ? undefined : zIndex !== undefined ? zIndex : stacked.rootKind === 'modal' ? `calc(var(--cg-z-modal) + ${stacked.order * 2 + 1})` : `calc(var(--cg-z-overlay) + ${stacked.order})` }}
       role="status"
       aria-live="polite"
       aria-busy="true"
       data-blocking={blocking}
+      data-size={size}
       data-cg-overlay-id={stacked.id}
       data-cg-overlay-owner={stacked.ownerId}
       data-cg-loading-overlay=""
@@ -109,7 +113,7 @@ export const CgLoadingPanel = forwardRef<HTMLDivElement, CgLoadingPanelProps>(fu
       tabIndex={trapFocus ? -1 : nativeProps.tabIndex}
       onClick={(event) => { nativeProps.onClick?.(event); if (dismissOnClick && event.target === event.currentTarget) dismiss(); }}
     >
-      <span className={styles.content}>{visual}{text ? <span>{text}</span> : null}</span>
+      <span className={cx(styles.content, !indicatorAreaVisible && styles.frameless)} data-text-alignment={textAlignment} data-cg-loading-indicator-area>{visual}{text ? <span className={styles.text}>{text}</span> : null}</span>
     </div>
   ) : null;
 

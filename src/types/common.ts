@@ -59,7 +59,8 @@ export interface CgBaseProps {
 
 export interface CgEditorButtonContext<TValue> {
   value: TValue;
-  event: MouseEvent<HTMLButtonElement>;
+  /** The click; its target is an anchor for a descriptor with `href`. */
+  event: MouseEvent<HTMLButtonElement | HTMLAnchorElement>;
 }
 
 export interface CgEditorButtonDescriptor<TValue = string> {
@@ -73,5 +74,15 @@ export interface CgEditorButtonDescriptor<TValue = string> {
   visible?: boolean;
   preventFocusLoss?: boolean;
   preventDuplicateClicks?: boolean;
+  /** Renders a link instead of a button. A disabled link has no `href`. Blazor `NavigateUrl`. */
+  href?: string;
+  /** Link target, such as `_blank`. Used with `href`. */
+  target?: string;
+  /** `false` leaves the button out of the Tab order; it still works with the pointer. Defaults to true. */
+  focusable?: boolean;
+  /** Native button type, for a button inside a form. Defaults to `button`. */
+  type?: 'button' | 'submit' | 'reset';
+  /** Extra class names on the button or link. */
+  className?: string;
   onPress?: (context: CgEditorButtonContext<TValue>) => void | PromiseLike<void>;
 }

@@ -255,6 +255,11 @@ interface CgGridEditingCommon<TItem> {
   readonly allowTypeToEdit?: boolean;
   /** Moves an Enter-committed Cell/Batch edit to the same column on the next visible row. Defaults to false. */
   readonly enterMovesToNextRow?: boolean;
+  /**
+   * Commits a Cell/Batch editor when focus leaves its cell: a click elsewhere in the grid or on the page,
+   * or Tab out of the grid. Enter, Tab between editors and Escape keep their own handling. Defaults to false.
+   */
+  readonly commitOnFocusOut?: boolean;
 }
 export type CgGridEditingOptions<TItem> = CgGridEditingCommon<TItem> & (
   { readonly mode?: 'popup'; readonly navigationPolicy?: CgGridDirtyNavigationPolicy }
@@ -291,7 +296,9 @@ export interface CgGridContext<TItem> { readonly area: CgGridContextMenuArea; re
 export interface CgGridLabels {
   searchPlaceholder: string; loading: string; empty: string; loadError: string; refreshError: string; retry: string; rowsPerPage: string; records: string; add: string; edit: string; delete: string; save: string; cancel: string; columns: string; groupPanel: string; loadMore: string; summaryUnavailable: string; activeFilters: string; editFilters: string; suspendFilters: string; resumeFilters: string; clearFilters: string;
   /** The grid's accessible name when `aria-label` is not passed. */
-  gridAriaLabel: string; pagerAriaLabel: string; pageStatus: string; groupPanelAriaLabel: string; selectVisibleAriaLabel: string; selectRowAriaLabel: string; filterAriaLabel: string; filterAll: string; filterTrue: string; filterFalse: string;
+  gridAriaLabel: string; pagerAriaLabel: string; pageStatus: string; resizeColumnAriaLabel: string;
+  /** Announced politely after a column moves or is resized. `{0}` is the column title, `{1}` its new position or width in pixels. */
+  columnMovedAnnouncement: string; columnResizedAnnouncement: string; groupPanelAriaLabel: string; selectVisibleAriaLabel: string; selectRowAriaLabel: string; filterAriaLabel: string; filterAll: string; filterTrue: string; filterFalse: string;
   /** Popup titles for a new row and an existing row. */
   createPopupTitle: string; editPopupTitle: string;
   columnChooserSearchPlaceholder: string; showAllColumns: string; hideAllColumns: string; resetColumns: string;
@@ -383,6 +390,8 @@ interface CgGridCommonProps<TItem> extends NativeGridProps {
   remoteJsonExport?: (request: CgGridDataRequest, options: CgGridExportOptions, context: CgGridRemoteExportContext) => PromiseLike<CgGridJsonExportResult>;
   toolbar?: ReactNode | ((actions: CgGridActions<TItem>) => ReactNode);
   renderLoading?: () => ReactNode; renderEmpty?: () => ReactNode; renderError?: (details: CgGridDataErrorDetails) => ReactNode;
+  /** Extra class names for each rendered data row. Blazor `RowCssClassSelector`. */
+  rowClassName?: (item: TItem) => string | undefined;
   stickyHeader?: boolean; stripedRows?: boolean; height?: CSSProperties['height']; size?: CgSizeMode; direction?: CgDirection; labels?: Partial<CgGridLabels>; actionsRef?: Ref<CgGridActions<TItem>>;
   allowTableStyling?: boolean; tableStyleLabels?: Partial<CgGridTableStyleLabels>;
   /** Width of the popup edit form. Defaults to `min(36rem, 94vw)`. */

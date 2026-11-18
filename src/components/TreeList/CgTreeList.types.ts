@@ -405,6 +405,10 @@ interface CgTreeListCommonProps<TItem, TKey extends CgTreeListKey> extends Nativ
   readonly defaultSearchText?: string;
   readonly onSearchTextChange?: (text: string) => void;
   readonly showSearch?: boolean;
+  /** Content above the tree, such as host commands. Blazor `ToolbarTemplate`. */
+  readonly toolbar?: ReactNode;
+  /** Indentation per hierarchy level, any CSS length. Defaults to `1.1rem`. Blazor `IndentSize`. */
+  readonly indentSize?: string;
   readonly highlightSearchMatches?: boolean;
   readonly locale?: string;
   readonly allowAddRoot?: boolean;

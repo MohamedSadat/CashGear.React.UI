@@ -79,6 +79,8 @@ interface CgTagBoxCommonProps<TItem> extends NativeTagBoxProps, CgBaseProps {
   minimumSearchLength?: number;
   maxVisibleItems?: number;
   maxSelectedItems?: number;
+  /** Leaves selected items out of the list, so it offers only what can still be added. Defaults to false. */
+  hideSelectedItems?: boolean;
   loadingMessage?: ReactNode;
   errorMessage?: CgTagBoxErrorMessage;
   emptyMessage?: ReactNode;

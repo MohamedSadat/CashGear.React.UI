@@ -90,6 +90,10 @@ export function AccountEditor() {
 
 Controls accept either `value`/`checked` plus a change callback, or `defaultValue`/`defaultChecked` for uncontrolled use. Do not switch modes during a component's lifetime; development builds warn once when that happens, including under Strict Mode. TextBox and Memo keep a separate draft and can commit on input, blur, or a debounce. Controlled external updates cancel pending debounce work without replacing an active IME composition until composition ends.
 
+Editor buttons (`buttons` on TextBox, DateRangePicker and other editors) are `CgEditorButtonDescriptor`s. Besides `onPress`, a descriptor can be a link (`href`, `target`; a disabled link drops its `href` and `target="_blank"` adds `rel="noopener noreferrer"`; unsafe schemes are refused), leave the Tab order (`focusable: false`), submit or reset its form (`type`), and carry its own `className`. `onPress` receives the anchor's click for a link.
+
+`CgRadioGroup` lays out each item with `itemLabelPosition` (`start` or `end`), `itemAlignment` (`start`, `center`, `end`, `stretch`) and `itemLabelWrap={false}` for one-line labels.
+
 ## Native forms
 
 Inputs forward refs and native attributes such as `name`, `form`, `required`, `autoComplete`, and `aria-*`. Button supports `button`, `submit`, and `reset`. Uncontrolled controls restore their defaults on native form reset, including controls associated to a non-ancestor form through `form="form-id"`. Standalone uncontrolled radios intentionally rely on native same-name grouping.
@@ -230,7 +234,7 @@ Each selected stable key is submitted through an internal native multi-select; t
 
 ## TagBox
 
-`CgTagBox<TItem>` binds an object array and renders the selected values as removable tags around an input-focused ARIA combobox. Stable keys reconcile refreshed objects and serialize native form values; selected objects missing from the current option source remain visible.
+`CgTagBox<TItem>` binds an object array and renders the selected values as removable tags around an input-focused ARIA combobox. Stable keys reconcile refreshed objects and serialize native form values; selected objects missing from the current option source remain visible. `hideSelectedItems` leaves selected items out of the list, local or loaded.
 
 ```tsx
 <CgTagBox<Customer>
@@ -406,6 +410,8 @@ Formats use `H`/`HH`, `h`/`hh`, `m`/`mm`, optional `s`/`ss`, and `t`/`tt`; twelv
 ```
 
 Explicit mode snapshots a draft and applies only through Apply; Cancel, Escape, outside/programmatic close, and anchor loss discard it. Immediate mode commits a valid second calendar endpoint or preset. Manual text scans every separator boundary and commits only one exact, unambiguous formatted pair. Two hidden native form proxies submit canonical endpoints and support external forms, reset, required validity, disabled exclusion, custom validity, and invalid-focus transfer.
+
+`allowTextInput={false}` makes the DateRangePicker text read-only, so the range is picked in the calendar (the keyboard still opens it), and `placement` sets where the popup opens (default `bottom-start`).
 
 ## Toast and Confirmation providers
 
@@ -629,6 +635,8 @@ Custom summaries use stable aggregate keys and ordered input field IDs. Built-in
 
 The React adaptation deliberately does not expose Razor child registration, expressions, SQL/EF/Dapper translation, generic HTTP adapters, server persistence, or Blazor lifecycle concepts. Row/column virtualization and committed export scopes are implemented in Phase 29. Automatic column discovery is intentionally replaced by explicit typed columns.
 
+`rowClassName(item)` adds host classes to data rows (`data-cg-grid-row-custom` marks them). `editing.commitOnFocusOut` commits a Cell or Batch editor when focus leaves its cell, by a click elsewhere or Tab out of the grid; Enter, Tab between editors and Escape keep their own handling. Column moves and resizes are announced in a polite live region (`columnMovedAnnouncement`, `columnResizedAnnouncement`).
+
 Every built-in Grid string is a `labels` entry and goes through `CgUiTextProvider`: the context menu (`sortAscending`, `sortDescending`, `groupByColumn`, `ungroup`, `hideColumn`, `autoFitColumn`, `selectRow`, `deselectRow`, `exportToJson`, `exportToExcel`, `refresh`), the popup titles `createPopupTitle` ("Add row") and `editPopupTitle` ("Edit row"), the column chooser, the group panel's accessible name (`groupPanelAriaLabel`), the filter row and the view manager (`views`, `viewsTitle`, `saveNewView`, `updateView`, `makeDefaultView`, `deleteView`, `resetSystemView`, the scope names and field captions). `editPopupWidth` and `editPopupMaxHeight` size the popup edit form (defaults `min(36rem, 94vw)` and `min(44rem, 92vh)`).
 
 ## LookUpGrid
@@ -817,6 +825,8 @@ Selection and series visibility support controlled and uncontrolled state. Contr
 `getSvg` and `exportSvg` clone only the chart SVG, inline computed paint/font properties, and remove hit targets, focus state, and interactive metadata. They do not include surrounding application markup or fetch remote assets. Descriptor callbacks, CSS classes/colors, formatter output, titles, annotations, and data are trusted application inputs: React escapes rendered text, but hosts must not treat charts, hidden series, disabled legends, exported files, or shortened labels as authorization or confidentiality boundaries. Enforce access and tenant isolation before supplying data. Large sources are intentionally bounded by `maxPointsPerSeries` (5,000 by default); pre-aggregate application data when thousands of individually navigable points are not useful.
 
 ## TreeList
+
+`indentSize` sets the indentation per level (any CSS length, default `1.1rem`) and `toolbar` renders host content above the tree.
 
 `CgTreeList<TItem, TKey>` renders hierarchical business records as a true ARIA treegrid. It has three mutually exclusive source modes: flat local parent keys, nested local children, and an abortable bounded provider. Parent absence is explicit, so `0` is a valid key and never an implicit root marker.
 
@@ -1211,7 +1221,7 @@ JavaScript numbers use IEEE-754 floating-point arithmetic. Do not use these edit
 
 Eligibility uses the trimmed query length, but `onSearch` receives the original query—including surrounding spaces. `searchOnClear` defaults to `true` and applies equally to the clear button and opt-in Escape clearing. Cancellation, below-minimum input, clear, rejection, and completion all release duplicate-submit bookkeeping while request IDs remain monotonic.
 
-`CgLoadingPanel` supports inline, wrapper overlay, and portal-target modes, delayed display, minimum visible time, inert blocking, shading, dismissal, topmost Escape ordering, and target geometry tracking. Focus containment remains off by default; `trapFocus` enables Tab cycling and focus return for blocking overlay/portal modes only.
+`CgLoadingPanel` supports inline, wrapper overlay, and portal-target modes, delayed display, minimum visible time, inert blocking, shading, dismissal, topmost Escape ordering, and target geometry tracking. Focus containment remains off by default; `trapFocus` enables Tab cycling and focus return for blocking overlay/portal modes only. `textAlignment` (`top`, `inlineEnd`, `bottom`, `inlineStart`) places the text around the indicator, `indicatorAreaVisible={false}` drops the indicator card, `size` sets the indicator, padding and gap, and `zIndex` fixes an overlay or portal panel's stacking order.
 
 `CgWaitIndicator` is the standalone visual/status primitive shared with LoadingPanel. It defaults to a visible medium spinner with one polite “Loading” status announcement, supports spinner/dots/pulse animations and small/medium/large sizes, and accepts custom children. Set `decorative` only when adjacent text already communicates the state; it removes live semantics and sets `aria-hidden`. Reduced motion stops indicator animation, and forced-colors mode retains visible system-color geometry.
 

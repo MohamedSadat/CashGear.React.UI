@@ -25,7 +25,7 @@
 .cell[data-align='end'] { text-align: end; font-variant-numeric: tabular-nums; }
 .cell:focus-visible, .headerButton:focus-visible, .expander:focus-visible, .retry:focus-visible { z-index: 2; outline: var(--cg-focus-ring-width) solid var(--cg-focus-ring-color); outline-offset: calc(-1 * var(--cg-focus-ring-width)); }
 .hierarchyCell { display: flex; min-inline-size: 0; align-items: center; gap: var(--cg-space-2); }
-.indent { flex: 0 0 min(calc(var(--cg-tree-list-level) * 1.1rem), 60%); inline-size: min(calc(var(--cg-tree-list-level) * 1.1rem), 60%); }
+.indent { flex: 0 0 min(calc(var(--cg-tree-list-level) * var(--cg-tree-list-indent, 1.1rem)), 60%); inline-size: min(calc(var(--cg-tree-list-level) * var(--cg-tree-list-indent, 1.1rem)), 60%); }
 .expander { display: inline-grid; flex: 0 0 1.5rem; inline-size: 1.5rem; block-size: 1.5rem; place-items: center; padding: 0; color: var(--cg-text-secondary); background: transparent; border: 0; border-radius: var(--cg-radius-sm); cursor: pointer; }
 .controlPlaceholder { flex: 0 0 1.5rem; inline-size: 1.5rem; }
 .checkbox { flex: 0 0 auto; accent-color: var(--cg-primary); }

@@ -11,6 +11,13 @@ import type {
 import type { CgDateRangeValue, CgDateValue, CgDayOfWeek } from '../../types/date';
 import type { CgCalendarDayRenderContext } from '../Calendar';
 
+/** Where the calendar popup opens relative to the editor. Blazor `CgPlacement`. */
+export type CgDateRangePickerPlacement =
+  | 'bottom-start' | 'bottom' | 'bottom-end'
+  | 'top-start' | 'top' | 'top-end'
+  | 'right-start' | 'right' | 'right-end'
+  | 'left-start' | 'left' | 'left-end';
+
 export type CgDateRangePickerCommitMode = 'immediate' | 'explicit';
 export type CgDateRangePickerChangeReason = 'manual-input' | 'calendar-selection' | 'preset' | 'clear';
 export type CgDateRangePickerOpenChangeReason =
@@ -113,6 +120,10 @@ export interface CgDateRangePickerProps extends NativeRangeInputProps, CgBasePro
   required?: boolean;
   disabled?: boolean;
   readOnly?: boolean;
+  /** `false` makes the text read-only: the range is picked in the calendar only. Defaults to true. */
+  allowTextInput?: boolean;
+  /** Popup placement. Defaults to `bottom-start`. */
+  placement?: CgDateRangePickerPlacement;
   onInvalid?: (event: FormEvent<HTMLSelectElement>) => void;
   inputRef?: Ref<HTMLInputElement>;
   actionsRef?: Ref<CgDateRangePickerActions>;

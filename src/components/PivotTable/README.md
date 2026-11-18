@@ -78,3 +78,5 @@ Storybook: `Phase 22/PivotTable`. Regression coverage: `pivot.test.ts`, `CgPivot
 Optional `maximumSourceRows` and `maximumAggregateOperations` bound source processing and cell contributions. Omitted limits preserve the previous behavior. Limit failures use the existing diagnostics and error callbacks. Measure selectors are evaluated once per record per query, including calculated operands reused in totals.
 
 `exportCsv` and `exportXlsx` accept `scope: 'currentLayout' | 'allExpanded'`; the default remains `allExpanded`. Component exports yield during serialization and observe cancellation. The existing `createPivotExport` helper stays synchronous and supports the same scope. Provider exports receive the captured scope and query tokens.
+
+With no column fields every data column is the grand total, so its header shows only the measure caption, as in Blazor.

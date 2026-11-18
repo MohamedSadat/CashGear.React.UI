@@ -349,3 +349,21 @@ Hard-coded English became label props with the old text as default: Grid's conte
 | --- | --- |
 | Typecheck, lint | Passed. |
 | Full unit suite | 1,293 of 1,294 passed with two workers; the one failure was the public API list, edited while the run was in progress, and passed on rerun with the new `tests/ui-text.test.tsx` (10 cases) and the Grid suite. |
+
+### R1: small additions
+
+- Grid (`CgGrid.razor.cs`): `rowClassName(item)` (Blazor `RowCssClassSelector`, rows marked `data-cg-grid-row-custom`); `editing.commitOnFocusOut` (Blazor `CommitOnFocusOut`): a Cell or Batch editor commits when focus leaves its cell, deferred one task so Enter's commit gate and Tab's next editor win; column move and resize announcements in a polite live region (`columnMovedAnnouncement`, `columnResizedAnnouncement`, plus `resizeColumnAriaLabel`).
+- TreeList: `indentSize` (CSS length, default stays `1.1rem`, Blazor's default is `1.25rem`) and a `toolbar` slot (Blazor `ToolbarTemplate`).
+- LoadingPanel: `textAlignment` (`top`, `inlineEnd`, `bottom`, `inlineStart`), `indicatorAreaVisible={false}` for a frameless indicator, `size`, and a positive `zIndex` for overlay and portal panels.
+- TagBox `hideSelectedItems`, local and loaded.
+- DateRangePicker `allowTextInput={false}` (read-only text, typing and Enter commit ignored, keyboard opening kept) and `placement`.
+- RadioGroup `itemLabelPosition`, `itemAlignment` (`start`, `center`, `end`, `stretch`) and `itemLabelWrap`.
+- Editor button descriptors (`CgEditorButton.razor`): `href`/`target` links (a disabled link drops `href`; unsafe schemes are refused; `_blank` gets `rel="noopener noreferrer"`), `focusable: false`, `type: 'submit' | 'reset'`, `className`. `CgEditorButtonContext.event` widens to `MouseEvent<HTMLButtonElement | HTMLAnchorElement>`.
+- PivotTable: with no column fields the data column header shows only the measure caption (Blazor `e4878750`). Existing Pivot stories without column fields lose their "Grand Total" header line.
+
+Stories are under `Blazor parity 2026-11/Small additions`.
+
+| Gate | Recorded result |
+| --- | --- |
+| Typecheck, lint | Passed. |
+| Full unit suite | 1,316 tests in 114 files passed with two workers, including 12 new cases in `tests/blazor-parity-r1.test.tsx`. |

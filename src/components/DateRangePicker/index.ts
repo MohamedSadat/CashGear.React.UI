@@ -8,6 +8,7 @@ export type {
   CgDateRangePickerLabels,
   CgDateRangePickerOpenChangeDetails,
   CgDateRangePickerOpenChangeReason,
+  CgDateRangePickerPlacement,
   CgDateRangePickerProps,
   CgDateRangePickerValueChangeDetails,
   CgDateRangePreset,
