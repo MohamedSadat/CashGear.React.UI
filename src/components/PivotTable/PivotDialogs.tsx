@@ -4,6 +4,7 @@ import { CgButton } from '../Button';
 import { CgSearchBox } from '../SearchBox';
 import { CgGrid } from '../Grid';
 import { CgPager } from '../Pager';
+import { CgDateEdit } from '../DateEdit';
 import { useStableCallback } from '../../hooks/useStableCallback';
 import type { CgPivotDrillDownRow, CgPivotDrillDownContext, CgPivotDrillDownResult, CgPivotField, CgPivotFieldFilter, CgPivotLabels, CgPivotLayout, CgPivotQuery, CgPivotTableProps, CgPivotDistinctValuesResult } from './CgPivotTable.types';
 import { getPivotDistinctValues, getPivotDrillDown } from './engine';
@@ -94,7 +95,7 @@ export function PivotFilter<T>({ field, query, props, labels, onClose, onApply }
         keys.delete(member.key); setFilter({ ...filter, memberSelectionActive: Boolean(active), includedMemberKeys: active ? [...keys] : [], excludedMemberKeys: active ? [] : [...keys], includedValues: [] }); }}/>{member.isBlank ? labels.blank : member.displayText}</label>)}</div>
     {loading ? <div role="status">{labels.loading}</div> : null}{error ? <div role="alert">{labels.error}<CgButton onClick={() => setRetry(n => n + 1)}>{labels.retry}</CgButton></div> : null}{result.hasMore ? <CgButton disabled={loading} onClick={() => setSkip(result.values.length)}>{labels.more}</CgButton> : null}
     {['number', 'decimal'].includes(field.valueType) ? <div className={styles.ranges}>{(['minimum', 'maximum'] as const).map(key => <label key={key}>{labels[key]}<input aria-label={labels[key]} inputMode="decimal" value={String(filter[key] ?? '')} onChange={e => setFilter({ ...filter, [key]: e.target.value || undefined })}/></label>)}</div> : null}
-    {['date', 'dateTime', 'instant'].includes(field.valueType) ? <div className={styles.ranges}>{(['dateFrom', 'dateToExclusive'] as const).map(key => <label key={key}>{key === 'dateFrom' ? labels.dateFrom : labels.dateTo}<input type="date" aria-label={key === 'dateFrom' ? labels.dateFrom : labels.dateTo} value={filter[key]?.slice(0, 10) ?? ''} onChange={e => setFilter({ ...filter, [key]: e.target.value || undefined })}/></label>)}</div> : null}
+    {['date', 'dateTime', 'instant'].includes(field.valueType) ? <div className={styles.ranges}>{(['dateFrom', 'dateToExclusive'] as const).map(key => <label key={key}>{key === 'dateFrom' ? labels.dateFrom : labels.dateTo}<CgDateEdit aria-label={key === 'dateFrom' ? labels.dateFrom : labels.dateTo} locale={props.locale} direction={props.direction} value={filter[key]?.slice(0, 10) || null} onValueChange={value => setFilter({ ...filter, [key]: value ?? undefined })} fullWidth/></label>)}</div> : null}
     <div className={styles.actions}><CgButton onClick={onClose}>{labels.cancel}</CgButton><CgButton intent="primary" onClick={() => { try {
         if (['number', 'decimal'].includes(field.valueType)) {
             const min = filter.minimum == null ? undefined : decimal(String(filter.minimum));

@@ -90,15 +90,16 @@ describe('CgDateEdit', () => {
     expect(changed).toHaveBeenCalledOnce();
   });
 
-  it('preserves invalid and partial drafts across rerenders, commits valid blur, and restores on Escape', async () => {
+  it('keeps a partly typed mask across rerenders without an error, commits valid blur, and restores on Escape', async () => {
     const changed = vi.fn();
     const view = render(<CgDateEdit value="2026-08-21" editFormat="dd/MM/yyyy" displayFormat="d MMMM yyyy" locale="en-GB" onValueChange={changed} />);
     const input = screen.getByRole('combobox');
     fireEvent.focus(input);
-    fireEvent.change(input, { target: { value: '29/' } });
+    // The typing mask validates on Enter and blur only, so a partial date is not an error while typing.
+    input.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertText', data: '2', bubbles: true, cancelable: true }));
     view.rerender(<CgDateEdit value="2026-08-21" editFormat="dd/MM/yyyy" displayFormat="d MMMM yyyy" locale="en-GB" onValueChange={changed} />);
-    expect(input).toHaveValue('29/');
-    expect(input).toHaveAttribute('aria-invalid', 'true');
+    await waitFor(() => expect(input).toHaveValue('2_/08/2026'));
+    expect(input).not.toHaveAttribute('aria-invalid', 'true');
     fireEvent.keyDown(input, { key: 'Escape' });
     expect(input).toHaveValue('21/08/2026');
     fireEvent.change(input, { target: { value: '22/08/2026' } });

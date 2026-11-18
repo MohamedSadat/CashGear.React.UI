@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 import type { ChangeEvent, FormEvent, KeyboardEvent, SyntheticEvent } from 'react';
 import {
@@ -33,6 +34,8 @@ import {
   dayOfWeekIndex,
   defaultDatePattern,
   formatCivilDate,
+  getMonthNames,
+  getShortMonthNames,
   localeFirstDayOfWeek,
   parseDatePattern,
   parseFormattedDate,
@@ -40,6 +43,7 @@ import {
 import {
   clampCivilDate,
   compareCivilDates,
+  daysInMonth,
   parseCanonicalDate,
   todayCivilDate,
   toCanonicalDate,
@@ -47,6 +51,27 @@ import {
 import type { CivilDate } from '../../internal/date/dateMath';
 import { CgCalendar } from '../Calendar';
 import styles from './CgDateEdit.module.css';
+import { createDateMaskTokens, DateMaskEditor } from './dateMask';
+import type { DateMaskValue } from './dateMask';
+import { DateWheel } from './DateWheel';
+
+const AUTO_POINTER_QUERY = '(pointer: coarse) and (max-width: 47.999rem)';
+const NATIVE_POINTER_QUERY = '(pointer: coarse)';
+
+function subscribeMedia(query: string | null): (onChange: () => void) => () => void {
+  return (onChange) => {
+    if (!query || typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => undefined;
+    const media = window.matchMedia(query);
+    media.addEventListener?.('change', onChange);
+    return () => media.removeEventListener?.('change', onChange);
+  };
+}
+
+/** Blazor reports the pointer environment from JS; until it does (prerender, tests) the calendar renders. */
+function useMediaQuery(query: string | null): boolean {
+  const subscribe = useMemo(() => subscribeMedia(query), [query]);
+  return useSyncExternalStore(subscribe, () => Boolean(query && typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(query).matches), () => false);
+}
 
 const ENGLISH_LABELS: CgDateEditLabels = {
   calendarDialog: 'Calendar',
@@ -60,6 +85,9 @@ const ENGLISH_LABELS: CgDateEditLabels = {
   clear: 'Clear',
   selected: 'Selected',
   unavailable: 'Unavailable',
+  day: 'Day',
+  month: 'Month',
+  year: 'Year',
 };
 
 const ARABIC_LABELS: CgDateEditLabels = {
@@ -74,6 +102,9 @@ const ARABIC_LABELS: CgDateEditLabels = {
   clear: 'مسح',
   selected: 'محدد',
   unavailable: 'غير متاح',
+  day: 'اليوم',
+  month: 'الشهر',
+  year: 'السنة',
 };
 
 function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
@@ -148,6 +179,10 @@ function CgDateEditInner(
     onFocus,
     onBlur,
     onKeyDown,
+    pickerDisplayMode = 'auto',
+    scrollPickerFormat,
+    disabledDateNotificationText,
+    twoDigitYearMax = 2049,
     'aria-describedby': ariaDescribedBy,
     'aria-label': ariaLabel,
     'aria-labelledby': ariaLabelledBy,
@@ -189,6 +224,20 @@ function CgDateEditInner(
   const effectiveFirstDay = firstDayOfWeek === undefined ? localeFirstDayOfWeek(resolvedLocale) : dayOfWeekIndex(firstDayOfWeek);
   if (effectiveFirstDay < 0) throw new Error('CgDateEdit firstDayOfWeek must be a valid day name.');
 
+  if (!['auto', 'calendar', 'scrollPicker', 'native'].includes(pickerDisplayMode)) throw new Error(`CgDateEdit pickerDisplayMode "${String(pickerDisplayMode)}" is invalid.`);
+  const pointerQuery = pickerDisplayMode === 'native' ? NATIVE_POINTER_QUERY : pickerDisplayMode === 'auto' ? AUTO_POINTER_QUERY : null;
+  const pointerMatches = useMediaQuery(pointerQuery);
+  const useScrollPicker = pickerDisplayMode === 'scrollPicker' || (pickerDisplayMode === 'auto' && pointerMatches);
+  const useNativePicker = pickerDisplayMode === 'native' && pointerMatches && !field.readOnly;
+  const maskTokens = useMemo(() => createDateMaskTokens(resolvedEditFormat) ?? createDateMaskTokens(defaultDatePattern(resolvedLocale)) ?? createDateMaskTokens('dd/MM/yyyy')!, [resolvedEditFormat, resolvedLocale]);
+  const maskHasMonthNames = maskTokens.some((token) => token.part === 'month' && token.kind !== 'numeric');
+  const monthNameList = useMemo(() => getMonthNames(resolvedLocale), [resolvedLocale]);
+  const shortMonthNameList = useMemo(() => getShortMonthNames(resolvedLocale), [resolvedLocale]);
+  const maskRef = useRef<DateMaskEditor | null>(null);
+  const maskSelectionRef = useRef<{ start: number; end: number } | null>(null);
+  const [maskRevision, setMaskRevision] = useState(0);
+  const composingRef = useRef(false);
+  const nativePickerRef = useRef<HTMLInputElement>(null);
   const inputFocusedRef = useRef(false);
   const committedRef = useRef(committedValue);
   const controlledValueRef = useRef(value);
@@ -244,12 +293,123 @@ function CgDateEditInner(
   const effectiveError = internalError ?? externalError;
   const effectiveValidation: CgValidationState = effectiveError ? 'error' : field.validationState;
 
+  const toMaskValue = (candidate: CgDateValue | null): DateMaskValue | null => {
+    const date = candidate === null ? null : parseCanonicalDate(candidate);
+    return date ? { day: date.day, month: date.month, year: date.year } : null;
+  };
+  const maskEditable = !field.disabled && !field.readOnly;
+  const nullable = allowClear && !field.required;
+  // Blazor's typing mask: the engine owns the text while the input is focused; nothing is validated or
+  // committed until Enter, blur or an editor button.
+  const renderMask = useStableCallback(() => {
+    const mask = maskRef.current;
+    if (!mask) return;
+    const text = mask.compose();
+    maskSelectionRef.current = mask.activeRange();
+    setDraft(text);
+    setMaskRevision((revision) => revision + 1);
+  });
+  const startMask = useStableCallback(() => {
+    // An invalid external value is shown as it is, not rebuilt into a mask.
+    if (!maskEditable || (committedRef.current !== null && !parseCanonicalDate(committedRef.current))) { maskRef.current = null; setDraft(formatValue(committedRef.current, true)); return; }
+    const mask = new DateMaskEditor({ tokens: maskTokens, monthNames: monthNameList, shortMonthNames: shortMonthNameList, twoDigitYearMax, today: { day: resolvedToday.day, month: resolvedToday.month, year: resolvedToday.year } }, toMaskValue(committedRef.current));
+    mask.active = 0;
+    maskRef.current = mask;
+    renderMask();
+  });
+  const composeMaskDate = (snapshot: DateMaskValue): CgDateValue | null => {
+    if (snapshot.day === null && snapshot.month === null && snapshot.year === null) return null;
+    const fallback = parseCanonicalDate(committedRef.current ?? '') ?? resolvedToday;
+    const year = snapshot.year ?? fallback.year;
+    const month = snapshot.month ?? fallback.month;
+    const day = Math.min(snapshot.day ?? fallback.day, daysInMonth(year, month));
+    return toCanonicalDate({ year, month, day });
+  };
   const restoreAuthoritativeText = useStableCallback((focused: boolean = inputFocusedRef.current) => {
-    setDraft(formatValue(committedRef.current, focused));
+    if (focused && maskRef.current) { maskRef.current.load(toMaskValue(committedRef.current)); renderMask(); }
+    else setDraft(formatValue(committedRef.current, focused));
     const authoritative = committedRef.current;
     const parsed = authoritative === null ? null : parseCanonicalDate(authoritative);
     setInternalError(authoritative !== null && parsed === null ? resolvedInvalidMessage : parsed ? restrictionError(parsed) : undefined);
   });
+
+
+  useLayoutEffect(() => {
+    const selection = maskSelectionRef.current;
+    const input = inputElementRef.current;
+    if (!selection || !input || !inputFocusedRef.current || input.ownerDocument.activeElement !== input) return;
+    try { input.setSelectionRange(selection.start, selection.end); } catch { /* the input type does not support selection */ }
+  }, [maskRevision]);
+
+  useEffect(() => {
+    const input = inputElementRef.current;
+    if (!input) return undefined;
+    const selection = () => ({ start: input.selectionStart ?? 0, end: input.selectionEnd ?? input.selectionStart ?? 0 });
+    const onBeforeInput = (event: InputEvent) => {
+      const mask = maskRef.current;
+      if (!mask || composingRef.current || event.isComposing) return;
+      event.preventDefault();
+      const { start, end } = selection();
+      switch (event.inputType) {
+        case 'insertText':
+        case 'insertReplacementText': mask.insertText(event.data ?? event.dataTransfer?.getData('text/plain') ?? '', start, end); break;
+        case 'insertFromPaste':
+        case 'insertFromDrop': mask.paste(event.dataTransfer?.getData('text/plain') ?? event.data ?? '', start, end); break;
+        case 'deleteContentBackward': mask.deleteBackward(start, end); break;
+        case 'historyUndo': case 'historyRedo': case 'insertLineBreak': case 'insertParagraph': break;
+        default: if (event.inputType?.startsWith('delete')) mask.deleteForward(start, end); break;
+      }
+      setInternalError(undefined);
+      renderMask();
+    };
+    const onPaste = (event: ClipboardEvent) => {
+      const mask = maskRef.current;
+      if (!mask) return;
+      event.preventDefault();
+      const { start, end } = selection();
+      mask.paste(event.clipboardData?.getData('text/plain') ?? '', start, end);
+      renderMask();
+    };
+    const onCut = (event: ClipboardEvent) => {
+      const mask = maskRef.current;
+      if (!mask) return;
+      event.preventDefault();
+      const { start, end } = selection();
+      event.clipboardData?.setData('text/plain', input.value.slice(start, end));
+      mask.deleteForward(start, end);
+      renderMask();
+    };
+    const onCompositionStart = () => { composingRef.current = true; };
+    const onCompositionEnd = (event: CompositionEvent) => {
+      composingRef.current = false;
+      const mask = maskRef.current;
+      if (!mask) return;
+      mask.insertText(event.data ?? '');
+      renderMask();
+    };
+    const onSelectAtCaret = () => {
+      const mask = maskRef.current;
+      if (!mask || !inputFocusedRef.current) return;
+      const { start, end } = selection();
+      if (mask.selectAt(start, end)) renderMask();
+    };
+    input.addEventListener('beforeinput', onBeforeInput);
+    input.addEventListener('paste', onPaste);
+    input.addEventListener('cut', onCut);
+    input.addEventListener('compositionstart', onCompositionStart);
+    input.addEventListener('compositionend', onCompositionEnd);
+    input.addEventListener('click', onSelectAtCaret);
+    input.addEventListener('dblclick', onSelectAtCaret);
+    return () => {
+      input.removeEventListener('beforeinput', onBeforeInput);
+      input.removeEventListener('paste', onPaste);
+      input.removeEventListener('cut', onCut);
+      input.removeEventListener('compositionstart', onCompositionStart);
+      input.removeEventListener('compositionend', onCompositionEnd);
+      input.removeEventListener('click', onSelectAtCaret);
+      input.removeEventListener('dblclick', onSelectAtCaret);
+    };
+  }, [renderMask]);
 
   useLayoutEffect(() => {
     committedRef.current = committedValue;
@@ -258,10 +418,15 @@ function CgDateEditInner(
     const presentationKey = `${committedValue ?? '<null>'}|${resolvedLocale}|${resolvedEditFormat}|${resolvedDisplayFormat}`;
     if (presentationKeyRef.current !== presentationKey) {
       presentationKeyRef.current = presentationKey;
-      setDraft(formatValue(committedValue, inputFocusedRef.current));
+      if (inputFocusedRef.current && maskEditable) {
+        // A new committed value reloads the mask in place, keeping the highlighted part.
+        if (maskRef.current && (committedValue === null || parseCanonicalDate(committedValue))) { maskRef.current.load(toMaskValue(committedValue)); renderMask(); }
+        else startMask();
+      }
+      else setDraft(formatValue(committedValue, inputFocusedRef.current));
       setInternalError(undefined);
     }
-  }, [committedValue, formatValue, isOpen, resolvedDisplayFormat, resolvedEditFormat, resolvedLocale, value]);
+  }, [committedValue, formatValue, isOpen, maskEditable, renderMask, resolvedDisplayFormat, resolvedEditFormat, resolvedLocale, startMask, value]);
 
   const abortPendingChange = useStableCallback(() => {
     changeRef.current?.controller.abort();
@@ -365,6 +530,11 @@ function CgDateEditInner(
     event?: Event | SyntheticEvent,
   ): Promise<void> => {
     if (field.disabled || field.readOnly || openRef.current) return Promise.resolve();
+    if (useNativePicker) {
+      // The operating system's picker can only open during a user gesture; browsers refuse otherwise.
+      try { nativePickerRef.current?.showPicker?.(); } catch { /* not during a user gesture */ }
+      return Promise.resolve();
+    }
     if (!openControlled) {
       openRef.current = true;
       setIsOpen(true);
@@ -396,6 +566,18 @@ function CgDateEditInner(
       return false;
     }
     return requestValueChange(parsed.value, 'manual-input', event);
+  });
+
+  const commitMask = useStableCallback(async (event?: Event | SyntheticEvent): Promise<boolean> => {
+    const mask = maskRef.current;
+    if (!mask) return commitDraft(event);
+    const outcome = mask.commit(nullable, toMaskValue(committedRef.current));
+    renderMask();
+    if (outcome !== 'commit') return false;
+    if (!mask.isDirty()) { setInternalError(undefined); return true; }
+    const accepted = await requestValueChange(composeMaskDate(mask.snapshot()), 'manual-input', event);
+    if (accepted && maskRef.current === mask) { mask.load(toMaskValue(committedRef.current)); if (inputFocusedRef.current) renderMask(); }
+    return accepted;
   });
 
   const clearValue = useStableCallback(async (event?: Event | SyntheticEvent) => {
@@ -464,6 +646,15 @@ function CgDateEditInner(
   }, [committedValue, effectiveError, field.required, resolvedRequiredMessage]);
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const mask = maskRef.current;
+    if (mask && inputFocusedRef.current) {
+      // An edit the browser could not cancel (or a test's change event) replaced the text: read it as a paste.
+      mask.paste(event.target.value, 0, Number.MAX_SAFE_INTEGER);
+      setInternalError(undefined);
+      renderMask();
+      onChange?.(event);
+      return;
+    }
     abortPendingChange();
     const nextDraft = event.target.value;
     setDraft(nextDraft);
@@ -476,13 +667,36 @@ function CgDateEditInner(
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    const mask = maskRef.current;
     if (!field.disabled && !field.readOnly) {
-      if (event.key === 'ArrowDown' && !event.ctrlKey && !event.metaKey) {
+      if ((event.key === 'ArrowDown' && event.altKey) || event.key === 'F4') {
+        event.preventDefault();
+        void requestOpen('keyboard', event);
+      } else if (event.key === 'ArrowUp' && event.altKey) {
+        event.preventDefault();
+        if (openRef.current) void requestClose('keyboard', event, true);
+      } else if (mask && (event.ctrlKey || event.metaKey)) {
+        // Native undo would restore text the mask no longer tracks.
+        if (['z', 'Z', 'y', 'Y'].includes(event.key)) event.preventDefault();
+      } else if (mask && !composingRef.current && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+        event.preventDefault();
+        mask.spin(event.key === 'ArrowUp' ? 1 : -1);
+        renderMask();
+      } else if (mask && !composingRef.current && (event.key === 'ArrowLeft' || event.key === 'ArrowRight') && !event.shiftKey && !event.altKey) {
+        event.preventDefault();
+        const step = event.key === 'ArrowLeft' ? -1 : 1;
+        mask.move(resolvedDirection === 'rtl' && !mask.numericOnly ? -step : step);
+        renderMask();
+      } else if (mask && !composingRef.current && (event.key === 'Home' || event.key === 'End') && !event.shiftKey) {
+        event.preventDefault();
+        if (event.key === 'Home') mask.first(); else mask.last();
+        renderMask();
+      } else if (!mask && event.key === 'ArrowDown' && !event.ctrlKey && !event.metaKey) {
         event.preventDefault();
         void requestOpen('keyboard', event);
       } else if (event.key === 'Enter') {
         event.preventDefault();
-        void commitDraft(event);
+        void commitMask(event);
       } else if (event.key === 'Escape') {
         event.preventDefault();
         if (openRef.current) void requestClose('escape', event, true);
@@ -539,6 +753,7 @@ function CgDateEditInner(
           aria-describedby={describedBy}
           aria-errormessage={effectiveError ? errorId : field.errorMessageId}
           autoComplete="off"
+          inputMode={maskEditable && !maskHasMonthNames ? 'numeric' : nativeProps.inputMode}
           form={form}
           value={draft}
           placeholder={placeholder}
@@ -547,11 +762,30 @@ function CgDateEditInner(
           onChange={handleChange}
           onFocus={(event) => {
             inputFocusedRef.current = true;
-            if (!internalError) setDraft(formatValue(committedRef.current, true));
+            if (maskEditable) startMask();
+            else if (!internalError) setDraft(formatValue(committedRef.current, true));
             onFocus?.(event);
           }}
           onBlur={(event) => {
             inputFocusedRef.current = false;
+            composingRef.current = false;
+            const mask = maskRef.current;
+            maskRef.current = null;
+            maskSelectionRef.current = null;
+            if (mask) {
+              // An unfinished date is abandoned rather than reported; a finished change commits.
+              mask.blur(nullable, toMaskValue(committedRef.current));
+              const dirty = mask.isDirty();
+              setDraft(dirty ? mask.compose() : formatValue(committedRef.current, false));
+              queueMicrotask(() => {
+                if (!mountedRef.current || openRef.current || field.disabled || field.readOnly || !dirty) return;
+                void requestValueChange(composeMaskDate(mask.snapshot()), 'manual-input', event).then(() => {
+                  if (mountedRef.current && !inputFocusedRef.current) setDraft(formatValue(committedRef.current, false));
+                });
+              });
+              onBlur?.(event);
+              return;
+            }
             queueMicrotask(() => {
               if (!mountedRef.current || openRef.current || field.disabled || field.readOnly) return;
               void commitDraft(event).then((accepted) => {
@@ -562,6 +796,24 @@ function CgDateEditInner(
           }}
           onKeyDown={handleKeyDown}
         />
+        {useNativePicker ? <input
+          ref={nativePickerRef}
+          className={styles.nativePicker}
+          type="date"
+          tabIndex={-1}
+          aria-hidden="true"
+          disabled={field.disabled}
+          min={minimum ? toCanonicalDate(minimum) : undefined}
+          max={maximum ? toCanonicalDate(maximum) : undefined}
+          value={committedValue ?? ''}
+          data-cg-date-edit-native=""
+          onChange={(event) => {
+            const picked = event.currentTarget.value;
+            // The iOS Reset button clears a value that may be empty and is ignored otherwise.
+            if (!picked) { if (nullable) void requestValueChange(null, 'native-picker', event); else event.currentTarget.value = committedRef.current ?? ''; return; }
+            void requestValueChange(picked, 'native-picker', event).then((accepted) => { if (!accepted && nativePickerRef.current) nativePickerRef.current.value = committedRef.current ?? ''; });
+          }}
+        /> : null}
       </InputShell>
       <select
         ref={formProxyRef}
@@ -608,7 +860,27 @@ function CgDateEditInner(
           data-cg-overlay-owner={overlay.ownerId}
           data-cg-date-edit-popup=""
         >
-          <OverlayOwnerProvider id={overlay.id}><CgCalendar
+          <OverlayOwnerProvider id={overlay.id}>{useScrollPicker ? <DateWheel
+            id={`${baseId}-wheel`}
+            value={selectedDate}
+            today={resolvedToday}
+            minimum={minimum}
+            maximum={maximum}
+            isDateDisabled={isDateDisabled ? (date) => isDateDisabled(toCanonicalDate(date)) : undefined}
+            format={scrollPickerFormat ?? resolvedEditFormat}
+            locale={resolvedLocale}
+            direction={resolvedDirection}
+            labels={{ day: resolvedLabels.day, month: resolvedLabels.month, year: resolvedLabels.year, today: resolvedLabels.today, clear: resolvedLabels.clear, dialog: resolvedLabels.calendarDialog }}
+            disabledNotification={disabledDateNotificationText ?? disabledDateMessage ?? (localeIsArabic ? 'هذا التاريخ غير متاح.' : 'This date is unavailable.')}
+            disabled={field.disabled || pending}
+            showToday={showTodayButton}
+            showClear={showClearButton && allowClear && !field.required}
+            canClear={canClear}
+            onSelect={(date, event) => requestValueChange(toCanonicalDate(date), 'scroll-picker', event)}
+            onToday={(event) => { void requestValueChange(toCanonicalDate(resolvedToday), 'today-button', event).then((accepted) => { if (accepted) void requestClose('today-button', event, true); }); }}
+            onClear={(event) => { void requestValueChange(null, 'clear-button', event).then((accepted) => { if (accepted) void requestClose('clear-button', event, true); }); }}
+            onClose={(event, returnFocus) => { void requestClose('escape', event, returnFocus); }}
+          /> : <CgCalendar
             className={styles.calendar}
             autoFocus
             value={committedValue}
@@ -648,7 +920,7 @@ function CgDateEditInner(
               });
             }}
             onEscape={(event) => { void requestClose('escape', event, true); }}
-          /></OverlayOwnerProvider>
+          />}</OverlayOwnerProvider>
         </PositionedOverlay>
       ) : null}
     </div>

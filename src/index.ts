@@ -23,7 +23,7 @@ export type { CgChartActions, CgChartAnimationMode, CgChartAnnotationDescriptor,
 export { CgConfirmationProvider, useCgConfirmation } from './components/Confirmation';
 export type { CgConfirmationApi, CgConfirmationConfirm, CgConfirmationInitialFocus, CgConfirmationOptions, CgConfirmationProviderProps } from './components/Confirmation';
 export { CgDateEdit } from './components/DateEdit';
-export type { CgDateEditActions, CgDateEditBeforeValueChangeDetails, CgDateEditCancelableResult, CgDateEditChangeReason, CgDateEditDayRenderContext, CgDateEditLabels, CgDateEditOpenChangeDetails, CgDateEditOpenChangeReason, CgDateEditProps, CgDateEditValueChangeDetails, CgDateValue, CgDayOfWeek } from './components/DateEdit';
+export type { CgDatePickerDisplayMode, CgDateEditActions, CgDateEditBeforeValueChangeDetails, CgDateEditCancelableResult, CgDateEditChangeReason, CgDateEditDayRenderContext, CgDateEditLabels, CgDateEditOpenChangeDetails, CgDateEditOpenChangeReason, CgDateEditProps, CgDateEditValueChangeDetails, CgDateValue, CgDayOfWeek } from './components/DateEdit';
 export { CgDateRangePicker } from './components/DateRangePicker';
 export type { CgDateRangePickerActions, CgDateRangePickerBeforeValueChangeDetails, CgDateRangePickerCancelableResult, CgDateRangePickerChangeReason, CgDateRangePickerCommitMode, CgDateRangePickerLabels, CgDateRangePickerOpenChangeDetails, CgDateRangePickerOpenChangeReason, CgDateRangePickerPlacement, CgDateRangePickerProps, CgDateRangePickerValueChangeDetails, CgDateRangePreset, CgDateRangePresetContext } from './components/DateRangePicker';
 export type { CgDateRangeValue } from './types';

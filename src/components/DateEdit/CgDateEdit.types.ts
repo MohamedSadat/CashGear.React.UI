@@ -17,7 +17,9 @@ import type {
 import type { CgDateValue, CgDayOfWeek } from '../../types/date';
 
 export type { CgDateValue, CgDayOfWeek } from '../../types/date';
-export type CgDateEditChangeReason = 'manual-input' | 'calendar-selection' | 'today-button' | 'clear-button';
+export type CgDateEditChangeReason = 'manual-input' | 'calendar-selection' | 'today-button' | 'clear-button' | 'scroll-picker' | 'native-picker';
+/** The drop-down surface. Blazor `CgDatePickerDisplayMode`. */
+export type CgDatePickerDisplayMode = 'auto' | 'calendar' | 'scrollPicker' | 'native';
 export type CgDateEditOpenChangeReason =
   | 'programmatic'
   | 'keyboard'
@@ -69,6 +71,10 @@ export interface CgDateEditLabels {
   clear: string;
   selected: string;
   unavailable: string;
+  /** Scroll picker column names. */
+  day: string;
+  month: string;
+  year: string;
 }
 
 export interface CgDateEditActions {
@@ -114,6 +120,18 @@ export interface CgDateEditProps extends NativeDateInputProps, CgBaseProps {
   showCalendarButton?: boolean;
   labels?: Partial<CgDateEditLabels>;
   invalidFormatMessage?: string;
+  /**
+   * The drop-down surface: `calendar`, `scrollPicker` (touch-sized wheels), `native` (the operating system's
+   * picker on touch devices) or `auto` (the default: wheels on a coarse pointer below a 48rem viewport,
+   * otherwise the calendar).
+   */
+  pickerDisplayMode?: CgDatePickerDisplayMode;
+  /** Column order and rendering of the scroll picker; falls back to `editFormat`. `MMM`/`MMMM` show month names. */
+  scrollPickerFormat?: string;
+  /** Announced when the scroll picker lands on a blocked date; falls back to `disabledDateMessage`. */
+  disabledDateNotificationText?: string;
+  /** Two-digit years expand to the century ending here. Defaults to 2049, as .NET's Gregorian calendar. */
+  twoDigitYearMax?: number;
   outOfRangeMessage?: string;
   disabledDateMessage?: string;
   requiredMessage?: string;

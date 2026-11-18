@@ -210,3 +210,6 @@
   }
   .dayButton[data-today='true'] { border-color: CanvasText; }
 }
+/* A transparent native date input laid over the field takes the tap on touch devices, so the OS picker opens. */
+.nativePicker { position: absolute; inset: 0; z-index: 1; inline-size: 100%; block-size: 100%; margin: 0; padding: 0; opacity: 0; border: 0; cursor: pointer; }
+.nativePicker::-webkit-calendar-picker-indicator { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; cursor: pointer; }

@@ -439,3 +439,19 @@ Stories are under `Blazor parity 2026-11/LookUpGrid virtualization`.
 | Storybook build | Passed. |
 | Visual, Chromium | LookUpGrid and Phase 33 cases: 11 of 11 against the existing baselines. |
 | Chromium semantic and Axe | First run: 3 of 4, the Phase 14 paging assertion counted 14 rendered rows of 16; with the paging story opted out, 4 of 4. |
+
+### R7: DateEdit typing mask, native and scroll pickers
+
+Blazor `CgDateEdit.razor.js` (`DateMaskEditor`), `CgDateMaskLayout.cs`, `CgDateEdit.md` ("Typing", "Native picker", "Scroll picker", keyboard) and `CgDateEditTypes.cs`. `src/components/DateEdit/dateMask.ts` ports the mask engine to a pure TypeScript class (parts from the format, auto-advance, typed separators, two-digit years through `twoDigitYearMax`, Up/Down per part, impossible days corrected, month-name type-ahead, paste parsing, Arabic-Indic and Persian digits, Backspace/Delete/cut behaviour, Enter and blur rules). `CgDateEdit` runs it on native `beforeinput`, `paste`, `cut`, composition and click events while focused and validates on Enter and blur only; an `input` event the browser could not cancel (and a test's change event) is read as a paste. `inputmode="numeric"` unless the mask has month names; Alt+ArrowDown or F4 opens, Alt+ArrowUp closes, a plain ArrowDown changes the part while focused (an unfocused ArrowDown still opens). An invalid external value is still shown as it is while focused. New `pickerDisplayMode` (`auto`, `calendar`, `scrollPicker`, `native`; Blazor's `(pointer: coarse) and (max-width: 47.999rem)` and `(pointer: coarse)` queries through `useSyncExternalStore`), `scrollPickerFormat`, `disabledDateNotificationText`, change reasons `scroll-picker` and `native-picker`, and `day`/`month`/`year` labels for the wheel columns. The Pivot date filter (`PivotDialogs.tsx`) now uses `CgDateEdit` instead of a native date input.
+
+Behaviour change: the existing test that expected a partial free-text draft to be marked invalid while typing now checks that a partly typed mask is not an error until Enter or blur.
+
+Stories are under `Blazor parity 2026-11/DateEdit typing and pickers`.
+
+| Gate | Recorded result |
+| --- | --- |
+| Typecheck, lint | Passed. |
+| Full unit suite | 1,365 tests in 120 files passed with two workers, including `tests/blazor-parity-r7.test.tsx` (17 cases: mask layout, typing, spin, day correction, month names, paste, Backspace, Enter and blur rules, inputmode, Alt+ArrowDown, scroll picker, native picker). |
+| Storybook build | Passed. |
+| Visual, Chromium | Date, calendar, pivot and filter cases: 46 of 46 against the existing baselines. |
+| Chromium semantic and Axe | 55 of 56. The failure is `components.browser.spec.ts:526` ("DateEdit supports semantic keyboard navigation…"): line 548 presses a plain ArrowDown in the focused field to reopen the calendar, which now changes the highlighted part as in Blazor. The spec needs `Alt+ArrowDown` there; it was not changed because that file carries another session's uncommitted work. |

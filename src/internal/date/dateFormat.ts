@@ -193,6 +193,10 @@ export function getMonthNames(locale?: string): ReadonlyArray<string> {
   return localeMonthNames(locale, 'long');
 }
 
+export function getShortMonthNames(locale?: string): ReadonlyArray<string> {
+  return localeMonthNames(locale, 'short');
+}
+
 export function getWeekdayNames(locale: string | undefined, firstDay: number): ReadonlyArray<{ short: string; long: string }> {
   const short = new Intl.DateTimeFormat(locale, { calendar: 'gregory', weekday: 'short', timeZone: 'UTC' });
   const long = new Intl.DateTimeFormat(locale, { calendar: 'gregory', weekday: 'long', timeZone: 'UTC' });

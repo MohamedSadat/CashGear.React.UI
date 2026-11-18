@@ -1,0 +1,18 @@
+.root { display: grid; gap: var(--cg-space-2); padding: var(--cg-space-2); min-inline-size: 16rem; color: var(--cg-text); font-family: var(--cg-font-family); }
+.columns { position: relative; display: flex; justify-content: center; gap: var(--cg-space-2); }
+.columnFrame { position: relative; }
+.column { position: relative; z-index: 1; block-size: 200px; inline-size: 4rem; overflow-y: auto; scroll-snap-type: y mandatory; overscroll-behavior: contain; scrollbar-width: none; border-radius: var(--cg-radius-sm); outline: none; }
+.column.wide { inline-size: 8rem; }
+.column::-webkit-scrollbar { display: none; }
+.column:focus-visible { box-shadow: 0 0 0 var(--cg-focus-ring-width) var(--cg-focus-ring-color); }
+.pad { block-size: 80px; }
+.option { display: flex; align-items: center; justify-content: center; block-size: 40px; padding-inline: var(--cg-space-2); scroll-snap-align: center; color: var(--cg-text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: pointer; user-select: none; }
+.option[aria-selected='true'] { color: var(--cg-text); font-weight: var(--cg-font-weight-medium, 600); }
+.option[aria-disabled='true'] { color: var(--cg-disabled-text); text-decoration: line-through; cursor: not-allowed; }
+.highlight { position: absolute; inset-inline: 0; inset-block-start: 80px; block-size: 40px; pointer-events: none; background: color-mix(in srgb, var(--cg-accent) 10%, transparent); border-block: 1px solid color-mix(in srgb, var(--cg-accent) 35%, transparent); border-radius: var(--cg-radius-sm); }
+.footer { display: flex; justify-content: flex-end; gap: var(--cg-space-1); padding-block-start: var(--cg-space-2); border-block-start: var(--cg-border-style); }
+.footer button { min-block-size: 2rem; padding: 0.25rem 0.625rem; color: inherit; font: inherit; background: transparent; border: 0; border-radius: var(--cg-radius-sm); cursor: pointer; }
+.footer button:hover:not(:disabled) { background: var(--cg-hover); }
+.footer button:disabled { opacity: 0.55; cursor: default; }
+.status { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .column { scroll-behavior: auto; } }

@@ -10,6 +10,7 @@ export type {
   CgDateEditOpenChangeReason,
   CgDateEditProps,
   CgDateEditValueChangeDetails,
+  CgDatePickerDisplayMode,
   CgDateValue,
   CgDayOfWeek,
 } from './CgDateEdit.types';
