@@ -672,6 +672,8 @@ Async loaders receive normalized search text, visible searchable field IDs, one 
 
 The input retains focus and owns `aria-activedescendant`; paging appends rows, disabled rows stay visible but cannot be selected, IME composition suppresses navigation/commit, and the filter-row Tab path is lookup-specific. Ctrl+Backspace/Delete clear eligible editors. `CgLookUpGridActions` exposes popup, reload, selected-item refresh, paging, sorting, filtering, state inspection, focus, and clear operations. `reload()` invalidates local indexes even while closed and restarts at the first page when open. Multiple selection, grouping, master-detail, column chooser/reordering/resizing/freezing, CRUD, summaries, export, and row virtualization remain intentionally exclusive to `CgGrid`; no ignored or fake virtualization prop is exposed.
 
+Rows are virtualized by default, as in Blazor (`enableVirtualization`, `rowOverscan` 0 to 100, default 5): only the rows near the scroll position render, between spacers, while `aria-rowcount` and `aria-rowindex` keep the full count. `rowHeight` must then be a number or a px, rem or em length (default 2rem). The viewport is measured whenever the flyout opens and while it scrolls, never while it is empty or hidden, keyboard moves scroll an unrendered row into view, and `overflow-anchor: none` keeps recycled rows from jumping the list.
+
 ## Splitter
 
 `CgSplitter` renders immutable keyed pane descriptors as flex tracks with adjacent accessible separators. Pane keys are trimmed and unique; numbers become pixels, fixed CSS units remain declarative, and positive `fr` or `*` weights remain flexible until an actual resize commits invariant pixel sizes.

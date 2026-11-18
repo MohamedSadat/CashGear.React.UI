@@ -221,6 +221,13 @@ interface CgLookUpGridCommonProps<TItem, TValue, TContext>
   dropDownWidth?: CSSProperties['width'];
   dropDownHeight?: CSSProperties['height'];
   rowHeight?: CSSProperties['height'];
+  /**
+   * Renders only the rows near the scroll position, with spacers for the rest. Defaults to true; `rowHeight`
+   * must then be a number or a positive px, rem or em length (default 2rem). Blazor `EnableVirtualization`.
+   */
+  enableVirtualization?: boolean;
+  /** Rows rendered beyond each edge of the viewport, 0 to 100. Defaults to 5. Blazor `RowOverscan`. */
+  rowOverscan?: number;
   actionsRef?: Ref<CgLookUpGridActions<TItem, TValue>>;
   serializeValue?: (value: TValue) => string;
   name?: string;

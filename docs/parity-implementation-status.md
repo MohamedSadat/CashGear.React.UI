@@ -423,3 +423,19 @@ Stories are under `Blazor parity 2026-11/Chart layout`.
 | Storybook build | Passed. |
 | Visual | Chart cases, Chromium: 25 of 29 unchanged; `phase-20-chart-cartesian`, `-dark-compact`, `-horizontal` (outside-label room) and `phase-35-chart-pie` (best-fit labels inside no longer reserve a ring) changed as intended, were inspected and re-recorded in Chromium and WebKit. |
 | Chromium semantic and Axe | 25 of 25 chart cases passed. |
+
+### R6: LookUpGrid row virtualization
+
+Blazor `CgLookUpGrid.razor.cs` (`EnableVirtualization` default true, `RowOverscan` default 5, row-height units) and the 2026-11-18 scroll fixes of assistoWebApp `7db46710`. `CgLookUpGrid` renders only the rows near the scroll position with spacers (`enableVirtualization`, `rowOverscan`), keeps `aria-rowcount`/`aria-rowindex` for every row, refers `aria-activedescendant` only to a rendered row and scrolls a keyboard target into view. The viewport is the grid itself: its scroll listener and `ResizeObserver` attach when the flyout's grid mounts and the lookup opens (Blazor listened on the root and re-measured on `aria-expanded`), nothing is published while the viewport is empty or hidden, and the grid has `overflow-anchor: none`. It uses its own window calculation rather than `internal/useVirtualWindow.ts`, which carries another session's uncommitted edits. The `requiredErrorMessage` default, which R0's search missed, now also goes through `CgUiTextProvider`.
+
+The existing `phase-14-lookupgrid--append-paging` story now passes `enableVirtualization={false}`: its Phase 14 browser test counts appended rows in the DOM, and that spec file belongs to another session's uncommitted work.
+
+Stories are under `Blazor parity 2026-11/LookUpGrid virtualization`.
+
+| Gate | Recorded result |
+| --- | --- |
+| Typecheck, lint | Passed. |
+| Full unit suite | 1,348 tests in 119 files passed with two workers, including `tests/blazor-parity-r6.test.tsx` (5 cases) and the existing LookUpGrid suites. |
+| Storybook build | Passed. |
+| Visual, Chromium | LookUpGrid and Phase 33 cases: 11 of 11 against the existing baselines. |
+| Chromium semantic and Axe | First run: 3 of 4, the Phase 14 paging assertion counted 14 rendered rows of 16; with the paging story opted out, 4 of 4. |

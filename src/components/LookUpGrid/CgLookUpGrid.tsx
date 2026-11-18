@@ -1,4 +1,5 @@
 /* eslint-disable react-hooks/refs, react-hooks/set-state-in-effect, @typescript-eslint/require-await -- CgLookUpGrid refs coordinate controlled proposals, abortable generations, paging snapshots, and imperative actions. */
+import { useCgUiText } from '../UiText';
 import { useUiLabels } from '../UiText/uiLabels';
 import {
   forwardRef,
@@ -20,6 +21,7 @@ import type { CgFlyoutOpenChangeDetails } from '../Flyout';
 import { filterLookUpItems, formatLookUpCell, normalizeLookUpText } from './filtering';
 import { createLookUpQuery, normalizeColumnFilters } from './query';
 import { parseLookUpSort, sortLookUpItems } from './sorting';
+import { calculateLookUpRows, resolveLookUpRowHeight, useLookUpViewport } from './virtualRows';
 import styles from './CgLookUpGrid.module.css';
 import type {
   CgLookUpGridActions,
@@ -192,12 +194,14 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
     dropDownWidth,
     dropDownHeight = '360px',
     rowHeight,
+    enableVirtualization = true,
+    rowOverscan = 5,
     actionsRef,
     serializeValue,
     name,
     form,
     required,
-    requiredErrorMessage = 'Please select a value.',
+    requiredErrorMessage: requiredErrorMessageProp,
     disabled,
     readOnly,
     onInvalid,
@@ -235,6 +239,8 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
   assertNonNegative('minimumSearchLength', minimumSearchLength);
   assertNonNegative('searchDebounceMilliseconds', searchDebounceMilliseconds);
   if (typeof rowHeight === 'number') assertNonNegative('rowHeight', rowHeight);
+  if (!Number.isInteger(rowOverscan) || rowOverscan < 0 || rowOverscan > 100) throw new RangeError('CgLookUpGrid rowOverscan must be an integer between zero and 100.');
+  const virtualRowHeight = enableVirtualization ? resolveLookUpRowHeight(rowHeight) : 0;
   if (typeof dropDownHeight === 'number') assertNonNegative('dropDownHeight', dropDownHeight);
   if (typeof dropDownWidth === 'number') assertNonNegative('dropDownWidth', dropDownWidth);
 
@@ -246,6 +252,8 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
   if (initialSortRef.current === undefined) initialSortRef.current = parseLookUpSort(initialSort, columns);
 
   const labels = useUiLabels<CgLookUpGridLabels>(DEFAULT_LABELS, labelOverrides);
+  const uiText = useCgUiText();
+  const requiredErrorMessage = requiredErrorMessageProp ?? uiText.translate('Please select a value.');
   const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -273,6 +281,9 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
   const [error, setError] = useState<unknown>();
   const [resolutionError, setResolutionError] = useState<unknown>();
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [gridElement, setGridElement] = useState<HTMLDivElement | null>(null);
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const [bodyElement, setBodyElement] = useState<HTMLDivElement | null>(null);
   const [sort, setSort] = useState<CgLookUpGridSort | null>(initialSortRef.current);
   const [rawFilters, setRawFilters] = useState<Readonly<Record<string, string>>>({});
   const [liveMessage, setLiveMessage] = useState('');
@@ -910,8 +921,15 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
 
   useEffect(() => {
     const active = activeIndex >= 0 ? document.getElementById(`${baseId}-row-${activeIndex}`) : null;
-    active?.scrollIntoView?.({ block: 'nearest' });
-  }, [activeIndex, baseId]);
+    if (active) { active.scrollIntoView?.({ block: 'nearest' }); return; }
+    // A virtual row outside the rendered window: scroll it into view, and the window follows.
+    const grid = gridRef.current;
+    if (!enableVirtualization || activeIndex < 0 || !grid || !bodyElement) return;
+    const top = bodyElement.offsetTop + activeIndex * virtualRowHeight;
+    const leading = bodyElement.offsetTop;
+    if (top - leading < grid.scrollTop) grid.scrollTop = Math.max(0, top - leading);
+    else if (top + virtualRowHeight > grid.scrollTop + grid.clientHeight) grid.scrollTop = top + virtualRowHeight - grid.clientHeight;
+  }, [activeIndex, baseId, bodyElement, enableVirtualization, gridElement, virtualRowHeight]);
 
   useEffect(() => {
     const proxy = formProxyRef.current;
@@ -1082,7 +1100,12 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
   const formValues = useMemo(() => serializeFormValue(committedValue, name, serializeValue), [committedValue, name, serializeValue]);
   const nonDataRows = (showHeader ? 1 : 0) + (showFilterRow && filterableColumns.length > 0 ? 1 : 0);
   const ariaRowCount = (totalCount ?? rows.length) + nonDataRows;
-  const activeRowId = isOpen && activeIndex >= 0 && !rowDisabled[activeIndex] ? `${baseId}-row-${activeIndex}` : undefined;
+  const viewportMetrics = useLookUpViewport(gridElement, bodyElement, isOpen, enableVirtualization);
+  const virtualRange = enableVirtualization
+    ? calculateLookUpRows(rows.length, viewportMetrics.scrollTop, viewportMetrics.height, virtualRowHeight, rowOverscan)
+    : { start: 0, end: rows.length, paddingBefore: 0, paddingAfter: 0 };
+  const activeRendered = activeIndex >= virtualRange.start && activeIndex < virtualRange.end;
+  const activeRowId = isOpen && activeIndex >= 0 && activeRendered && !rowDisabled[activeIndex] ? `${baseId}-row-${activeIndex}` : undefined;
   const state: CgLookUpGridRenderState<TItem, TValue> = {
     items: rows,
     value: committedValue,
@@ -1223,8 +1246,11 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
         ) : null}
 
         <div
+          ref={(node) => { gridRef.current = node; setGridElement(node); }}
           id={gridId}
           className={styles.grid}
+          data-cg-lookupgrid-viewport=""
+          data-virtualized={enableVirtualization || undefined}
           role="grid"
           aria-busy={loading || loadingMore || undefined}
           aria-rowcount={ariaRowCount}
@@ -1275,8 +1301,10 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
               ))}
             </div>
           ) : null}
-          <div className={styles.body} role="rowgroup">
-            {rows.map((item, rowIndex) => {
+          <div ref={setBodyElement} className={styles.body} role="rowgroup">
+            {virtualRange.paddingBefore > 0 ? <div className={styles.virtualSpacer} style={{ blockSize: virtualRange.paddingBefore }} aria-hidden="true" data-cg-lookupgrid-spacer="before" /> : null}
+            {rows.slice(virtualRange.start, virtualRange.end).map((item, offset) => {
+              const rowIndex = virtualRange.start + offset;
               const disabledRow = rowDisabled[rowIndex] ?? false;
               const selected = !isEmptyValue(committedValue) && valueMatches(item, committedValue);
               const active = activeIndex === rowIndex && !disabledRow;
@@ -1284,6 +1312,7 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
                 <div
                   key={rowIndex}
                   id={`${baseId}-row-${rowIndex}`}
+                  style={enableVirtualization ? { blockSize: virtualRowHeight, minBlockSize: virtualRowHeight } : undefined}
                   className={styles.row}
                   data-active={active || undefined}
                   data-selected={selected || undefined}
@@ -1307,6 +1336,7 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
                 </div>
               );
             })}
+            {virtualRange.paddingAfter > 0 ? <div className={styles.virtualSpacer} style={{ blockSize: virtualRange.paddingAfter }} aria-hidden="true" data-cg-lookupgrid-spacer="after" /> : null}
           </div>
         </div>
 
