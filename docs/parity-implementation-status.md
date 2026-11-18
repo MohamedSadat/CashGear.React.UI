@@ -384,3 +384,16 @@ Stories are under `Blazor parity 2026-11/Button menus`.
 | WebKit | The same 28 checks and 31 re-recorded cases passed. |
 | Chromium semantic and Axe | 148 of 148 passed for the menu, toolbar, ribbon, button, calendar and date specs. |
 | Firefox | Not attempted; it cannot launch on this host. |
+
+### R3: Calendar
+
+Blazor `CgCalendar.razor.cs`, `CgCalendarTypes.cs`, `CgCalendarCore.cs`. Added to `CgCalendar`: `selectionView` (Blazor `ViewMode`: starting and finest view and the selection unit, with unit-counted range limits and Ctrl+ArrowUp/Down view switching); `showWeekNumbers` and `weekNumberRule`, numbered like .NET `Calendar.GetWeekOfYear` (so a late-December row of a `firstFourDayWeek` January can read 53, as in Blazor) with the default rule from `Intl.Locale` week info; `loading` and `renderLoading`; `onVisibleRangeChange` with start, end, visible date, view, month count and version; `renderHeader`, `renderFooter`, `renderMonth`, `renderYear`, `renderWeekday`; `autoCollapseMonths` (Blazor's 47.999rem media query, read through `useSyncExternalStore`); `showOutsideMonthDates`, `allowOutsideMonthSelection`, `fixedSixWeekLayout`. New labels `loading` and `weekNumber`. With `autoCollapseMonths={false}` the existing narrow-container CSS no longer hides the second month. The root keeps `data-calendar-count` for its width and adds `data-month-count`, so collapsed DateRangePicker popups keep their width.
+
+Stories are under `Blazor parity 2026-11/Calendar`.
+
+| Gate | Recorded result |
+| --- | --- |
+| Typecheck, lint | Passed. |
+| Full unit suite | 1,333 tests in 116 files passed with two workers, including `tests/blazor-parity-r3.test.tsx` (11 cases: .NET week numbers, layout options, loading, templates, visible range, month and year selection, Ctrl+Arrow views, auto-collapse). |
+| Visual | Calendar, DateEdit, DateRangePicker, TimeEdit, month calendar and Ribbon cases: 28 of 28 in Chromium and in WebKit against the existing baselines, so the defaults draw as before. |
+| Semantic and Axe | Included in the 148 Chromium calendar, date, menu and button cases above. |

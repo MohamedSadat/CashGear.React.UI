@@ -169,3 +169,28 @@ export function startOfYear(value: CivilDate): CivilDate {
 export function endOfYear(value: CivilDate): CivilDate {
   return { year: value.year, month: 12, day: 31 };
 }
+
+export type WeekNumberRule = 'firstDay' | 'firstFullWeek' | 'firstFourDayWeek';
+
+function dayOfYear(value: CivilDate): number {
+  return civilToDayNumber(value) - civilToDayNumber({ year: value.year, month: 1, day: 1 }) + 1;
+}
+
+/**
+ * Week of the year, as .NET `GregorianCalendar.GetWeekOfYear` computes it (Blazor's CgCalendar uses it):
+ * `firstDay` counts the week that holds 1 January as week 1; `firstFullWeek` and `firstFourDayWeek`
+ * start week 1 at the first week with seven or four days in the year, and earlier days take the last
+ * week number of the previous year.
+ */
+export function weekOfYear(value: CivilDate, rule: WeekNumberRule, firstDayOfWeek: number): number {
+  const day = dayOfYear(value) - 1;
+  const januaryFirst = ((dayOfWeek(value) - (day % 7)) % 7 + 7) % 7;
+  if (rule === 'firstDay') return Math.floor((day + ((januaryFirst - firstDayOfWeek + 14) % 7)) / 7) + 1;
+  const fullDays = rule === 'firstFullWeek' ? 7 : 4;
+  let offset = (firstDayOfWeek - januaryFirst + 14) % 7;
+  if (offset !== 0 && offset >= fullDays) offset -= 7;
+  const days = day - offset;
+  if (days >= 0) return Math.floor(days / 7) + 1;
+  if (value.year <= 1) return weekOfYear({ year: 1, month: 1, day: 1 }, 'firstDay', firstDayOfWeek);
+  return weekOfYear({ year: value.year - 1, month: 12, day: 31 }, rule, firstDayOfWeek);
+}

@@ -35,6 +35,13 @@
 .footer { display:flex; flex-wrap:wrap; gap:.25rem; justify-content:flex-end; padding-block-start:.5rem; border-block-start:1px solid var(--cal-border); }
 .footer button { min-block-size:2rem; padding:.25rem .625rem; }
 .srOnly { position:absolute; inline-size:1px; block-size:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
-@container (max-width:29rem) { .month[data-calendar-panel="1"],.rangeHeading { display:none; } .singleHeading { display:inline; } .months { grid-template-columns:minmax(0,1fr); } .monthHeading { position:absolute; inline-size:1px; block-size:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; } }
+.root[data-week-numbers] .week { grid-template-columns:minmax(1.75rem,.7fr) repeat(7,minmax(0,1fr)); }
+.weekNumber { display:flex; align-items:center; justify-content:center; overflow:hidden; color:var(--cal-muted); font-size:.75rem; font-weight:650; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.footerContent { display:contents; }
+.root[data-loading] { position:relative; }
+.loading { position:absolute; inset:0; z-index:2; display:flex; align-items:center; justify-content:center; gap:.5rem; padding:1rem; background:color-mix(in srgb,var(--cal-surface) 88%,transparent); border-radius:inherit; }
+.spinner { inline-size:1rem; block-size:1rem; border:2px solid var(--cal-border); border-block-start-color:var(--cal-accent); border-radius:50%; animation:cg-calendar-spin .8s linear infinite; }
+@keyframes cg-calendar-spin { to { transform:rotate(360deg); } }
+@container (max-width:29rem) { .root:not([data-auto-collapse="false"]) .month[data-calendar-panel="1"],.root:not([data-auto-collapse="false"]) .rangeHeading { display:none; } .root:not([data-auto-collapse="false"]) .singleHeading { display:inline; } .root:not([data-auto-collapse="false"]) .months { grid-template-columns:minmax(0,1fr); } .root:not([data-auto-collapse="false"]) .monthHeading { position:absolute; inline-size:1px; block-size:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; } }
 @media (forced-colors:active) { .root,.day,.period { forced-color-adjust:auto; } .day[data-selected],.day[data-range-start],.day[data-range-end] { border:2px solid Highlight; } }
 @media (prefers-reduced-motion:reduce) { .root * { scroll-behavior:auto!important; transition-duration:1ms!important; } }

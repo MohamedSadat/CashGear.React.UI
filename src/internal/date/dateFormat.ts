@@ -220,3 +220,12 @@ export function localeFirstDayOfWeek(locale?: string): number {
 export function dayOfWeekIndex(value: CgDayOfWeek): number {
   return DAY_NAMES.indexOf(value);
 }
+
+/** The locale's week-numbering rule from `Intl.Locale` week info: four minimal days is ISO-like, seven a full week. */
+export function localeWeekNumberRule(locale?: string): 'firstDay' | 'firstFullWeek' | 'firstFourDayWeek' {
+  const resolved = new Intl.DateTimeFormat(locale).resolvedOptions().locale;
+  const localeObject = new Intl.Locale(resolved).maximize() as Intl.Locale & { getWeekInfo?: () => { minimalDays?: number }; weekInfo?: { minimalDays?: number } };
+  const info = localeObject.getWeekInfo?.call(localeObject) ?? localeObject.weekInfo;
+  const minimal = info?.minimalDays;
+  return minimal === 4 ? 'firstFourDayWeek' : minimal === 7 ? 'firstFullWeek' : 'firstDay';
+}
