@@ -455,3 +455,17 @@ Stories are under `Blazor parity 2026-11/DateEdit typing and pickers`.
 | Storybook build | Passed. |
 | Visual, Chromium | Date, calendar, pivot and filter cases: 46 of 46 against the existing baselines. |
 | Chromium semantic and Axe | 55 of 56. The failure is `components.browser.spec.ts:526` ("DateEdit supports semantic keyboard navigation…"): line 548 presses a plain ArrowDown in the focused field to reopen the calendar, which now changes the highlighted part as in Blazor. The spec needs `Alt+ArrowDown` there; it was not changed because that file carries another session's uncommitted work. |
+
+### R9 (part 1): numeric editors keep select-all on click
+
+Blazor `f4a27eb5` keeps a spin editor's select-all past the focusing click. Confirmed in React: `CgNumericEdit` and `CgDecimalEdit` call `select()` on focus, and the focusing click's mouseup then collapsed the selection to the caret. Both now note a pointer-initiated focus on `pointerdown` and cancel only that click's `mouseup`; host `onPointerDown`/`onMouseUp` still run.
+
+| Gate | Recorded result |
+| --- | --- |
+| Typecheck, lint | Passed. |
+| Full unit suite | 1,367 tests in 121 files passed with two workers, including `tests/blazor-parity-r9.test.tsx` (2 cases). |
+| Browser | Not rerun: no story or layout changes. |
+
+### Held: R8 and the rest of R9
+
+R8 (ComboBox and KeyComboBox free text) and R9's overlay change (measure a capped surface before flipping, `PositionedOverlay.tsx`) and `overflow-anchor: none` on virtual lists (ListBox, ComboBox, Grid, TreeView) were not started. They need `src/components/ComboBox/CgComboBox.tsx`, `CgComboBox.module.css`, `CgComboBox.stories.tsx`, `src/internal/PositionedOverlay.tsx`, `src/internal/useVirtualWindow.ts` and `tests/browser/components.browser.spec.ts`, which still carry another session's uncommitted edits from 2026-11-18 06:45. The same spec file needs `Alt+ArrowDown` at line 548 for R7's DateEdit keyboard change.

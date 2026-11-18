@@ -1215,6 +1215,8 @@ Prompt characters are display-only. `showMask` supports `always`, `onFocus`, and
 
 JavaScript numbers use IEEE-754 floating-point arithmetic. Do not use these editors as an arbitrary-precision accounting representation; keep minor units or a decimal value in the application when exact base-10 arithmetic is required.
 
+`CgNumericEdit` and `CgDecimalEdit` select their value on focus; the mouseup of the click that focuses the field no longer drops that selection, so typing replaces the value (Blazor `f4a27eb5`).
+
 ## Async search and loading
 
 `CgSearchBox` owns no data fetching. Its callback receives cancellation and ordering metadata:

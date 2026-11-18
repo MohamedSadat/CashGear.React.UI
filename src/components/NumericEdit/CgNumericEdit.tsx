@@ -50,6 +50,7 @@ export const CgNumericEditCore = forwardRef<HTMLInputElement, CgNumericEditCoreP
   const controlledRef = useRef(value);
   const publishedRef = useRef(committed);
   const editingRef = useRef(false);
+  const pointerFocusRef = useRef(false);
   const dirtyRef = useRef(false);
   const composingRef = useRef(false);
   const echoRef = useRef<number | null | undefined>(undefined);
@@ -163,6 +164,9 @@ export const CgNumericEditCore = forwardRef<HTMLInputElement, CgNumericEditCoreP
         onCompositionStart={(event) => { composingRef.current = true; delayed.cancel(); onCompositionStart?.(event); }}
         onCompositionEnd={(event) => { composingRef.current = false; onCompositionEnd?.(event); if (publishMode === 'input') inputPublication(event.currentTarget.value); else if (publishMode === 'debounced') delayed.schedule(); }}
         onFocus={(event) => { editingRef.current = true; if (!dirtyRef.current && committed !== null) flushSync(() => setDraft(new Intl.NumberFormat(locale, { style: formatStyle, currency, useGrouping: false, maximumFractionDigits: 100 }).format(committed))); event.currentTarget.select(); onFocus?.(event); }}
+        // The click that focuses the field ends with a mouseup that would drop the select-all; keep it (Blazor f4a27eb5).
+        onPointerDown={(event) => { pointerFocusRef.current = event.currentTarget.ownerDocument.activeElement !== event.currentTarget; nativeProps.onPointerDown?.(event); }}
+        onMouseUp={(event) => { if (pointerFocusRef.current) { pointerFocusRef.current = false; event.preventDefault(); } nativeProps.onMouseUp?.(event); }}
         onBlur={(event) => { const valid = commit('blur', event); editingRef.current = false; if (valid) setDraft(format(publishedRef.current)); onBlur?.(event); }}
         onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); commit('enter', event); } onKeyDown?.(event); }}
       />

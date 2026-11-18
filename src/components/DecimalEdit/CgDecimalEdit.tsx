@@ -55,7 +55,7 @@ export const CgDecimalEdit = forwardRef<HTMLInputElement, CgDecimalEditProps>(fu
   const inputRef = useRef<HTMLInputElement>(null);
   const ref = useMergedRefs(inputRef, forwardedRef);
   const field = useFieldControl({ id, required, disabled, readOnly, validationState, ariaLabel, labelledBy, describedBy });
-  const dirty = useRef(false); const composing = useRef(false); const focused = useRef(false);
+  const dirty = useRef(false); const composing = useRef(false); const focused = useRef(false); const pointerFocus = useRef(false);
   const currentRef = useRef(current); const echo = useRef<CgDecimalValue | null | undefined>(undefined);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const publication = useMemo(() => createEditorPublication<CgDecimalValue | null>(), []);
@@ -126,6 +126,9 @@ export const CgDecimalEdit = forwardRef<HTMLInputElement, CgDecimalEditProps>(fu
     <input {...native} ref={ref} id={field.id} form={form} type="text" inputMode={allowExpressions ? 'text' : 'decimal'} value={draft} required={field.required} disabled={field.disabled} readOnly={field.readOnly} aria-label={field.ariaLabel} aria-labelledby={field.labelledBy} aria-describedby={[field.describedBy, error ? `${field.id}-decimal-error` : undefined].filter(Boolean).join(' ') || undefined} aria-invalid={error || field.validationState === 'error' || undefined}
       onChange={(event) => { dirty.current = true; setDraft(event.currentTarget.value); setError(false); onChange?.(event); cancelTimer(); if (composing.current) return; if (commitMode === 'input') void commit('input').catch(report); else if (commitMode === 'debounced') timer.current = setTimeout(() => { void commit('debounce').catch(report); }, debounceMs); }}
       onFocus={(event) => { focused.current = true; if (!dirty.current) flushSync(() => setDraft(format(currentRef.current, true))); event.currentTarget.select(); onFocus?.(event); }}
+      // The click that focuses the field ends with a mouseup that would drop the select-all; keep it (Blazor f4a27eb5).
+      onPointerDown={(event) => { pointerFocus.current = event.currentTarget.ownerDocument.activeElement !== event.currentTarget; native.onPointerDown?.(event); }}
+      onMouseUp={(event) => { if (pointerFocus.current) { pointerFocus.current = false; event.preventDefault(); } native.onMouseUp?.(event); }}
       onBlur={(event) => { focused.current = false; void commit('blur').then((valid) => { if (valid && !dirty.current) setDraft(format(currentRef.current)); }).catch(report); onBlur?.(event); }}
       onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void commit('enter').catch(report); } if (enableKeyboardStepping && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) { event.preventDefault(); void stepBy(event.key === 'ArrowUp' ? 1 : -1); } onKeyDown?.(event); }}
       onCompositionStart={(event) => { composing.current = true; cancelTimer(); onCompositionStart?.(event); }} onCompositionEnd={(event) => { composing.current = false; onCompositionEnd?.(event); if (commitMode === 'input') void commit('input').catch(report); else if (commitMode === 'debounced') timer.current = setTimeout(() => { void commit('debounce').catch(report); }, debounceMs); }} />
