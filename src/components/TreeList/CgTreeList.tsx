@@ -25,6 +25,8 @@ import { CgContextMenu } from '../ContextMenu';
 import type { CgContextMenuActions, CgContextMenuItem } from '../ContextMenu';
 import { CgPager } from '../Pager';
 import { CgPopup } from '../Popup';
+import { CgViewManager } from '../Grid/viewManager';
+import { treeListSchemaSignature } from './namedViews';
 import { clampTreeListColumnWidth, normalizeTreeListColumns, validateTreeListColumns } from './columns';
 import { createTreeListXlsx, downloadTreeListExport } from './exportXlsx';
 import {
@@ -44,6 +46,8 @@ import styles from './CgTreeList.module.css';
 import type {
   CgTreeListActions,
   CgTreeListCheckState,
+  CgTreeListColumnState,
+  CgTreeListState,
   CgTreeListColumn,
   CgTreeListContext,
   CgTreeListExpansionEventDetail,
@@ -71,6 +75,8 @@ const DEFAULT_LABELS: CgTreeListLabels = {
   expand: 'Expand {0}', collapse: 'Collapse {0}', loadMore: 'Load more', edit: 'Edit', save: 'Save',
   cancel: 'Cancel', delete: 'Delete', addRoot: 'Add root', addChild: 'Add child', columns: 'Columns',
   noMatches: 'No matching records', detail: 'Details', retryConflict: 'Retry conflict', printTitle: 'Tree list',
+  moveColumnBefore: 'Move before', moveColumnAfter: 'Move after', columnWidth: 'Width', fixedRegion: 'Fixed region', fixedNone: 'None', fixedStart: 'Start', fixedEnd: 'End', resetColumns: 'Reset',
+  views: 'Saved views', viewsTitle: 'Saved views', view: 'Saved views', viewName: 'View name', viewScope: 'Scope', viewRole: 'Role', systemDefaultView: 'System default', personalView: 'Personal', roleView: 'Role', companyView: 'Company', saveNewView: 'Save new view', updateView: 'Update selected view', makeDefaultView: 'Make default', deleteView: 'Delete selected view', resetSystemView: 'Reset to system default',
 };
 
 interface LazyPage<TItem> { readonly items: ReadonlyArray<TItem>; readonly hasMore: boolean; readonly totalCount?: number; readonly nextSkip: number }
@@ -974,8 +980,43 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
 
   const nativeRootAttributes = Object.fromEntries(Object.entries(nativeProps).filter(([name]) => name.startsWith('data-') || name.startsWith('aria-') || ['title', 'hidden', 'tabIndex', 'lang', 'translate', 'accessKey', 'draggable', 'contentEditable', 'spellCheck', 'onFocus', 'onBlur', 'onPointerDown', 'onPointerUp', 'onPointerMove', 'onMouseEnter', 'onMouseLeave'].includes(name)));
 
+  // Blazor CgTreeList.Views: a named view or the system default replaces the column layout, sorts and filter.
+  const applyLayoutState = (state: CgTreeListState<TKey>, operation: string) => {
+    const next = normalizeTreeListState(columns, state, hierarchyFieldId);
+    setViewState(next); setSorts(next.sorts); setFilter(next.filter); setFilterMode(next.filterMode);
+    props.onStateChange?.(next, Object.freeze({ operation, reason: 'state-restoration' as const }));
+  };
+  function renderColumnManager(): ReactNode {
+    const ordered = [...viewState.columns].sort((left, right) => left.displayOrder - right.displayOrder);
+    return <details className={styles.columnManager} data-cg-tree-list-column-manager>
+      <summary>{mergedLabels.columns}</summary>
+      <div className={styles.columnManagerList}>
+        {ordered.map((entry, index) => {
+          const column = columns.find((candidate) => candidate.fieldId === entry.fieldId);
+          if (!column) return null;
+          const title = column.title ?? column.fieldId;
+          const fixedHierarchy = column.fieldId === hierarchyFieldId;
+          const width = entry.width ?? (typeof column.width === 'number' ? column.width : 160);
+          return <fieldset key={entry.fieldId} className={styles.columnManagerItem} data-column-id={entry.fieldId} disabled={props.disabled}>
+            <legend>{title}</legend>
+            <label><input type="checkbox" checked={entry.visible} disabled={fixedHierarchy || column.hideable === false} onChange={(event) => { void actions.setColumnVisibility(entry.fieldId, event.currentTarget.checked); }} />{title}</label>
+            <button type="button" disabled={index <= 0} aria-label={`${mergedLabels.moveColumnBefore}: ${title}`} onClick={() => { void actions.moveColumn(entry.fieldId, index - 1); }}>{directionValue === 'rtl' ? '→' : '←'}</button>
+            <button type="button" disabled={index >= ordered.length - 1} aria-label={`${mergedLabels.moveColumnAfter}: ${title}`} onClick={() => { void actions.moveColumn(entry.fieldId, index + 1); }}>{directionValue === 'rtl' ? '←' : '→'}</button>
+            <label>{mergedLabels.columnWidth}<input type="number" min={32} max={4000} step={8} value={Math.round(width)} onChange={(event) => { const next = Number(event.currentTarget.value); if (Number.isFinite(next) && next > 0) void actions.resizeColumn(entry.fieldId, next); }} /></label>
+            <label>{mergedLabels.fixedRegion}<select value={entry.fixed} onChange={(event) => { void actions.fixColumn(entry.fieldId, event.currentTarget.value as CgTreeListColumnState['fixed']); }}><option value="none">{mergedLabels.fixedNone}</option><option value="start">{mergedLabels.fixedStart}</option><option value="end">{mergedLabels.fixedEnd}</option></select></label>
+          </fieldset>;
+        })}
+        <button type="button" disabled={props.disabled} onClick={() => applyLayoutState({ ...viewState, columns: initialState.columns }, 'reset-columns')}>{mergedLabels.resetColumns}</button>
+      </div>
+    </details>;
+  }
+
   return <CgEditorCommitProvider controller={editorCommit}><div {...nativeRootAttributes} id={rootId} ref={rootRef} className={cx(styles.root, styles[size], className)} style={{ ...style, height, ...(props.indentSize ? { '--cg-tree-list-indent': props.indentSize } : null) } as CSSProperties} dir={directionValue} data-cg-tree-list data-size={size}>
     {props.toolbar ? <div className={styles.toolbar} data-cg-tree-list-toolbar>{props.toolbar}</div> : null}
+    {props.showColumnManager || (props.namedViewStore && props.namedViewKey) ? <div className={styles.layoutTools} data-cg-tree-list-layout-tools>
+      {props.showColumnManager ? renderColumnManager() : null}
+      {props.namedViewStore && props.namedViewKey ? <CgViewManager<CgTreeListState<TKey>> viewKey={props.namedViewKey} store={props.namedViewStore} schemaSignature={treeListSchemaSignature(columns)} getState={() => normalizeTreeListState(columns, { ...viewState, sorts, filter, filterMode }, hierarchyFieldId)} allowShared={props.allowSharedViews ?? false} labels={mergedLabels} onApply={(stored) => applyLayoutState(stored, 'load-view')} onReset={() => applyLayoutState(initialState, 'reset-layout')} /> : null}
+    </div> : null}
     {props.showSearch ? <div className={styles.toolbar}><input type="search" value={searchText} placeholder={mergedLabels.searchPlaceholder} aria-label={mergedLabels.searchPlaceholder} disabled={props.disabled} onChange={(event: ChangeEvent<HTMLInputElement>) => { setSearchText(event.currentTarget.value); props.onSearchTextChange?.(event.currentTarget.value); }} /></div> : null}
     {providerError ? <div className={styles.error} role="alert">{providerError} <button type="button" onClick={() => { void loadProviderRoots(viewState.rootPage.pageIndex); }}>{mergedLabels.retry}</button></div> : null}
     <div ref={scrollerRef} className={styles.scroller} onScroll={(event) => { setScrollTop(event.currentTarget.scrollTop); setScrollLeft(event.currentTarget.scrollLeft); }} onKeyDown={cellKeyDown} onContextMenu={(event) => { if (!(event.target as HTMLElement).closest('[data-row-token]')) showContextMenu(event, 'empty-area'); }}>

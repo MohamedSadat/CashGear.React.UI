@@ -2,7 +2,9 @@ export { CgTreeList } from './CgTreeList';
 export { CG_TREE_LIST_DEFAULT_MAXIMUM_DEPTH, CG_TREE_LIST_MAXIMUM_DEPTH_LIMIT, treeListKeyToken } from './hierarchy';
 export { CG_TREE_LIST_STATE_VERSION, createTreeListState, normalizeTreeListState } from './state';
 export { createTreeListXlsx, downloadTreeListExport, sanitizeTreeListExportFileName } from './exportXlsx';
+export { CgTreeListBrowserViewStore } from './namedViews';
 export type {
+  CgTreeListNamedViewStore,
   CgTreeListQueryOwnership,
   CgTreeListVirtualizationStatus,
   CgTreeListActions,

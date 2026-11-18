@@ -49,6 +49,15 @@
 .popupEditor { display: grid; gap: var(--cg-space-3); min-inline-size: min(30rem, 80vw); }
 .popupEditor label { display: grid; gap: var(--cg-space-1); font-weight: var(--cg-font-weight-medium); }
 .errors { color: var(--cg-danger-text); }
+.layoutTools { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--cg-space-3); padding: var(--cg-space-2) var(--cg-space-3); border-block-end: var(--cg-border-style); background: var(--cg-surface-raised); }
+.columnManager > summary { cursor: pointer; min-block-size: var(--cg-control-height-small, 2rem); line-height: var(--cg-control-height-small, 2rem); font-weight: var(--cg-font-weight-medium, 600); }
+.columnManagerList { display: grid; gap: var(--cg-space-2); padding-block: var(--cg-space-2); }
+.columnManagerItem { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cg-space-2); margin: 0; padding: var(--cg-space-2); border: var(--cg-border-style); border-radius: var(--cg-radius-sm); }
+.columnManagerItem legend { padding-inline: var(--cg-space-1); font-size: var(--cg-font-size-sm); color: var(--cg-text-secondary); }
+.columnManagerItem label { display: inline-flex; align-items: center; gap: var(--cg-space-1); }
+.columnManagerItem input[type='number'] { inline-size: 5rem; }
+.columnManager button, .columnManagerItem select, .columnManagerItem input[type='number'] { min-block-size: 1.75rem; color: inherit; font: inherit; background: var(--cg-surface); border: var(--cg-border-style); border-radius: var(--cg-radius-sm); }
+.columnManager button:disabled { opacity: 0.55; cursor: not-allowed; }
 @container (max-width: 520px) { .headerCell, .cell { padding-inline: var(--cg-space-2); } .toolbar input { inline-size: 100%; } }
 @media (prefers-color-scheme: dark) { .root { color-scheme: dark; } }
 @media (forced-colors: active) { .root, .headerCell, .cell { border-color: CanvasText; } .selected .cell { outline: 2px solid Highlight; } .expander, .retry { color: ButtonText; } }

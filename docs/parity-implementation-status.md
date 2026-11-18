@@ -397,3 +397,15 @@ Stories are under `Blazor parity 2026-11/Calendar`.
 | Full unit suite | 1,333 tests in 116 files passed with two workers, including `tests/blazor-parity-r3.test.tsx` (11 cases: .NET week numbers, layout options, loading, templates, visible range, month and year selection, Ctrl+Arrow views, auto-collapse). |
 | Visual | Calendar, DateEdit, DateRangePicker, TimeEdit, month calendar and Ribbon cases: 28 of 28 in Chromium and in WebKit against the existing baselines, so the defaults draw as before. |
 | Semantic and Axe | Included in the 148 Chromium calendar, date, menu and button cases above. |
+
+### R4: TreeList column UI and named views
+
+Blazor `CgTreeList.razor` layout tools, `CgTreeList.Views.cs`, `CgTreeListViewStore.cs`. `CgTreeList` gains `showColumnManager` (per column: visibility, move before or after, width, fixed region, and Reset) and named views through `namedViewStore`, `namedViewKey` and `allowSharedViews`, shown by Grid's view manager, now the generic `CgViewManager<TState>` in `Grid/viewManager.tsx` (Grid passes its schema signature and `savedViewState`). Grid's browser store became a generic `BrowserViewStore<TState>` with unchanged Grid keys and messages; `CgTreeListBrowserViewStore` uses it with the `cg.treelist.views:` prefix and writes sets and maps as arrays. `CgGridViewStore`, `CgGridStoredView` and `CgGridViewSaveRequest` take an optional state type parameter defaulting to Grid state, so existing stores compile unchanged. New runtime export `CgTreeListBrowserViewStore`; new type `CgTreeListNamedViewStore`. The view and column texts are TreeList `labels` with Blazor's English defaults.
+
+Stories are under `Blazor parity 2026-11/TreeList layout and views`.
+
+| Gate | Recorded result |
+| --- | --- |
+| Typecheck, lint | Passed. |
+| Full unit suite | 1,337 tests in 117 files passed with two workers, including `tests/blazor-parity-r4.test.tsx` (4 cases) and the unchanged Grid view and TreeList suites. |
+| Browser | Not run separately for this phase: no existing story changes; the new story is covered by the Storybook build in R5. |

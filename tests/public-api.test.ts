@@ -130,6 +130,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'CgToolbar',
   'CgTooltip',
   'CgTreeList',
+  'CgTreeListBrowserViewStore',
   'CgTreeView',
   'CgUiTextProvider',
   'CgWindow',

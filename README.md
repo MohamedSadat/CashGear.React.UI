@@ -832,6 +832,8 @@ Selection and series visibility support controlled and uncontrolled state. Contr
 
 `indentSize` sets the indentation per level (any CSS length, default `1.1rem`) and `toolbar` renders host content above the tree.
 
+`showColumnManager` adds a Columns disclosure listing every column with a visibility checkbox (the hierarchy column stays visible), move-before and move-after buttons, a width box and a fixed region (`none`, `start`, `end`), plus Reset. `namedViewStore` with `namedViewKey` adds Grid's view manager: named views with personal, role and company scopes (`allowSharedViews`), a default view applied on load, update, delete and back to the system default, which resets the layout. A view keeps the column layout, sorts and filter. `CgTreeListBrowserViewStore` keeps personal views in `localStorage` and writes the state's sets and maps as arrays; `CgTreeListNamedViewStore<TKey>` is the store contract for a server store. `CgGridViewStore`, `CgGridStoredView` and `CgGridViewSaveRequest` take the state type as an optional parameter (Grid's by default).
+
 `CgTreeList<TItem, TKey>` renders hierarchical business records as a true ARIA treegrid. It has three mutually exclusive source modes: flat local parent keys, nested local children, and an abortable bounded provider. Parent absence is explicit, so `0` is a valid key and never an implicit root marker.
 
 ```tsx

@@ -24,6 +24,7 @@ import type {
 } from '../Grid';
 import type { CgFilterNode } from '../../filter';
 import type { CgDirection, CgIconSource, CgSizeMode } from '../../types';
+import type { CgGridViewStore } from '../Grid/CgGrid.types';
 
 /** Stable primitive identity accepted by React and by TreeList persistence contracts. */
 export type CgTreeListKey = string | number;
@@ -302,7 +303,14 @@ export interface CgTreeListLabels { searchPlaceholder: string; empty: string; lo
   /** Retries a save that hit a concurrency conflict. */
   retryConflict: string;
   /** Heading of the printed tree when `print()` is given no title. */
-  printTitle: string }
+  printTitle: string;
+  /** Column manager. `{0}`-free captions; move buttons read "Move before: Title". */
+  moveColumnBefore: string; moveColumnAfter: string; columnWidth: string; fixedRegion: string; fixedNone: string; fixedStart: string; fixedEnd: string; resetColumns: string;
+  /** Named views, shown by the shared view manager. */
+  views: string; viewsTitle: string; view: string; viewName: string; viewScope: string; viewRole: string; systemDefaultView: string; personalView: string; roleView: string; companyView: string; saveNewView: string; updateView: string; makeDefaultView: string; deleteView: string; resetSystemView: string }
+
+/** Stores named TreeList views: Grid's view store over TreeList state. Blazor `ICgTreeListViewStore`. */
+export type CgTreeListNamedViewStore<TKey extends CgTreeListKey = CgTreeListKey> = CgGridViewStore<CgTreeListState<TKey>>;
 
 export interface CgTreeListVirtualizationStatus { readonly rows: boolean; readonly columns: boolean; readonly reasons: ReadonlyArray<string> }
 
@@ -405,6 +413,14 @@ interface CgTreeListCommonProps<TItem, TKey extends CgTreeListKey> extends Nativ
   readonly defaultSearchText?: string;
   readonly onSearchTextChange?: (text: string) => void;
   readonly showSearch?: boolean;
+  /** Shows the column manager: visibility, order, width and fixed region per column. Blazor `EnableColumnManager`. */
+  readonly showColumnManager?: boolean;
+  /** Named views with scopes and a default; with `namedViewKey` it shows the view manager. Blazor `EnableViewManager`. */
+  readonly namedViewStore?: CgTreeListNamedViewStore<TKey>;
+  /** Storage key of this tree's named views. */
+  readonly namedViewKey?: string;
+  /** Offers role and company scopes when the store allows them. */
+  readonly allowSharedViews?: boolean;
   /** Content above the tree, such as host commands. Blazor `ToolbarTemplate`. */
   readonly toolbar?: ReactNode;
   /** Indentation per hierarchy level, any CSS length. Defaults to `1.1rem`. Blazor `IndentSize`. */
