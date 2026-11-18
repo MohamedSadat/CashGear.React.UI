@@ -1,4 +1,5 @@
 /* eslint-disable react-hooks/refs, react-hooks/set-state-in-effect, @typescript-eslint/require-await -- CgLookUpGrid refs coordinate controlled proposals, abortable generations, paging snapshots, and imperative actions. */
+import { useUiLabels } from '../UiText/uiLabels';
 import {
   forwardRef,
   useCallback,
@@ -244,7 +245,7 @@ function CgLookUpGridInner<TItem, TValue, TContext = unknown>(
   const initialSortRef = useRef<CgLookUpGridSort | null | undefined>(undefined);
   if (initialSortRef.current === undefined) initialSortRef.current = parseLookUpSort(initialSort, columns);
 
-  const labels = useMemo<CgLookUpGridLabels>(() => ({ ...DEFAULT_LABELS, ...labelOverrides }), [labelOverrides]);
+  const labels = useUiLabels<CgLookUpGridLabels>(DEFAULT_LABELS, labelOverrides);
   const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);

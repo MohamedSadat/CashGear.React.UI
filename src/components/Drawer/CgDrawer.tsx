@@ -1,3 +1,4 @@
+import { useCgUiText } from '../UiText';
 import {
   forwardRef,
   useEffect,
@@ -99,6 +100,7 @@ export const CgDrawer = forwardRef<HTMLDivElement, CgDrawerProps>(function CgDra
   },
   forwardedRef,
 ) {
+  const uiText = useCgUiText();
   if (mode !== 'shrink' && mode !== 'overlay') throw new Error(`CgDrawer mode '${String(mode)}' is not supported.`);
   if (position !== 'start' && position !== 'end') throw new Error(`CgDrawer position '${String(position)}' is not supported.`);
   if (!Number.isFinite(responsiveBreakpoint) || responsiveBreakpoint <= 0) {
@@ -435,7 +437,7 @@ export const CgDrawer = forwardRef<HTMLDivElement, CgDrawerProps>(function CgDra
         className={cx(styles.panel, panelClassName)}
         style={mergedPanelStyle}
         role={resolvedRole}
-        aria-label={ariaLabelledBy ? ariaLabel : ariaLabel ?? 'Drawer'}
+        aria-label={ariaLabelledBy ? ariaLabel : ariaLabel ?? uiText.translate('Drawer')}
         aria-labelledby={ariaLabelledBy}
         aria-modal={modalActive ? 'true' : undefined}
         aria-hidden={!actualOpen && !miniActive}

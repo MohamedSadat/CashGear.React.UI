@@ -298,7 +298,11 @@ export interface CgTreeListContext<TItem, TKey extends CgTreeListKey> {
   readonly actions: CgTreeListActions<TItem, TKey>;
 }
 
-export interface CgTreeListLabels { searchPlaceholder: string; empty: string; loading: string; retry: string; expand: string; collapse: string; loadMore: string; edit: string; save: string; cancel: string; delete: string; addRoot: string; addChild: string; columns: string; noMatches: string; detail: string }
+export interface CgTreeListLabels { searchPlaceholder: string; empty: string; loading: string; retry: string; expand: string; collapse: string; loadMore: string; edit: string; save: string; cancel: string; delete: string; addRoot: string; addChild: string; columns: string; noMatches: string; detail: string;
+  /** Retries a save that hit a concurrency conflict. */
+  retryConflict: string;
+  /** Heading of the printed tree when `print()` is given no title. */
+  printTitle: string }
 
 export interface CgTreeListVirtualizationStatus { readonly rows: boolean; readonly columns: boolean; readonly reasons: ReadonlyArray<string> }
 

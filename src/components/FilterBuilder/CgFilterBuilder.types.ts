@@ -77,6 +77,22 @@ export interface CgFilterBuilderLabels {
   readonly clear: string;
   readonly reset: string;
   readonly applying: string;
+  /** Accessible names and placeholder options of the row editors. */
+  readonly aggregate: string;
+  readonly aggregateField: string;
+  readonly groupLogic: string;
+  readonly allConditions: string;
+  readonly anyCondition: string;
+  readonly selectField: string;
+  readonly selectComparison: string;
+  readonly selectValue: string;
+  readonly selectPeriod: string;
+  readonly selectCollection: string;
+  readonly selectAggregateField: string;
+  readonly yes: string;
+  readonly no: string;
+  /** Announced when Apply is refused and the first problem has no message. */
+  readonly cannotApply: string;
 }
 
 export interface CgFilterBuilderActions {

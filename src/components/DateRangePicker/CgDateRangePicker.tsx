@@ -1,3 +1,4 @@
+import { useUiLabels } from '../UiText/uiLabels';
 import { resolveDateRangePreset } from '../../internal/date/dateRangePresets';
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent, KeyboardEvent, SyntheticEvent } from 'react';
@@ -92,7 +93,7 @@ function CgDateRangePickerInner(props: CgDateRangePickerProps, forwardedRef: Rea
   if (maxDate !== undefined && !maximum) throw new Error('CgDateRangePicker maxDate must be a canonical YYYY-MM-DD date.');
   if (minimum && maximum && compareCivilDates(minimum, maximum) > 0) throw new RangeError('CgDateRangePicker minDate must not be later than maxDate.');
   const localeArabic = new Intl.Locale(resolvedLocale).language === 'ar';
-  const text = { ...(localeArabic ? ARABIC : ENGLISH), ...labels };
+  const text = useUiLabels(localeArabic ? ARABIC : ENGLISH, labels, !localeArabic);
   const effectiveFirstDayIndex = firstDayOfWeek === undefined ? localeFirstDayOfWeek(resolvedLocale) : dayOfWeekIndex(firstDayOfWeek);
   const effectiveFirstDay = weekdayName(effectiveFirstDayIndex);
 

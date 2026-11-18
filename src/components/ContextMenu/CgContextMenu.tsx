@@ -1,3 +1,4 @@
+import { useCgUiText } from '../UiText';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import type { ForwardedRef, KeyboardEvent, MouseEvent, ReactElement, RefAttributes } from 'react';
 import { useDirection, useMergedRefs, useStableCallback } from '../../hooks';
@@ -95,10 +96,10 @@ function CgContextMenuInner<TContext, TData>(
     typeahead = true,
     submenuOpenDelay = 150,
     loadingDelay = 150,
-    loadingContent = 'Loading…',
+    loadingContent: loadingContentProp,
     direction = 'auto',
     density = 'compact',
-    ariaLabel = 'Context menu',
+    ariaLabel: ariaLabelProp,
     minWidth = '190px',
     maxWidth = '360px',
     maxHeight = 'min(480px, calc(100vh - 8px))',
@@ -109,6 +110,9 @@ function CgContextMenuInner<TContext, TData>(
   }: CgContextMenuProps<TContext, TData>,
   forwardedRef: ForwardedRef<HTMLDivElement>,
 ) {
+  const uiText = useCgUiText();
+  const loadingContent = loadingContentProp ?? uiText.translate('Loading…');
+  const ariaLabel = ariaLabelProp ?? uiText.translate('Context menu');
   if (submenuOpenDelay < 0 || loadingDelay < 0) throw new RangeError('CgContextMenu delays cannot be negative.');
   const sourceNodes = useMemo(() => normalize(items, confirm), [confirm, items]);
   const [nodes, setNodes] = useState(sourceNodes);

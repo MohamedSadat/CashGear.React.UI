@@ -68,6 +68,7 @@ export * from './PivotFieldList';
 export * from './Scheduler';
 export * from './DateRangePresetSelect';
 export * from './LiveAnnouncer';
+export * from './UiText';
 export * from './Avatar';
 export * from './FilePicker';
 export * from './Breadcrumb';

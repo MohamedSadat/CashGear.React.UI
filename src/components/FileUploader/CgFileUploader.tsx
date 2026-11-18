@@ -1,3 +1,4 @@
+import { useUiLabels } from '../UiText/uiLabels';
 import {
   forwardRef, useEffect, useImperativeHandle, useMemo, useReducer, useRef, useState,
 } from 'react';
@@ -114,7 +115,7 @@ export const CgFileUploader = forwardRef<HTMLDivElement, CgFileUploaderProps>(fu
   if (hasEndpoint && (!Number.isFinite(retryBaseDelayMilliseconds) || retryBaseDelayMilliseconds < 0)) throw new RangeError('CgFileUploader retryBaseDelayMilliseconds must be non-negative.');
   if (hasEndpoint && !['omit', 'same-origin', 'include'].includes(credentials)) throw new Error('CgFileUploader endpointCredentials is invalid.');
 
-  const text = useMemo(() => ({ ...ENGLISH, ...labels }), [labels]);
+  const text = useUiLabels(ENGLISH, labels);
   const extensions = useMemo(() => normalizeExtensions(allowedExtensions), [allowedExtensions]);
   const resolvedAccept = accept ?? (extensions.length > 0 ? extensions.join(',') : undefined);
   const rootRef = useRef<HTMLDivElement>(null);

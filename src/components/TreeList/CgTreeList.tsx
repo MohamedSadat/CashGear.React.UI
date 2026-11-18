@@ -1,3 +1,5 @@
+import { useCgUiText } from '../UiText';
+import { useUiLabels } from '../UiText/uiLabels';
 import { renderAutomaticGridEditor, validateAutomaticGridEditors } from '../Grid/editing';
 import type { CgGridColumnDescriptor } from '../Grid';
 import { validateTreeListPage } from './providerValidation';
@@ -68,7 +70,7 @@ const DEFAULT_LABELS: CgTreeListLabels = {
   searchPlaceholder: 'Search hierarchy', empty: 'No records', loading: 'Loading…', retry: 'Retry',
   expand: 'Expand {0}', collapse: 'Collapse {0}', loadMore: 'Load more', edit: 'Edit', save: 'Save',
   cancel: 'Cancel', delete: 'Delete', addRoot: 'Add root', addChild: 'Add child', columns: 'Columns',
-  noMatches: 'No matching records', detail: 'Details',
+  noMatches: 'No matching records', detail: 'Details', retryConflict: 'Retry conflict', printTitle: 'Tree list',
 };
 
 interface LazyPage<TItem> { readonly items: ReadonlyArray<TItem>; readonly hasMore: boolean; readonly totalCount?: number; readonly nextSkip: number }
@@ -163,15 +165,17 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
     className,
     style,
     height,
-    'aria-label': ariaLabel = 'Hierarchical data',
+    'aria-label': ariaLabelProp,
     ...nativeProps
   } = props;
+  const uiText = useCgUiText();
+  const ariaLabel = ariaLabelProp ?? uiText.translate('Hierarchical data');
 
   const rootRef = useRef<HTMLDivElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const directionValue = useDirection(rootRef, direction);
   const rootId = useCgId(id);
-  const mergedLabels = useMemo(() => ({ ...DEFAULT_LABELS, ...labels }), [labels]);
+  const mergedLabels = useUiLabels(DEFAULT_LABELS, labels);
   const hierarchyFieldId = useMemo(() => validateTreeListColumns(columns), [columns]);
   const initialState = useMemo(() => normalizeTreeListState(columns, { ...defaultState, sorts: defaultState?.sorts ?? defaultSorts, filter: defaultState?.filter ?? defaultFilter, filterMode: defaultState?.filterMode ?? defaultFilterMode, groups: defaultState?.groups ?? props.groups ?? [], rootPage: defaultState?.rootPage ?? { pageIndex: 0, pageSize: rootPageSize } }, hierarchyFieldId), []); // initial-only defaults
   const normalizedControlledState = useMemo(() => controlledState ? normalizeTreeListState(columns, controlledState, hierarchyFieldId) : undefined, [columns, controlledState, hierarchyFieldId]);
@@ -718,11 +722,11 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
     if (options.signal?.aborted) throw new Error('CgTreeList print preparation was aborted.');
     const current = await completeSnapshot(options);
     const printColumns = columns.filter((column) => column.printEnabled !== false && column.getValue && (!options.columnIds?.length || options.columnIds.includes(column.fieldId)));
-    const title = options.title ?? 'Tree list';
+    const title = options.title ?? mergedLabels.printTitle;
     const html = `<section dir="${directionValue}"><h1>${escapeHtml(title)}</h1><table><thead><tr>${printColumns.map((column) => `<th>${escapeHtml(column.title ?? column.fieldId)}</th>`).join('')}</tr></thead><tbody>${current.rows.map((row) => `<tr>${printColumns.map((column) => `<td>${column.fieldId === hierarchyFieldId ? '&nbsp;'.repeat(Math.min(64, (row.level - 1) * 2)) : ''}${escapeHtml(formatTreeListValue(column, row.item, props.locale))}</td>`).join('')}</tr>`).join('')}</tbody></table></section>`;
     if (options.openPrintDialog && typeof window !== 'undefined' && typeof window.print === 'function') window.print();
     return Object.freeze({ title, html, rowCount: current.rows.length });
-  }, [columns, directionValue, hierarchyFieldId, props, snapshot]);
+  }, [columns, directionValue, hierarchyFieldId, mergedLabels.printTitle, props, snapshot]);
 
   const persistEdit = useStableCallback(performSaveEdit);
   const saveEdit = useCallback(async (): Promise<boolean> => {
@@ -966,7 +970,7 @@ export function CgTreeList<TItem, TKey extends CgTreeListKey = CgTreeListKey>(pr
   };
 
   const editErrors = editSession?.result?.generalErrors ?? [];
-  const popupEditor = editSession && (editSession.kind === 'create' || props.editMode === 'popup') ? <CgPopup open headerText={editSession.kind === 'create' ? editSession.parentKey.kind === 'key' ? mergedLabels.addChild : mergedLabels.addRoot : mergedLabels.edit} closeOnEscape={false} closeOnOutsideClick={false} onOpenChange={(open) => { if (!open) void actions.cancelEdit(); }} body={<div className={styles.popupEditor}>{columns.filter((column) => column.getValue && (column.updateValue || column.editor || column.renderEditor)).map((column) => <label key={column.fieldId}>{column.title ?? column.fieldId}<span>{editSession.kind === 'update' && editSession.key !== null ? renderEditor({ internal: hierarchy.byToken.get(treeListKeyToken(editSession.key))!, publicNode: visible.find((entry) => entry.internal.key === editSession.key)?.publicNode ?? { item: editSession.original!, key: editSession.key, parentKey: editSession.parentKey, level: 1, visibleIndex: 0, posInSet: 1, setSize: 1, siblingIndex: 0, hasChildren: false, childrenLoaded: true, directMatch: false, retainedAsAncestor: false } }, column) : renderEditor(null, column)}</span></label>)}{editErrors.length ? <div className={styles.errors} role="alert">{editErrors.join(' ')}</div> : null}</div>} footer={<div className={styles.editorActions}><button type="button" onClick={() => { void actions.cancelEdit(); }}>{mergedLabels.cancel}</button>{editSession.result?.outcome === 'conflict' ? <button type="button" disabled={editSession.saving} onClick={() => { void actions.retryConflict(); }}>Retry conflict</button> : null}<button type="button" disabled={editSession.saving} onClick={() => { void saveEdit(); }}>{mergedLabels.save}</button></div>} /> : null;
+  const popupEditor = editSession && (editSession.kind === 'create' || props.editMode === 'popup') ? <CgPopup open headerText={editSession.kind === 'create' ? editSession.parentKey.kind === 'key' ? mergedLabels.addChild : mergedLabels.addRoot : mergedLabels.edit} closeOnEscape={false} closeOnOutsideClick={false} onOpenChange={(open) => { if (!open) void actions.cancelEdit(); }} body={<div className={styles.popupEditor}>{columns.filter((column) => column.getValue && (column.updateValue || column.editor || column.renderEditor)).map((column) => <label key={column.fieldId}>{column.title ?? column.fieldId}<span>{editSession.kind === 'update' && editSession.key !== null ? renderEditor({ internal: hierarchy.byToken.get(treeListKeyToken(editSession.key))!, publicNode: visible.find((entry) => entry.internal.key === editSession.key)?.publicNode ?? { item: editSession.original!, key: editSession.key, parentKey: editSession.parentKey, level: 1, visibleIndex: 0, posInSet: 1, setSize: 1, siblingIndex: 0, hasChildren: false, childrenLoaded: true, directMatch: false, retainedAsAncestor: false } }, column) : renderEditor(null, column)}</span></label>)}{editErrors.length ? <div className={styles.errors} role="alert">{editErrors.join(' ')}</div> : null}</div>} footer={<div className={styles.editorActions}><button type="button" onClick={() => { void actions.cancelEdit(); }}>{mergedLabels.cancel}</button>{editSession.result?.outcome === 'conflict' ? <button type="button" disabled={editSession.saving} onClick={() => { void actions.retryConflict(); }}>{mergedLabels.retryConflict}</button> : null}<button type="button" disabled={editSession.saving} onClick={() => { void saveEdit(); }}>{mergedLabels.save}</button></div>} /> : null;
 
   const nativeRootAttributes = Object.fromEntries(Object.entries(nativeProps).filter(([name]) => name.startsWith('data-') || name.startsWith('aria-') || ['title', 'hidden', 'tabIndex', 'lang', 'translate', 'accessKey', 'draggable', 'contentEditable', 'spellCheck', 'onFocus', 'onBlur', 'onPointerDown', 'onPointerUp', 'onPointerMove', 'onMouseEnter', 'onMouseLeave'].includes(name)));
 

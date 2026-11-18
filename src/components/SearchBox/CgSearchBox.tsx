@@ -1,3 +1,4 @@
+import { useCgUiText } from '../UiText';
 import { forwardRef, useEffect, useRef, useState } from 'react';
 import type { CompositionEvent } from 'react';
 import { useAsyncOperation, useControllableState, useDebouncedCallback, useFormReset, useMergedRefs, useStableCallback } from '../../hooks';
@@ -9,9 +10,12 @@ import styles from './CgSearchBox.module.css';
 import type { CgSearchBoxProps, CgSearchReason } from './CgSearchBox.types';
 
 export const CgSearchBox = forwardRef<HTMLInputElement, CgSearchBoxProps>(function CgSearchBox(
-  { query, defaultQuery = '', onQueryChange, onChange, onSearch, searchMode = 'debounced', searchDelay = 300, minimumLength = 0, minimumLengthMessage, escapeClears = false, searchOnClear = true, loading = false, loadingText = 'Searching…', resultStatus, searchAriaLabel = 'Search', commands = [], clearButton = 'auto', id, 'aria-describedby': ariaDescribedBy, onBlur, onKeyDown, onCompositionStart, onCompositionEnd, ...textBoxProps },
+  { query, defaultQuery = '', onQueryChange, onChange, onSearch, searchMode = 'debounced', searchDelay = 300, minimumLength = 0, minimumLengthMessage, escapeClears = false, searchOnClear = true, loading = false, loadingText: loadingTextProp, resultStatus, searchAriaLabel: searchAriaLabelProp, commands = [], clearButton = 'auto', id, 'aria-describedby': ariaDescribedBy, onBlur, onKeyDown, onCompositionStart, onCompositionEnd, ...textBoxProps },
   ref,
 ) {
+  const uiText = useCgUiText();
+  const loadingText = loadingTextProp ?? uiText.translate('Searching…');
+  const searchAriaLabel = searchAriaLabelProp ?? uiText.translate('Search');
   assertNonNegative('searchDelay', searchDelay);
   assertNonNegative('minimumLength', minimumLength);
   const [currentQuery, setCurrentQuery] = useControllableState(query, defaultQuery, 'CgSearchBox');

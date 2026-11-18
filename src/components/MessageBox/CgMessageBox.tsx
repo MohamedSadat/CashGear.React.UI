@@ -1,3 +1,4 @@
+import { useCgUiText } from '../UiText';
 import { useImperativeHandle, useLayoutEffect, useRef } from 'react';
 import { CgButton } from '../Button';
 import { CgPopup } from '../Popup';
@@ -24,8 +25,8 @@ export function CgMessageBox({
   onClosed,
   message,
   children,
-  title = 'Message',
-  actionLabel = 'OK',
+  title: titleProp,
+  actionLabel: actionLabelProp,
   actionIntent = 'primary',
   actionAppearance = 'solid',
   icon,
@@ -41,6 +42,9 @@ export function CgMessageBox({
   style,
   'data-testid': testId,
 }: CgMessageBoxProps) {
+  const uiText = useCgUiText();
+  const title = titleProp ?? uiText.translate('Message');
+  const actionLabel = actionLabelProp ?? uiText.translate('OK');
   const [actualOpen, setActualOpen] = useControllableState(open, defaultOpen, 'CgMessageBox open');
   const controlled = open !== undefined;
   const openRef = useRef(actualOpen);

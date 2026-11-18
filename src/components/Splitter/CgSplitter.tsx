@@ -1,3 +1,4 @@
+import { useCgUiText } from '../UiText';
 import {
   Fragment,
   forwardRef,
@@ -140,6 +141,7 @@ export const CgSplitter = forwardRef<HTMLDivElement, CgSplitterProps>(function C
   },
   forwardedRef,
 ) {
+  const uiText = useCgUiText();
   if (orientation !== 'horizontal' && orientation !== 'vertical') throw new Error(`CgSplitter orientation '${String(orientation)}' is not supported.`);
   if (resizeMode !== 'live' && resizeMode !== 'deferred') throw new Error(`CgSplitter resizeMode '${String(resizeMode)}' is not supported.`);
   if (!Number.isFinite(keyboardStep) || keyboardStep <= 0) throw new Error('CgSplitter keyboardStep must be greater than zero.');
@@ -697,7 +699,7 @@ export const CgSplitter = forwardRef<HTMLDivElement, CgSplitterProps>(function C
       className={cx(styles.root, className)}
       style={rootStyle}
       role="group"
-      aria-label={ariaLabelledBy ? ariaLabel : ariaLabel ?? 'Resizable layout'}
+      aria-label={ariaLabelledBy ? ariaLabel : ariaLabel ?? uiText.translate('Resizable layout')}
       aria-labelledby={ariaLabelledBy}
       aria-disabled={disabled}
       tabIndex={-1}

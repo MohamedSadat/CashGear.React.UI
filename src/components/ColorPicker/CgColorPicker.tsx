@@ -1,3 +1,4 @@
+import { useUiLabels } from '../UiText/uiLabels';
 import { forwardRef, useEffect, useMemo, useRef } from 'react';
 import type { CSSProperties, KeyboardEvent, MouseEvent } from 'react';
 import { useCgId, useControllableState, useDirection, useMergedRefs, useStableCallback } from '../../hooks';
@@ -94,7 +95,7 @@ export const CgColorPicker = forwardRef<HTMLDivElement, CgColorPickerProps>(func
   const baseId = useCgId();
   const [current, setCurrent] = useControllableState<CgColorPickerValue | null>(value, defaultValue, 'CgColorPicker');
   const [recents, setRecents] = useControllableState<ReadonlyArray<CgColorPickerValue>>(recentColors, defaultRecentColors, 'CgColorPicker recent colors');
-  const text = useMemo(() => ({ ...DEFAULT_LABELS, ...labels }), [labels]);
+  const text = useUiLabels(DEFAULT_LABELS, labels);
 
   const theme = useMemo(() => themeRows(themeColors ?? [], text), [text, themeColors]);
   const standard = useMemo(() => {

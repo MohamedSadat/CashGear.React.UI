@@ -1,3 +1,4 @@
+import { useUiLabels } from '../UiText/uiLabels';
 import { forwardRef, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, MouseEvent, SyntheticEvent } from 'react';
 import { useCgId, useControllableState, useDirection } from '../../hooks';
@@ -138,7 +139,7 @@ export const CgCalendar = forwardRef<HTMLDivElement, CgCalendarProps>(function C
   const resolvedDirection = useDirection(rootRef, direction);
   const resolvedLocale = useMemo(() => new Intl.DateTimeFormat(locale, { calendar: 'gregory' }).resolvedOptions().locale, [locale]);
   const localeArabic = new Intl.Locale(resolvedLocale).language === 'ar';
-  const text = { ...(localeArabic ? ARABIC_LABELS : ENGLISH_LABELS), ...labels };
+  const text = useUiLabels(localeArabic ? ARABIC_LABELS : ENGLISH_LABELS, labels, !localeArabic);
   const firstDay = firstDayOfWeek === undefined ? localeFirstDayOfWeek(resolvedLocale) : dayOfWeekIndex(firstDayOfWeek);
   const [view, setView] = useState<CgCalendarView>('day');
   const [focusedDate, setFocusedDate] = useState(() => findAvailable(initialAnchor, 1, minimum, maximum, isDateDisabled));

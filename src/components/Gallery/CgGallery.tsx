@@ -1,3 +1,4 @@
+import { useCgUiText } from '../UiText';
 import { forwardRef, useMemo, useRef } from 'react';
 import type { CSSProperties, ForwardedRef, MouseEvent, ReactElement, ReactNode, RefAttributes } from 'react';
 import { useCgId, useControllableState, useDirection, useMergedRefs } from '../../hooks';
@@ -119,9 +120,11 @@ function GalleryPanel<TData>({ items, groups, value, onChoose, renderItem, colum
 }
 
 function CgGalleryInner<TData>(
-  { items, groups, value, defaultValue = null, onValueChange, renderItem, columns = 5, itemWidth, itemHeight, maxHeight, footer, display = 'dropdown', ariaLabel = 'Gallery', disabled = false, direction = 'auto', triggerText, triggerIcon, triggerAppearance = 'outline', size, open, defaultOpen, onOpenChange, placement = 'bottom-start', closeOnSelect = true, className, 'aria-label': nativeAriaLabel, ...nativeProps }: CgGalleryProps<TData>,
+  { items, groups, value, defaultValue = null, onValueChange, renderItem, columns = 5, itemWidth, itemHeight, maxHeight, footer, display = 'dropdown', ariaLabel: ariaLabelProp, disabled = false, direction = 'auto', triggerText, triggerIcon, triggerAppearance = 'outline', size, open, defaultOpen, onOpenChange, placement = 'bottom-start', closeOnSelect = true, className, 'aria-label': nativeAriaLabel, ...nativeProps }: CgGalleryProps<TData>,
   forwardedRef: ForwardedRef<HTMLDivElement>,
 ) {
+  const uiText = useCgUiText();
+  const ariaLabel = ariaLabelProp ?? uiText.translate('Gallery');
   if (!Number.isInteger(columns) || columns < 1) throw new RangeError('CgGallery columns must be a positive integer.');
   const rootRef = useRef<HTMLDivElement>(null);
   const mergedRef = useMergedRefs(rootRef, forwardedRef);

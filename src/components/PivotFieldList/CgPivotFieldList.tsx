@@ -1,3 +1,4 @@
+import { useUiLabels } from '../UiText/uiLabels';
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, MouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { useCgId, useControllableState, useDirection, useMergedRefs, useStableCallback } from '../../hooks';
@@ -157,7 +158,7 @@ export const CgPivotFieldList = forwardRef<HTMLDivElement, CgPivotFieldListProps
   },
   forwardedRef,
 ) {
-  const labels = useMemo<CgPivotFieldListLabels>(() => ({ ...CG_PIVOT_FIELD_LIST_DEFAULT_LABELS, ...labelOverrides }), [labelOverrides]);
+  const labels = useUiLabels<CgPivotFieldListLabels>(CG_PIVOT_FIELD_LIST_DEFAULT_LABELS, labelOverrides);
   const fieldMap = useMemo(() => validatePivotFieldListFields(fields), [fields]);
   validatePivotFieldListLayout(layout);
   const rules = useMemo<PivotFieldListRules>(() => ({ fields: fieldMap, canDrop, getValueCaption }), [canDrop, fieldMap, getValueCaption]);

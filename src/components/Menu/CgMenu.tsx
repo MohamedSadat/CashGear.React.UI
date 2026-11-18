@@ -1,3 +1,4 @@
+import { useCgUiText } from '../UiText';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ForwardedRef, ReactElement, RefAttributes } from 'react';
 import { useCgId, useControllableState, useDirection, useMergedRefs } from '../../hooks';
@@ -112,13 +113,15 @@ function CgMenuInner<TData>(
     onOpen,
     onClose,
     ariaLabel = semanticMode === 'navigation' ? 'Main navigation' : 'Application menu',
-    hamburgerAriaLabel = 'Open menu',
+    hamburgerAriaLabel: hamburgerAriaLabelProp,
     actionsRef,
     className,
     ...nativeProps
   }: CgMenuProps<TData>,
   forwardedRef: ForwardedRef<HTMLElement>,
 ) {
+  const uiText = useCgUiText();
+  const hamburgerAriaLabel = hamburgerAriaLabelProp ?? uiText.translate('Open menu');
   if (openDelay < 0 || closeDelay < 0) throw new RangeError('CgMenu delays cannot be negative.');
   const rootRef = useRef<HTMLElement>(null);
   const railRef = useRef<HTMLDivElement>(null);

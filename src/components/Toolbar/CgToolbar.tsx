@@ -1,3 +1,4 @@
+import { useCgUiText } from '../UiText';
 import {
   forwardRef,
   useCallback,
@@ -159,8 +160,8 @@ function CgToolbarInner<TData>(
     autoOverflow = true,
     minimumVisibleItemCount = 0,
     direction = 'auto',
-    ariaLabel = 'Toolbar',
-    overflowButtonLabel = 'More commands',
+    ariaLabel: ariaLabelProp,
+    overflowButtonLabel: overflowButtonLabelProp,
     overflowButtonContent = '⋯',
     actionsRef,
     className,
@@ -169,6 +170,9 @@ function CgToolbarInner<TData>(
   }: CgToolbarProps<TData>,
   forwardedRef: ForwardedRef<HTMLDivElement>,
 ) {
+  const uiText = useCgUiText();
+  const ariaLabel = ariaLabelProp ?? uiText.translate('Toolbar');
+  const overflowButtonLabel = overflowButtonLabelProp ?? uiText.translate('More commands');
   if (!Number.isInteger(minimumVisibleItemCount) || minimumVisibleItemCount < 0) {
     throw new RangeError('CgToolbar minimumVisibleItemCount must be a nonnegative integer.');
   }

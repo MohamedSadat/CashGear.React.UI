@@ -1,4 +1,5 @@
 /* eslint-disable react-hooks/refs -- refs coordinate controller generations, controlled snapshots, and imperative actions without driving renders. */
+import { useUiLabels } from '../UiText/uiLabels';
 import {
   useEffect,
   useImperativeHandle,
@@ -146,7 +147,7 @@ export function CgPdfViewer(inputProps: CgPdfViewerProps) {
     ...nativeProps
   } = inputProps;
 
-  const labels = { ...ENGLISH_LABELS, ...labelOverrides };
+  const labels = useUiLabels(ENGLISH_LABELS, labelOverrides);
   const rootId = useCgId(id);
   const rootRef = useRef<HTMLElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);

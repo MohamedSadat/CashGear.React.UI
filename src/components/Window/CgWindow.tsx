@@ -1,3 +1,4 @@
+import { useCgUiText } from '../UiText';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { useControllableState, useMergedRefs, useStableCallback } from '../../hooks';
 import {
@@ -73,7 +74,7 @@ export const CgWindow = forwardRef<HTMLDivElement, CgWindowProps>(function CgWin
     showHeader = true,
     showFooter,
     showCloseButton = true,
-    closeButtonAriaLabel = 'Close',
+    closeButtonAriaLabel: closeButtonAriaLabelProp,
     contentLoadMode = 'everyOpen',
     role = 'dialog',
     size = 'medium',
@@ -108,6 +109,8 @@ export const CgWindow = forwardRef<HTMLDivElement, CgWindowProps>(function CgWin
   },
   forwardedRef,
 ) {
+  const uiText = useCgUiText();
+  const closeButtonAriaLabel = closeButtonAriaLabelProp ?? uiText.translate('Close');
   assertPoint('position', position);
   assertPoint('defaultPosition', defaultPosition);
   const markerRef = useRef<HTMLSpanElement>(null);

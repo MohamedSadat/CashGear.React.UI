@@ -1,3 +1,4 @@
+import { useCgUiText } from '../UiText';
 import { useEditorRegistration } from '../EditorCommit/CgEditorCommit';
 import { createEditorPublication } from '../../internal/editorPublication';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
@@ -29,9 +30,9 @@ export const CgTextBox = forwardRef<HTMLInputElement, CgTextBoxProps>(function C
     trailingIcon,
     buttons = [],
     clearButton = 'never',
-    clearAriaLabel = 'Clear value',
+    clearAriaLabel: clearAriaLabelProp,
     passwordReveal = false,
-    revealAriaLabel = 'Show password',
+    revealAriaLabel: revealAriaLabelProp,
     type = 'text',
     id,
     required,
@@ -50,6 +51,9 @@ export const CgTextBox = forwardRef<HTMLInputElement, CgTextBoxProps>(function C
   },
   forwardedRef,
 ) {
+  const uiText = useCgUiText();
+  const clearAriaLabel = clearAriaLabelProp ?? uiText.translate('Clear value');
+  const revealAriaLabel = revealAriaLabelProp ?? uiText.translate('Show password');
   assertNonNegative('debounceMs', debounceMs);
   const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
   const [committed, setCommitted] = useControllableState(value, defaultValue, 'CgTextBox');

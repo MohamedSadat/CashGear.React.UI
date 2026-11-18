@@ -1,4 +1,6 @@
 /* eslint-disable react-hooks/refs -- keyed refs coordinate controlled proposals, focus, and menu ownership. */
+import { useCgUiText } from '../UiText';
+import { useUiLabels } from '../UiText/uiLabels';
 import {
   forwardRef,
   useCallback,
@@ -232,11 +234,13 @@ function CgTreeViewInner<TItem>(
     className,
     style,
     onContextMenu,
-    'aria-label': ariaLabel = 'Tree view',
+    'aria-label': ariaLabelProp,
     ...nativeProps
   }: CgTreeViewProps<TItem>,
   forwardedRef: ForwardedRef<HTMLDivElement>,
 ) {
+  const uiText = useCgUiText();
+  const ariaLabel = ariaLabelProp ?? uiText.translate('Tree view');
   if (!['disabled', 'multiple', 'recursive'].includes(checkMode)) throw new Error(`CgTreeView contains unknown checkMode '${checkMode}'.`);
   if (!['none', 'node', 'empty', 'all'].includes(contextMenuAreas)) throw new Error(`CgTreeView contains unknown contextMenuAreas '${contextMenuAreas}'.`);
   if (!['physical', 'logical'].includes(arrowKeys)) throw new Error(`CgTreeView contains unknown arrowKeys '${arrowKeys}'.`);
@@ -261,7 +265,7 @@ function CgTreeViewInner<TItem>(
   const mergedRef = useMergedRefs(rootRef, forwardedRef);
   const resolvedDirection = useDirection(rootRef, direction);
   const rootId = useCgId(id);
-  const mergedLabels = { ...DEFAULT_LABELS, ...labels };
+  const mergedLabels = useUiLabels(DEFAULT_LABELS, labels);
   const operation = useAsyncOperation();
   const menuRef = useRef<CgContextMenuActions<CgTreeViewContext<TItem>>>(null);
   const elements = useRef(new Map<string, HTMLElement>());
@@ -1380,7 +1384,7 @@ function CgTreeViewInner<TItem>(
     {contextMenuAreas !== 'none' ? <CgContextMenu
       items={[]}
       actionsRef={menuRef}
-      ariaLabel={mergedLabels.contextMenu ?? 'Tree view context menu'}
+      ariaLabel={mergedLabels.contextMenu}
       direction={direction}
       customizeMenu={async (details) => {
         const base = { ...details, items: defaultMenuItems(details.invocation.context) };

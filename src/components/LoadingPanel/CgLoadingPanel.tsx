@@ -1,3 +1,4 @@
+import { useCgUiText } from '../UiText';
 import { forwardRef, useEffect, useRef, useState } from 'react';
 import { useControllableState, useMergedRefs, useStableCallback } from '../../hooks';
 import { CgPortal, useOverlayStack, useResolvedTarget, useTargetCoverStyle } from '../../internal';
@@ -9,9 +10,11 @@ import styles from './CgLoadingPanel.module.css';
 import type { CgLoadingPanelProps } from './CgLoadingPanel.types';
 
 export const CgLoadingPanel = forwardRef<HTMLDivElement, CgLoadingPanelProps>(function CgLoadingPanel(
-  { children, visible, defaultVisible = false, onVisibleChange, mode = 'inline', target, text = 'Loading…', indicator = 'spinner', customIndicator, shading = true, blocking = true, showContent = true, showDelay = 0, minimumVisibleDuration = 0, dismissOnClick = false, dismissOnEscape = false, trapFocus = false, className, style, 'data-testid': testId, ...nativeProps },
+  { children, visible, defaultVisible = false, onVisibleChange, mode = 'inline', target, text: textProp, indicator = 'spinner', customIndicator, shading = true, blocking = true, showContent = true, showDelay = 0, minimumVisibleDuration = 0, dismissOnClick = false, dismissOnEscape = false, trapFocus = false, className, style, 'data-testid': testId, ...nativeProps },
   ref,
 ) {
+  const uiText = useCgUiText();
+  const text = textProp ?? uiText.translate('Loading…');
   assertNonNegative('showDelay', showDelay);
   assertNonNegative('minimumVisibleDuration', minimumVisibleDuration);
   if (trapFocus && (!blocking || mode === 'inline')) {

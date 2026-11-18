@@ -1,3 +1,4 @@
+import { useCgUiText } from '../UiText';
 import { forwardRef, useReducer, useRef } from 'react';
 import { renderIcon as renderCgIcon } from '../../internal/icons';
 import { cx } from '../../utils';
@@ -16,13 +17,15 @@ export const CgStatusBadge = forwardRef<HTMLSpanElement, CgStatusBadgeProps>(fun
   indicator = false,
   dismissible = false,
   onDismiss,
-  dismissAriaLabel = 'Dismiss status',
+  dismissAriaLabel: dismissAriaLabelProp,
   visible = true,
   role,
   accessibleLabel,
   className,
   ...nativeProps
 }, forwardedRef) {
+  const uiText = useCgUiText();
+  const dismissAriaLabel = dismissAriaLabelProp ?? uiText.translate('Dismiss status');
   if (!dismissAriaLabel.trim()) throw new Error('CgStatusBadge dismissAriaLabel cannot be empty.');
   if (accessibleLabel !== undefined && !accessibleLabel.trim()) throw new Error('CgStatusBadge accessibleLabel cannot be empty.');
   const [, render] = useReducer((value: number) => value + 1, 0);

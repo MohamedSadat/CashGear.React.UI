@@ -1,3 +1,4 @@
+import { useUiLabels } from '../UiText/uiLabels';
 import { useEffect, useLayoutEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { CgToolbar } from '../Toolbar';
@@ -27,7 +28,7 @@ export function CgPivotTable<TItem>(props: CgPivotTableProps<TItem>) {
         if (!Number.isSafeInteger(value) || value < ((name.includes('Overscan') || name === 'layoutSaveDebounce') ? 0 : 1))
             throw new CgPivotError(`Invalid ${name}.`);
     const locale = props.locale ?? 'en-US', direction = props.direction ?? (/^ar|^he|^fa|^ur/.test(locale) ? 'rtl' : 'ltr');
-    const labels = { ...(/^ar/.test(locale) ? arabic : english), ...props.labels };
+    const labels = useUiLabels(/^ar/.test(locale) ? arabic : english, props.labels, !/^ar/.test(locale));
     const [internalLayout, setInternalLayout] = useState(() => normalizePivotLayout(fields, props.defaultLayout));
     const layout = useMemo(() => normalizePivotLayout(fields, props.layout ?? internalLayout), [fields, props.layout, internalLayout]);
     const query = useMemo(() => createPivotQuery(fields, layout, { locale, timeZone: props.groupingTimeZone, maxRows: props.maximumResultRows, maxColumns: props.maximumResultColumns, maxCells: props.maximumResultCells }), [fields, layout, locale, props.groupingTimeZone, props.maximumResultRows, props.maximumResultColumns, props.maximumResultCells]);

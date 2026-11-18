@@ -1,3 +1,4 @@
+import { useUiLabels } from '../UiText/uiLabels';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ForwardedRef, KeyboardEvent, MouseEvent, ReactElement, RefAttributes, RefObject } from 'react';
 import { useControllableState, useDirection, useMergedRefs, useStableCallback } from '../../hooks';
@@ -221,7 +222,7 @@ function CgRibbonInner<TData>(
   const rootRef = useRef<HTMLDivElement>(null);
   const mergedRef = useMergedRefs(rootRef, forwardedRef);
   const resolvedDirection = useDirection(rootRef, direction);
-  const text = useMemo(() => ({ ...DEFAULT_LABELS, ...labels }), [labels]);
+  const text = useUiLabels(DEFAULT_LABELS, labels);
   const initialKey = defaultActiveKey ?? tabs.find((tab) => tab.visible !== false && !tab.disabled)?.key ?? null;
   const [currentKey, setCurrentKey] = useControllableState<string | null>(activeKey, initialKey, 'CgRibbon');
   const [isCollapsed, setIsCollapsed] = useControllableState(collapsed, defaultCollapsed, 'CgRibbon collapsed');

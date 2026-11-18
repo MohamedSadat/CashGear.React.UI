@@ -1,4 +1,5 @@
 /* eslint-disable react-hooks/refs -- refs coordinate abortable keyed lifecycles and collection snapshots. */
+import { useUiLabels } from '../UiText/uiLabels';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import type { ForwardedRef, KeyboardEvent, MouseEvent, ReactElement, ReactNode, RefAttributes } from 'react';
 import { useAsyncOperation, useCgId, useControllableState, useDirection, useMergedRefs, useStableCallback } from '../../hooks';
@@ -101,7 +102,7 @@ function CgAccordionInner<TData>(
   const correctionRef = useRef('');
   const pendingExpansion = useRef<{ signature: string; details: CgAccordionChangeDetails<TData>[] } | undefined>(undefined);
   const pendingSelection = useRef<{ key: string | null; details: CgAccordionChangeDetails<TData> } | undefined>(undefined);
-  const mergedLabels = { ...DEFAULT_LABELS, ...labels };
+  const mergedLabels = useUiLabels(DEFAULT_LABELS, labels);
 
   const reportError = useStableCallback((error: unknown, details: CgAccordionChangeDetails<TData>) => { try { onLifecycleError?.(error, details); } catch { /* Reporting is terminal. */ } });
   const runExpansionAfter = useStableCallback(async (details: CgAccordionChangeDetails<TData>) => { try { await (details.expanded ? afterExpand?.(details) : afterCollapse?.(details)); } catch (error) { reportError(error, details); } });

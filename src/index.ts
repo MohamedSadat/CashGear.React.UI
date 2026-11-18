@@ -122,6 +122,8 @@ export type { CgToolbarActions, CgToolbarActivationSource, CgToolbarItem, CgTool
 export { CgTooltip } from './components/Tooltip';
 export type { CgTooltipActions, CgTooltipHiddenDetails, CgTooltipPosition, CgTooltipProps, CgTooltipRenderContext, CgTooltipShownDetails, CgTooltipSurfaceAttributes, CgTooltipTrigger, CgTooltipVisibilityChangeDetails, CgTooltipVisibilityChangeReason } from './components/Tooltip';
 export { CgToastProvider, useCgToast } from './components/Toast';
+export { CgUiTextProvider, useCgUiText } from './components/UiText';
+export type { CgUiText, CgUiTextProviderProps } from './components/UiText';
 export type { CgNavigationSubscriber, CgToastAction, CgToastApi, CgToastConvenienceOptions, CgToastId, CgToastOptions, CgToastPosition, CgToastProviderProps, CgToastVariant } from './components/Toast';
 export { CgTimeEdit, normalizeCgTimeValue } from './components/TimeEdit';
 export type { CgTimeEditActions, CgTimeEditBeforeValueChangeDetails, CgTimeEditCancelableResult, CgTimeEditChangeReason, CgTimeEditLabels, CgTimeEditOpenChangeDetails, CgTimeEditOpenChangeReason, CgTimeEditProps, CgTimeEditValueChangeDetails, CgTimeValue } from './components/TimeEdit';

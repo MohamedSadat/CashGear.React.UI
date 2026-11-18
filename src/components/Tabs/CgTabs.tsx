@@ -1,5 +1,7 @@
 /* eslint-disable react-hooks/refs -- refs intentionally hold keyed lifecycle snapshots without driving renders. */
 /* eslint-disable react-hooks/set-state-in-effect -- effects reconcile invalid controlled collections and post-hydration capabilities. */
+import { useCgUiText } from '../UiText';
+import { useUiLabels } from '../UiText/uiLabels';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import type { ForwardedRef, KeyboardEvent, MouseEvent, PointerEvent, ReactElement, RefAttributes } from 'react';
 import { useAsyncOperation, useCgId, useControllableState, useDirection, useMergedRefs, useStableCallback } from '../../hooks';
@@ -37,7 +39,7 @@ function CgTabsInner<TData>(
     emptyContent,
     startContent,
     endContent,
-    ariaLabel = 'Tabs',
+    ariaLabel: ariaLabelProp,
     labels,
     actionsRef,
     className,
@@ -46,6 +48,8 @@ function CgTabsInner<TData>(
   }: CgTabsProps<TData>,
   forwardedRef: ForwardedRef<HTMLDivElement>,
 ) {
+  const uiText = useCgUiText();
+  const ariaLabel = ariaLabelProp ?? uiText.translate('Tabs');
   validateKeyedItems(tabs, 'CgTabs');
   const rootId = useCgId(nativeProps.id);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -250,7 +254,7 @@ function CgTabsInner<TData>(
     viewport.scrollBy(vertical ? { top: delta * viewport.clientHeight * 0.75, behavior: 'smooth' } : { left: delta * viewport.clientWidth * 0.75, behavior: 'smooth' });
   };
 
-  const mergedLabels = { ...DEFAULT_LABELS, ...labels };
+  const mergedLabels = useUiLabels(DEFAULT_LABELS, labels);
   const tabId = (key: string) => `${rootId}-tab-${stableKeyToken(key)}`;
   const panelId = (key: string) => `${tabId(key)}-panel`;
   const headers = <div className={styles.headers}>

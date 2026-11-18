@@ -1,3 +1,4 @@
+import { useCgUiText } from '../UiText';
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, CompositionEvent, KeyboardEvent, MouseEvent } from 'react';
 import { useAsyncOperation, useCgId, useControllableState, useDebouncedCallback, useDirection, useFormReset, useMergedRefs, useStableCallback } from '../../hooks';
@@ -42,16 +43,16 @@ function CgTagBoxInner<TItem>(
     minimumSearchLength = 0,
     maxVisibleItems = 50,
     maxSelectedItems,
-    loadingMessage = 'Loading…',
+    loadingMessage: loadingMessageProp,
     errorMessage = 'Unable to load results.',
-    emptyMessage = 'No results found',
+    emptyMessage: emptyMessageProp,
     minimumLengthMessage = (minimum) => `Type at least ${minimum} characters to search.`,
     selectedCountMessage = (count) => `${count} selected`,
     resultsCountMessage = (count) => `${count} result${count === 1 ? '' : 's'}`,
     clearable = true,
     closeOnSelection = false,
-    clearAriaLabel = 'Clear all selections',
-    toggleAriaLabel = 'Toggle options',
+    clearAriaLabel: clearAriaLabelProp,
+    toggleAriaLabel: toggleAriaLabelProp,
     removeAriaLabel = (_item, label) => `Remove ${label}`,
     disabled,
     readOnly = false,
@@ -81,11 +82,17 @@ function CgTagBoxInner<TItem>(
     onCompositionStart,
     onCompositionEnd,
     autoComplete = 'off',
-    placeholder = 'Select…',
+    placeholder: placeholderProp,
     ...nativeProps
   }: CgTagBoxProps<TItem>,
   forwardedRef: React.ForwardedRef<HTMLInputElement>,
 ) {
+  const uiText = useCgUiText();
+  const loadingMessage = loadingMessageProp ?? uiText.translate('Loading…');
+  const emptyMessage = emptyMessageProp ?? uiText.translate('No results found');
+  const clearAriaLabel = clearAriaLabelProp ?? uiText.translate('Clear all selections');
+  const toggleAriaLabel = toggleAriaLabelProp ?? uiText.translate('Toggle options');
+  const placeholder = placeholderProp ?? uiText.translate('Select…');
   assertNonNegative('searchDelay', searchDelay);
   assertNonNegative('minimumSearchLength', minimumSearchLength);
   assertPositiveInteger('maxVisibleItems', maxVisibleItems);

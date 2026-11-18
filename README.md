@@ -51,6 +51,20 @@ Controls follow the nearest `dir` above them, so setting it once on a container 
 
 The stylesheet exposes the source-aligned `--cg-surface`, `--cg-text`, `--cg-accent`, feedback, typography, spacing, editor-height, focus, and overlay tokens. The earlier `--cg-color-*` names remain aliases. Override tokens on a scoped container; no global reset is installed.
 
+## Built-in text
+
+Components with built-in English (a grid's search box and context menu, a popup's close button, a pager, list and editor messages) read it through the optional `CgUiTextProvider`. Without a provider every component keeps its English text. With one, each built-in default goes through `translate` once; text the page passes is used as it is, even when it equals the English default.
+
+```tsx
+const arabic: Record<string, string> = { Close: 'إغلاق', 'Sort ascending': 'ترتيب تصاعدي', '{0} records': '{0} سجلات' };
+
+<CgUiTextProvider translate={(english) => arabic[english] ?? english}>
+  <App />
+</CgUiTextProvider>
+```
+
+`translate` receives the English default, which can be a format such as `Page {0} of {1}`; a translation must keep the same placeholders. An empty result falls back to English. `useCgUiText()` returns the nearest translator (identity without a provider) for a host's own components. Components that ship their own Arabic labels for an Arabic `locale` (Calendar, DateEdit, DateRangePicker, TimeEdit, Scheduler, PivotTable) use them unchanged and send only their English set through the provider. The Phase 37 workspace components already take every visible string from required props and do not use the provider. Mirrors Blazor's `ICgUiText`.
+
 ## Fields and controlled state
 
 `CgField` owns labels, descriptions, required indicators, validation messages, generated IDs, and ARIA relationships. It communicates with controls through context and never clones its child.
@@ -395,7 +409,7 @@ Explicit mode snapshots a draft and applies only through Apply; Cancel, Escape, 
 
 ## Toast and Confirmation providers
 
-Feedback state is provider-local: there are no module singletons. Toasts support six logical positions, visible-item limits with FIFO queues, duplicate suppression, exact remaining-duration pause/resume behavior, stable live regions, and async actions. Use `subscribeToNavigation` to clear a provider from a router callback without importing a router.
+Feedback state is provider-local: there are no module singletons. Toasts support six logical positions, visible-item limits with FIFO queues, duplicate suppression, exact remaining-duration pause/resume behavior, stable live regions, and async actions. Use `subscribeToNavigation` to clear a provider from a router callback without importing a router. `regionAriaLabel` names each toast stack (default "Notifications").
 
 ```tsx
 <CgToastProvider>
@@ -574,7 +588,7 @@ The component owns `tree`/`treeitem`/`group` structure, one roving tab stop, com
 
 The UI-independent Filter Core provides immutable groups, scalar and collection aggregate conditions, explicit source ownership, canonical typed values, relative periods, safe normalization/validation, structural comparison, formatting, field-ID migration, local evaluation, predicate compilation, and saved-view helpers. It never evaluates property paths, expressions, functions, or source text: local execution requires a registered field accessor. Relative criteria require an injected clock, IANA timezone, and first weekday so calendar-day and DST behavior is deterministic.
 
-`CgFilterBuilder<TItem>` edits that same AST without mutating caller state. Explicit, immediate, and debounced apply modes retain separate draft/applied state; incomplete rows remain visible and block Apply. Stable node IDs support nested/negated groups, collection aggregates, duplicate/remove/reorder/collapse actions, accessible errors and announcements, keyboard reordering, RTL, forced colors, reduced motion, and responsive stacking. Custom field editors and displays take precedence over generated CashGear editors.
+`CgFilterBuilder<TItem>` edits that same AST without mutating caller state. Explicit, immediate, and debounced apply modes retain separate draft/applied state; incomplete rows remain visible and block Apply. Stable node IDs support nested/negated groups, collection aggregates, duplicate/remove/reorder/collapse actions, accessible errors and announcements, keyboard reordering, RTL, forced colors, reduced motion, and responsive stacking. Custom field editors and displays take precedence over generated CashGear editors. The row editors' accessible names and placeholder options (`groupLogic`, `allConditions`, `anyCondition`, `aggregate`, `aggregateField`, `selectField`, `selectComparison`, `selectValue`, `selectPeriod`, `selectCollection`, `selectAggregateField`, `yes`, `no`, `cannotApply`) are `labels` entries too.
 
 Persistence and transport use the exact Razor `$type` wire discriminators and pinned numeric ordinals, while React code keeps ergonomic string literals in memory. Legacy `value`/`secondValue` operands and Grid states v1–v9 are accepted only at compatibility boundaries and normalize to the canonical typed AST.
 
@@ -614,6 +628,8 @@ Cell and batch editing use spreadsheet-style type-to-edit by default; set `editi
 Custom summaries use stable aggregate keys and ordered input field IDs. Built-ins stay synchronous; trusted local custom delegates run through an abortable async path over complete filtered total/group scopes, and remote requests contain only serializable IDs, keys, fields, scope, and query state. Availability, loading, safe error codes, and completeness are explicit.
 
 The React adaptation deliberately does not expose Razor child registration, expressions, SQL/EF/Dapper translation, generic HTTP adapters, server persistence, or Blazor lifecycle concepts. Row/column virtualization and committed export scopes are implemented in Phase 29. Automatic column discovery is intentionally replaced by explicit typed columns.
+
+Every built-in Grid string is a `labels` entry and goes through `CgUiTextProvider`: the context menu (`sortAscending`, `sortDescending`, `groupByColumn`, `ungroup`, `hideColumn`, `autoFitColumn`, `selectRow`, `deselectRow`, `exportToJson`, `exportToExcel`, `refresh`), the popup titles `createPopupTitle` ("Add row") and `editPopupTitle` ("Edit row"), the column chooser, the group panel's accessible name (`groupPanelAriaLabel`), the filter row and the view manager (`views`, `viewsTitle`, `saveNewView`, `updateView`, `makeDefaultView`, `deleteView`, `resetSystemView`, the scope names and field captions). `editPopupWidth` and `editPopupMaxHeight` size the popup edit form (defaults `min(36rem, 94vw)` and `min(44rem, 92vh)`).
 
 ## LookUpGrid
 
@@ -1218,11 +1234,11 @@ Components:
 - `CgLiveAnnouncer`, `CgAvatar`, `CgAvatarStack`, `CgFilePicker`, `CgBreadcrumb`, `CgInlineTextEditor`, `CgInlineNumberEditor`
 - `CgCommandMenu`, `CgSelectionToolbar`, `CgMenuPanel` (with `CgMenuPanelItem`, `CgMenuPanelSwitch`, `CgMenuPanelGroup`, `CgMenuPanelSeparator`, `CgMenuPanelHeader`), `CgSortableList`, `CgOptionPicker`, `CgItemPicker`, `CgMentionArea`, `CgEmojiPicker` and `cgPageIcons`
 - `CgDragHandle`, `CgDropIndicator`, `cgTrackDrag`, `cgStartsDrag`, `cgEdgeScrollStep`, `CG_DRAG_THRESHOLD`, `CgKanbanBoard`, `CgMonthCalendar`, `CgSelect`, `CgTimeline`
-- `CgToastProvider`, `CgConfirmationProvider`, `CgEditorCommitProvider`
+- `CgToastProvider`, `CgConfirmationProvider`, `CgEditorCommitProvider`, `CgUiTextProvider`
 
 Focused shared types include `CgSizeMode`, `CgDensity`, `CgIntent`, `CgOrientation`, `CgDirection`, `CgValidationState`, `CgIconName`, `CgIconSource`, `CgEditorButtonDescriptor<T>`, canonical `CgDateValue`/`CgDateRangeValue`/`CgTimeValue`, the Filter Core AST/registry/persistence contracts, the DateEdit/TimeEdit/Calendar/DateRangePicker contracts and CgDateRangePresetKey, Scheduler recurrence/resource/reminder/action/iCalendar contracts, the FileUploader item/transport/event/render/action contracts, the PDF source/state/event/render/action contracts, the Chart descriptor/axis/selection/action/localization contracts, the GridLayout descriptors, the TreeList binding/column/node/provider/mutation/output/state/render/action contracts, the Splitter versioned-state/descriptor/detail contracts, the Drawer lifecycle/render/action contracts, WaitIndicator, MessageBox, Toast and Confirmation APIs, the shared overlay contracts, and each descriptor component's props, actions, lifecycle details, and render/state contexts. Private PDF controller/model modules, chart model/layout/browser modules, endpoint-session tokens, menu, adaptive-layout, TreeView normalization/check/filter engines, and TreeList hierarchy/projection internals are not exported. There is intentionally no universal component-state interface.
 
-The public hooks are `useControllableState`, `useCgId`, `useCgContextMenuTarget`, `useCgToast`, `useCgConfirmation`, `useCgLayoutBreakpoint`, and `useCgEditorCommit`; `cx` is the public class-name utility. All other primitives and hooks are private implementation details.
+The public hooks are `useControllableState`, `useCgId`, `useCgContextMenuTarget`, `useCgToast`, `useCgConfirmation`, `useCgLayoutBreakpoint`, `useCgEditorCommit`, and `useCgUiText`; `cx` is the public class-name utility. All other primitives and hooks are private implementation details.
 
 ## Development
 

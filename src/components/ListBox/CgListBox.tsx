@@ -1,3 +1,4 @@
+import { useCgUiText } from '../UiText';
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import { useControllableState, useDirection, useFormReset, useMergedRefs, useStableCallback } from '../../hooks';
@@ -69,8 +70,8 @@ function CgListBoxInner<TItem>(
     selectionMode = 'single',
     showCheckboxes = false,
     showSelectAll = false,
-    selectAllText = 'Select all',
-    selectAllAriaLabel = 'Select all visible items',
+    selectAllText: selectAllTextProp,
+    selectAllAriaLabel: selectAllAriaLabelProp,
     searchable = false,
     searchQuery,
     defaultSearchQuery = '',
@@ -79,8 +80,8 @@ function CgListBoxInner<TItem>(
     searchCondition = 'contains',
     searchParseMode = 'allWords',
     highlightSearchText = true,
-    searchPlaceholder = 'Search…',
-    searchAriaLabel = 'Search list',
+    searchPlaceholder: searchPlaceholderProp,
+    searchAriaLabel: searchAriaLabelProp,
     locale,
     ignoreDiacritics = true,
     getItemGroupKey,
@@ -92,9 +93,9 @@ function CgListBoxInner<TItem>(
     renderNoResults,
     renderLoading,
     loading = false,
-    loadingMessage = 'Loading…',
-    emptyMessage = 'No data',
-    noResultsMessage = 'No matching items',
+    loadingMessage: loadingMessageProp,
+    emptyMessage: emptyMessageProp,
+    noResultsMessage: noResultsMessageProp,
     resultsCountMessage = (count) => `${count} items`,
     selectedCountMessage = (count) => `${count} selected`,
     renderMode = 'entire',
@@ -127,6 +128,14 @@ function CgListBoxInner<TItem>(
   }: CgListBoxProps<TItem>,
   forwardedRef: React.ForwardedRef<HTMLDivElement>,
 ) {
+  const uiText = useCgUiText();
+  const selectAllText = selectAllTextProp ?? uiText.translate('Select all');
+  const selectAllAriaLabel = selectAllAriaLabelProp ?? uiText.translate('Select all visible items');
+  const searchPlaceholder = searchPlaceholderProp ?? uiText.translate('Search…');
+  const searchAriaLabel = searchAriaLabelProp ?? uiText.translate('Search list');
+  const loadingMessage = loadingMessageProp ?? uiText.translate('Loading…');
+  const emptyMessage = emptyMessageProp ?? uiText.translate('No data');
+  const noResultsMessage = noResultsMessageProp ?? uiText.translate('No matching items');
   assertNonNegative('searchDelay', searchDelay);
   assertNonNegativeInteger('overscanCount', overscanCount);
   if (itemSize !== undefined) assertPositive('itemSize', itemSize);

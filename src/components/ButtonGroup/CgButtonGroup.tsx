@@ -1,3 +1,4 @@
+import { useCgUiText } from '../UiText';
 import { forwardRef, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, MouseEvent, ReactElement, RefAttributes } from 'react';
 import { useControllableState, useDirection, useMergedRefs, useStableCallback } from '../../hooks';
@@ -49,13 +50,15 @@ function CgButtonGroupInner<TData>(props: CgButtonGroupProps<TData>, forwardedRe
     defaultItemIntent = 'secondary',
     defaultItemAppearance = 'outline',
     direction = 'auto',
-    ariaLabel = 'Actions',
+    ariaLabel: ariaLabelProp,
     onItemClick,
     onItemError,
     className,
     onKeyDown,
     ...nativeProps
   } = props as CgButtonGroupProps<TData> & SelectionBindings;
+  const uiText = useCgUiText();
+  const ariaLabel = ariaLabelProp ?? uiText.translate('Actions');
   const items = useMemo(() => normalizeItems(itemProps), [itemProps]);
   const [single, setSingle] = useControllableState(
     selectionMode === 'single' ? selectedName : undefined,

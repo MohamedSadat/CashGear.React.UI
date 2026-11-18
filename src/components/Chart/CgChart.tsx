@@ -1,4 +1,5 @@
 /* eslint-disable react-hooks/refs -- refs hold delegated browser state and authoritative controlled snapshots without driving pointer renders. */
+import { useCgUiText } from '../UiText';
 import {
   useCallback,
   useEffect,
@@ -484,7 +485,8 @@ export function CgChart<TItem>(props: CgChartProps<TItem>): ReactElement {
   const explicitDirection = direction === 'auto' && (rootDirection === 'ltr' || rootDirection === 'rtl') ? rootDirection : direction;
   const resolvedDirection = useDirection(rootRef, explicitDirection);
   const rtl = resolvedDirection === 'rtl';
-  const resolvedStrings = useMemo(() => resolveChartStrings(stringOverrides), [stringOverrides]);
+  const uiText = useCgUiText();
+  const resolvedStrings = useMemo(() => resolveChartStrings(stringOverrides, uiText), [stringOverrides, uiText]);
   const formatter = useMemo(
     () => createChartFormatter(locale, displayTimeZone, resolvedStrings),
     [displayTimeZone, locale, resolvedStrings],

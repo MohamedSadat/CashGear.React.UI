@@ -40,32 +40,33 @@ export function renderAutomaticGridEditor<TItem>(column: CgGridColumnDescriptor<
   return <label data-cg-grid-editor-field={column.fieldId} style={{ display: 'grid', gap: '0.25rem' }}>{options?.showLabel === false ? <span className={styles.visuallyHidden}>{metadata.label ?? column.title ?? column.fieldId}</span> : <span>{metadata.label ?? column.title ?? column.fieldId}{metadata.required ? ' *' : ''}</span>}{editor}{metadata.memo ? <small id={`${identity}-memo`}>{metadata.memo}</small> : null}{error ? <span id={`${identity}-error`} role="alert">{error}</span> : null}</label>;
 }
 
-export function validateAutomaticGridEditors<TItem>(columns: ReadonlyArray<CgGridColumnDescriptor<TItem>>, model: TItem, rawDrafts: GridRawDrafts = {}): Readonly<Record<string, ReadonlyArray<string>>> {
+export function validateAutomaticGridEditors<TItem>(columns: ReadonlyArray<CgGridColumnDescriptor<TItem>>, model: TItem, rawDrafts: GridRawDrafts = {}, translate: (text: string) => string = (text) => text): Readonly<Record<string, ReadonlyArray<string>>> {
   const errors: Record<string, ReadonlyArray<string>> = {};
+  const t = (text: string, ...values: ReadonlyArray<unknown>) => values.reduce<string>((result, value, index) => result.replaceAll(`{${index}}`, String(value)), translate(text));
   for (const column of columns) {
     const metadata = column.editor; if (!metadata || !column.accessor || metadata.disabled || metadata.readOnly) continue;
     const value = column.accessor(model); const text = value == null ? '' : String(value); const field: string[] = [];
     const raw = rawDrafts[column.fieldId];
     if (metadata.kind === 'decimal' && value != null && value !== '') {
-      try { const parsed = decimalParts(String(value)); if (metadata.decimal?.min && compareDecimal(parsed, decimalParts(metadata.decimal.min)) < 0 || metadata.decimal?.max && compareDecimal(parsed, decimalParts(metadata.decimal.max)) > 0) field.push('Decimal is outside the allowed range.'); }
-      catch { field.push('Enter a valid decimal.'); }
+      try { const parsed = decimalParts(String(value)); if (metadata.decimal?.min && compareDecimal(parsed, decimalParts(metadata.decimal.min)) < 0 || metadata.decimal?.max && compareDecimal(parsed, decimalParts(metadata.decimal.max)) > 0) field.push(t('Decimal is outside the allowed range.')); }
+      catch { field.push(t('Enter a valid decimal.')); }
     }
-    if (raw?.invalid) field.push(raw.message ?? 'Enter a valid value.');
-    if (metadata.required && (value === null || value === undefined || text.trim() === '')) field.push(`${metadata.label ?? column.title ?? column.fieldId} is required.`);
-    if (metadata.minimumLength !== undefined && text.length > 0 && text.length < metadata.minimumLength) field.push(`Enter at least ${metadata.minimumLength} characters.`);
-    if (metadata.maximumLength !== undefined && text.length > metadata.maximumLength) field.push(`Enter no more than ${metadata.maximumLength} characters.`);
-    if (typeof value === 'number' && !Number.isFinite(value)) field.push('Enter a valid finite number.');
-    if (typeof value === 'number' && typeof metadata.minimum === 'number' && value < metadata.minimum) field.push(`Value must be at least ${metadata.minimum}.`);
-    if (typeof value === 'number' && typeof metadata.maximum === 'number' && value > metadata.maximum) field.push(`Value must be no more than ${metadata.maximum}.`);
+    if (raw?.invalid) field.push(raw.message ?? t('Enter a valid value.'));
+    if (metadata.required && (value === null || value === undefined || text.trim() === '')) field.push(t('{0} is required.', metadata.label ?? column.title ?? column.fieldId));
+    if (metadata.minimumLength !== undefined && text.length > 0 && text.length < metadata.minimumLength) field.push(t('Enter at least {0} characters.', metadata.minimumLength));
+    if (metadata.maximumLength !== undefined && text.length > metadata.maximumLength) field.push(t('Enter no more than {0} characters.', metadata.maximumLength));
+    if (typeof value === 'number' && !Number.isFinite(value)) field.push(t('Enter a valid finite number.'));
+    if (typeof value === 'number' && typeof metadata.minimum === 'number' && value < metadata.minimum) field.push(t('Value must be at least {0}.', metadata.minimum));
+    if (typeof value === 'number' && typeof metadata.maximum === 'number' && value > metadata.maximum) field.push(t('Value must be no more than {0}.', metadata.maximum));
     if ((metadata.kind === 'date' || metadata.kind === 'dateTime') && value != null && text.trim() !== '') {
       const time = value instanceof Date ? value.getTime() : Date.parse(text);
-      if (!Number.isFinite(time)) field.push('Enter a valid date.');
+      if (!Number.isFinite(time)) field.push(t('Enter a valid date.'));
       const minimum = metadata.minimum instanceof Date ? metadata.minimum.getTime() : typeof metadata.minimum === 'number' ? metadata.minimum : undefined;
       const maximum = metadata.maximum instanceof Date ? metadata.maximum.getTime() : typeof metadata.maximum === 'number' ? metadata.maximum : undefined;
-      if (minimum !== undefined && time < minimum) field.push(`Date must be on or after ${new Date(minimum).toISOString()}.`);
-      if (maximum !== undefined && time > maximum) field.push(`Date must be on or before ${new Date(maximum).toISOString()}.`);
+      if (minimum !== undefined && time < minimum) field.push(t('Date must be on or after {0}.', new Date(minimum).toISOString()));
+      if (maximum !== undefined && time > maximum) field.push(t('Date must be on or before {0}.', new Date(maximum).toISOString()));
     }
-    if ((metadata.kind === 'enum' || metadata.kind === 'lookup') && value != null && !metadata.options?.some((option) => !option.disabled && Object.is(option.value, value))) field.push('Select a valid option.');
+    if ((metadata.kind === 'enum' || metadata.kind === 'lookup') && value != null && !metadata.options?.some((option) => !option.disabled && Object.is(option.value, value))) field.push(t('Select a valid option.'));
     if (field.length) errors[column.fieldId] = field;
   }
   return errors;

@@ -1,3 +1,4 @@
+import { useUiLabels } from '../UiText/uiLabels';
 import {
   forwardRef,
   useEffect,
@@ -184,7 +185,7 @@ function CgDateEditInner(
   const isControlled = value !== undefined;
   const openControlled = open !== undefined;
   const localeIsArabic = new Intl.Locale(resolvedLocale).language === 'ar';
-  const resolvedLabels = { ...(localeIsArabic ? ARABIC_LABELS : ENGLISH_LABELS), ...labels };
+  const resolvedLabels = useUiLabels(localeIsArabic ? ARABIC_LABELS : ENGLISH_LABELS, labels, !localeIsArabic);
   const effectiveFirstDay = firstDayOfWeek === undefined ? localeFirstDayOfWeek(resolvedLocale) : dayOfWeekIndex(firstDayOfWeek);
   if (effectiveFirstDay < 0) throw new Error('CgDateEdit firstDayOfWeek must be a valid day name.');
 

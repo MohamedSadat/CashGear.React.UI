@@ -1,3 +1,4 @@
+import { useCgUiText } from '../UiText';
 import { forwardRef, useRef } from 'react';
 import type { CSSProperties, KeyboardEvent, MouseEvent, PointerEvent } from 'react';
 import { useControllableState, useDirection, useMergedRefs } from '../../hooks';
@@ -25,9 +26,12 @@ function preventFocusLoss(event: MouseEvent<HTMLElement>) {
 }
 
 export const CgSlider = forwardRef<HTMLDivElement, CgSliderProps>(function CgSlider(
-  { value, defaultValue, min = 0, max = 100, step = 1, onValueChange, onValueCommit, disabled, size = 'medium', direction = 'auto', ariaLabel, formatValue, marks, showSteppers = false, stepperStep, decreaseLabel = 'Decrease', increaseLabel = 'Increase', className, style, 'aria-label': nativeAriaLabel, 'aria-labelledby': ariaLabelledBy, 'aria-describedby': ariaDescribedBy, ...nativeProps },
+  { value, defaultValue, min = 0, max = 100, step = 1, onValueChange, onValueCommit, disabled, size = 'medium', direction = 'auto', ariaLabel, formatValue, marks, showSteppers = false, stepperStep, decreaseLabel: decreaseLabelProp, increaseLabel: increaseLabelProp, className, style, 'aria-label': nativeAriaLabel, 'aria-labelledby': ariaLabelledBy, 'aria-describedby': ariaDescribedBy, ...nativeProps },
   forwardedRef,
 ) {
+  const uiText = useCgUiText();
+  const decreaseLabel = decreaseLabelProp ?? uiText.translate('Decrease');
+  const increaseLabel = increaseLabelProp ?? uiText.translate('Increase');
   assertFinite('min', min);
   assertFinite('max', max);
   assertFinite('value', value);

@@ -1,3 +1,4 @@
+import { useCgUiText } from '../UiText';
 import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from 'react';
 import type { ForwardedRef, ReactElement, RefAttributes } from 'react';
 import { useCgId, useControllableState, useDirection } from '../../hooks';
@@ -26,7 +27,7 @@ function CgDropDownButtonInner<TData>(
     direction = 'auto',
     closeOnItemClick = true,
     zIndex,
-    menuAriaLabel = 'Button menu',
+    menuAriaLabel: menuAriaLabelProp,
     onItemClick,
     onItemError,
     actionsRef,
@@ -36,6 +37,8 @@ function CgDropDownButtonInner<TData>(
   }: CgDropDownButtonProps<TData>,
   forwardedRef: ForwardedRef<HTMLButtonElement>,
 ) {
+  const uiText = useCgUiText();
+  const menuAriaLabel = menuAriaLabelProp ?? uiText.translate('Button menu');
   const rootRef = useRef<HTMLSpanElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [actualOpen, setActualOpen] = useControllableState(open, defaultOpen, 'CgDropDownButton open');

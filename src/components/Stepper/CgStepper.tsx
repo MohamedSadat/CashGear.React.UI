@@ -1,4 +1,5 @@
 /* eslint-disable react-hooks/refs -- refs hold transition and keyed collection snapshots, not visual state. */
+import { useUiLabels } from '../UiText/uiLabels';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import type { ForwardedRef, KeyboardEvent, MouseEvent, ReactElement, RefAttributes } from 'react';
 import { useAsyncOperation, useCgId, useControllableState, useDirection, useMergedRefs, useStableCallback } from '../../hooks';
@@ -62,6 +63,7 @@ function CgStepperInner<TData>(
   const mergedRef = useMergedRefs(rootRef, forwardedRef);
   const resolvedDirection = useDirection(rootRef, direction);
   const rootId = useCgId(nativeProps.id);
+  const mergedLabels = useUiLabels(DEFAULT_LABELS, labels);
   const elements = useRef(new Map<string, HTMLButtonElement>());
   const stepsRef = useRef(steps);
   stepsRef.current = steps;
@@ -196,7 +198,6 @@ function CgStepperInner<TData>(
   };
 
   if (steps.length === 0) return emptyContent === undefined ? null : <>{emptyContent}</>;
-  const mergedLabels = { ...DEFAULT_LABELS, ...labels };
   const buttonId = (key: string) => `${rootId}-step-${stableKeyToken(key)}`;
   const activeStep = effectiveIndex >= 0 ? steps[effectiveIndex] : undefined;
   return <>

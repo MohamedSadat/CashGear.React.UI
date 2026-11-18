@@ -1,3 +1,4 @@
+import { useUiLabels } from '../UiText/uiLabels';
 import { useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
 import type { CgDayOfWeek } from '../../types/date';
@@ -42,7 +43,7 @@ export function CgScheduler<TItem>(props: CgSchedulerProps<TItem>) {
   const effectiveResources = resources.filter(resource => !resource.isGroup && visibleResourceIds.includes(resource.id));
   const group = props.groupType ?? 'none';
   if (!['none', 'resource', 'date'].includes(group)) throw new Error('Invalid Scheduler groupType.');
-  const labels = { ...(locale.startsWith('ar') ? arabic : english), ...props.labels };
+  const labels = useUiLabels(locale.startsWith('ar') ? arabic : english, props.labels, !locale.startsWith('ar'));
   const clock = props.now ?? systemNow;
   const [now, setNow] = useState(() => instant(clock()));
   // Synchronize an externally supplied clock and its timer subscription.

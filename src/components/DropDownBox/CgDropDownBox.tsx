@@ -1,3 +1,4 @@
+import { useCgUiText } from '../UiText';
 import {
   forwardRef,
   useCallback,
@@ -99,13 +100,13 @@ function CgDropDownBoxInner<TValue>(
     loading = false,
     empty = false,
     error,
-    loadingMessage = 'Loading…',
-    emptyMessage = 'No content',
+    loadingMessage: loadingMessageProp,
+    emptyMessage: emptyMessageProp,
     errorMessage = 'Unable to load content.',
     buttons = [],
     clearable = false,
-    clearAriaLabel = 'Clear value',
-    toggleAriaLabel = 'Toggle dropdown',
+    clearAriaLabel: clearAriaLabelProp,
+    toggleAriaLabel: toggleAriaLabelProp,
     onClear,
     placement = 'bottom-start',
     dropDownWidthMode = 'editor',
@@ -119,7 +120,7 @@ function CgDropDownBoxInner<TValue>(
     scrollable = true,
     popupClassName,
     popupStyle,
-    popupAriaLabel = 'Dropdown content',
+    popupAriaLabel: popupAriaLabelProp,
     actionsRef,
     serializeValue,
     name,
@@ -150,6 +151,12 @@ function CgDropDownBoxInner<TValue>(
   }: CgDropDownBoxProps<TValue>,
   forwardedRef: React.ForwardedRef<HTMLInputElement>,
 ) {
+  const uiText = useCgUiText();
+  const loadingMessage = loadingMessageProp ?? uiText.translate('Loading…');
+  const emptyMessage = emptyMessageProp ?? uiText.translate('No content');
+  const clearAriaLabel = clearAriaLabelProp ?? uiText.translate('Clear value');
+  const toggleAriaLabel = toggleAriaLabelProp ?? uiText.translate('Toggle dropdown');
+  const popupAriaLabel = popupAriaLabelProp ?? uiText.translate('Dropdown content');
   if (dropDownWidthMode === 'explicit' && dropDownWidth === undefined) {
     throw new Error('CgDropDownBox requires dropDownWidth when dropDownWidthMode is explicit.');
   }

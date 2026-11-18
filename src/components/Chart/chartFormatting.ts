@@ -1,3 +1,5 @@
+import type { CgUiText } from '../UiText';
+import { mergeUiLabels } from '../UiText/uiLabels';
 import type {
   CgChartArgumentAxisDescriptor,
   CgChartNumericValue,
@@ -44,7 +46,8 @@ export const DEFAULT_CHART_STRINGS: CgChartStrings = Object.freeze({
   keyboardInstructions: 'Use the left and right arrow keys to move between data points, up and down to change series, Enter or Space to activate, and Escape to dismiss the tooltip.',
 });
 
-export function resolveChartStrings(overrides?: Partial<CgChartStrings>): CgChartStrings {
+export function resolveChartStrings(overrides?: Partial<CgChartStrings>, uiText?: CgUiText): CgChartStrings {
+  if (uiText) return Object.freeze(mergeUiLabels(DEFAULT_CHART_STRINGS, uiText, overrides));
   return Object.freeze({ ...DEFAULT_CHART_STRINGS, ...overrides });
 }
 

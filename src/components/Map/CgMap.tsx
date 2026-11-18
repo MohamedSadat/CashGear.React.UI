@@ -1,4 +1,6 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { useCgUiText } from '../UiText';
+import { useUiLabels } from '../UiText/uiLabels';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { useControllableState, useMergedRefs } from '../../hooks';
 import { cx } from '../../utils';
 import { CgButton } from '../Button';
@@ -31,16 +33,18 @@ export const CgMap = forwardRef<HTMLDivElement, CgMapProps>(function CgMap({
   onReady,
   onError,
   height = '400px',
-  ariaLabel = 'Map',
+  ariaLabel: ariaLabelProp,
   labels,
   actionsRef,
   className,
   style,
   ...nativeProps
 }, forwardedRef) {
+  const uiText = useCgUiText();
+  const ariaLabel = ariaLabelProp ?? uiText.translate('Map');
   const [viewport, setViewport] = useControllableState(controlledViewport, defaultViewport, 'CgMap');
   validateMapProps(viewport, tileLayer, markers, polylines, height);
-  const text = useMemo(() => ({ ...DEFAULT_LABELS, ...labels }), [labels]);
+  const text = useUiLabels(DEFAULT_LABELS, labels);
   const rootRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<MapEngine | null>(null);

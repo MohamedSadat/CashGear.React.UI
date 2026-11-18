@@ -1,5 +1,6 @@
+import { useUiLabels } from '../UiText/uiLabels';
 import {
-  useEffect, useId, useImperativeHandle, useMemo, useRef, useState,
+  useEffect, useId, useImperativeHandle, useRef, useState,
 } from 'react';
 import type { KeyboardEvent } from 'react';
 import { CgButton } from '../Button';
@@ -93,7 +94,7 @@ export function CgPager({
   style,
   'data-testid': testId,
 }: CgPagerProps) {
-  const labels = useMemo(() => ({ ...DEFAULT_LABELS, ...labelOverrides }), [labelOverrides]);
+  const labels = useUiLabels(DEFAULT_LABELS, labelOverrides);
   const controlledPage = pageIndex !== undefined;
   const controlledSize = pageSize !== undefined;
   const [ownedPageIndex, setOwnedPageIndex] = useState(defaultPageIndex);

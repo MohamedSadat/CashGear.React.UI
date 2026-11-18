@@ -1,3 +1,4 @@
+import { useCgUiText } from '../UiText';
 import { forwardRef } from 'react';
 import { WaitVisual } from '../../internal/WaitVisual';
 import { cx } from '../../utils';
@@ -5,9 +6,11 @@ import type { CgWaitIndicatorProps } from './CgWaitIndicator.types';
 import styles from './CgWaitIndicator.module.css';
 
 export const CgWaitIndicator = forwardRef<HTMLSpanElement, CgWaitIndicatorProps>(function CgWaitIndicator(
-  { visible = true, animation = 'spinner', size = 'medium', decorative = false, ariaLabel = 'Loading', children, className, style, ...nativeProps },
+  { visible = true, animation = 'spinner', size = 'medium', decorative = false, ariaLabel: ariaLabelProp, children, className, style, ...nativeProps },
   ref,
 ) {
+  const uiText = useCgUiText();
+  const ariaLabel = ariaLabelProp ?? uiText.translate('Loading');
   if (!['spinner', 'dots', 'pulse'].includes(animation)) throw new RangeError('CgWaitIndicator animation is invalid.');
   if (!['small', 'medium', 'large'].includes(size)) throw new RangeError('CgWaitIndicator size is invalid.');
   if (!visible) return null;

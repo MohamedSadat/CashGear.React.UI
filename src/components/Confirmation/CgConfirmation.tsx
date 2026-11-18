@@ -1,3 +1,4 @@
+import { useCgUiText } from '../UiText';
 import { createContext, isValidElement, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CgButton } from '../Button';
 import { CgPopup } from '../Popup';
@@ -42,6 +43,7 @@ function focusableInteractionTarget(target: EventTarget | null | undefined): HTM
 }
 
 export function CgConfirmationProvider({ children, defaults, alertDefaults, subscribeToNavigation }: CgConfirmationProviderProps) {
+  const uiText = useCgUiText();
   const queueRef = useRef<ConfirmationRequest[]>([]);
   const sequenceRef = useRef(0);
   const popupActionsRef = useRef<CgPopupActions>(null);
@@ -87,8 +89,8 @@ export function CgConfirmationProvider({ children, defaults, alertDefaults, subs
     if (supplied.signal?.aborted) return Promise.reject(abortError());
     const resolved: ConfirmationRequest['options'] = {
       ...defaults, ...supplied,
-      confirmLabel: supplied.confirmLabel ?? defaults?.confirmLabel ?? 'Confirm',
-      cancelLabel: supplied.cancelLabel ?? defaults?.cancelLabel ?? 'Cancel',
+      confirmLabel: supplied.confirmLabel ?? defaults?.confirmLabel ?? uiText.translate('Confirm'),
+      cancelLabel: supplied.cancelLabel ?? defaults?.cancelLabel ?? uiText.translate('Cancel'),
       confirmIntent: supplied.confirmIntent ?? defaults?.confirmIntent ?? 'primary',
       cancelIntent: supplied.cancelIntent ?? defaults?.cancelIntent ?? 'secondary',
       confirmAppearance: supplied.confirmAppearance ?? defaults?.confirmAppearance ?? 'solid',
@@ -118,7 +120,7 @@ export function CgConfirmationProvider({ children, defaults, alertDefaults, subs
       pendingFocusRef.current = null;
       queueRef.current.push(request); if (mountedRef.current) setCurrent((active) => active ?? request);
     });
-  }) as CgConfirmationConfirm, [defaults, settle]);
+  }) as CgConfirmationConfirm, [defaults, settle, uiText]);
 
   const alert = useMemo<CgMessageBoxAlert>(() => ((messageOrOptions: React.ReactNode | CgMessageBoxOptions, title?: React.ReactNode): Promise<void> => {
     if (!mountedRef.current) return Promise.reject(new Error('CgConfirmationProvider is no longer mounted.'));
@@ -127,8 +129,8 @@ export function CgConfirmationProvider({ children, defaults, alertDefaults, subs
     if (supplied.signal?.aborted) return Promise.reject(abortError());
     const resolved: ConfirmationRequest['options'] = {
       content: supplied.content,
-      title: supplied.title ?? alertDefaults?.title ?? 'Message',
-      confirmLabel: supplied.actionLabel ?? alertDefaults?.actionLabel ?? 'OK',
+      title: supplied.title ?? alertDefaults?.title ?? uiText.translate('Message'),
+      confirmLabel: supplied.actionLabel ?? alertDefaults?.actionLabel ?? uiText.translate('OK'),
       cancelLabel: '',
       confirmIntent: supplied.actionIntent ?? alertDefaults?.actionIntent ?? 'primary',
       cancelIntent: 'secondary',
@@ -172,7 +174,7 @@ export function CgConfirmationProvider({ children, defaults, alertDefaults, subs
       queueRef.current.push(request);
       if (mountedRef.current) setCurrent((active) => active ?? request);
     });
-  }) as CgMessageBoxAlert, [alertDefaults, settle]);
+  }) as CgMessageBoxAlert, [alertDefaults, settle, uiText]);
 
   const api = useMemo<CgConfirmationApi>(() => ({ confirm, alert }), [alert, confirm]);
   useLayoutEffect(() => {
@@ -219,7 +221,7 @@ export function CgConfirmationProvider({ children, defaults, alertDefaults, subs
   const options = current?.options;
   const messageId = current ? `cg-confirmation-message-${current.id}` : undefined;
   return <ConfirmationContext.Provider value={api}>{children}<CgPopup
-    open={Boolean(current)} actionsRef={popupActionsRef} role="alertdialog" header={options?.title ?? defaults?.title ?? 'Confirm'}
+    open={Boolean(current)} actionsRef={popupActionsRef} role="alertdialog" header={options?.title ?? defaults?.title ?? uiText.translate('Confirm')}
     showHeader showFooter showCloseButton={options?.showCloseButton ?? true} closeButtonAriaLabel={options?.closeButtonAriaLabel} closeOnEscape={options?.closeOnEscape ?? true}
     closeOnOutsideClick={options?.closeOnOutsideClick ?? false} width={options?.width ?? '420px'} className={cx(styles.popup, options?.className)}
     aria-describedby={messageId} contentLoadMode="fromMount"

@@ -1,3 +1,4 @@
+import { useCgUiText } from '../UiText';
 import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from 'react';
 import type { ForwardedRef, ReactElement, RefAttributes } from 'react';
 import { useCgId, useControllableState, useDirection } from '../../hooks';
@@ -27,12 +28,12 @@ function CgSplitButtonInner<TData>(
     direction = 'auto',
     closeOnItemClick = true,
     zIndex,
-    menuAriaLabel = 'Button menu',
+    menuAriaLabel: menuAriaLabelProp,
     onItemClick,
     onItemError,
     actionsRef,
     togglePosition = 'end',
-    toggleAriaLabel = 'Open menu',
+    toggleAriaLabel: toggleAriaLabelProp,
     toggleTabIndex,
     disabled = false,
     children,
@@ -40,6 +41,9 @@ function CgSplitButtonInner<TData>(
   }: CgSplitButtonProps<TData>,
   forwardedRef: ForwardedRef<HTMLButtonElement>,
 ) {
+  const uiText = useCgUiText();
+  const menuAriaLabel = menuAriaLabelProp ?? uiText.translate('Button menu');
+  const toggleAriaLabel = toggleAriaLabelProp ?? uiText.translate('Open menu');
   const rootRef = useRef<HTMLSpanElement>(null);
   const primaryRef = useRef<HTMLButtonElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);

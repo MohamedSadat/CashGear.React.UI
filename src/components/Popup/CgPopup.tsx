@@ -1,3 +1,4 @@
+import { useCgUiText } from '../UiText';
 import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { useControllableState, useMergedRefs, useStableCallback } from '../../hooks';
 import {
@@ -57,7 +58,7 @@ export const CgPopup = forwardRef<HTMLDivElement, CgPopupProps>(function CgPopup
     showHeader = true,
     showFooter,
     showCloseButton = true,
-    closeButtonAriaLabel = 'Close',
+    closeButtonAriaLabel: closeButtonAriaLabelProp,
     contentLoadMode = 'everyOpen',
     role = 'dialog',
     size = 'medium',
@@ -95,6 +96,8 @@ export const CgPopup = forwardRef<HTMLDivElement, CgPopupProps>(function CgPopup
   },
   forwardedRef,
 ) {
+  const uiText = useCgUiText();
+  const closeButtonAriaLabel = closeButtonAriaLabelProp ?? uiText.translate('Close');
   assertPoint('position', position);
   assertPoint('defaultPosition', defaultPosition);
   const markerRef = useRef<HTMLSpanElement>(null);

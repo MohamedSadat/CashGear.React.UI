@@ -288,7 +288,18 @@ export type CgGridContextMenuArea = 'row' | 'cell' | 'header' | 'footer' | 'grou
 export type CgGridContextMenuSelectionBehavior = 'preserve' | 'focus' | 'selectIfNeeded' | 'replace';
 export interface CgGridContext<TItem> { readonly area: CgGridContextMenuArea; readonly item?: TItem; readonly rowKey?: string; readonly column?: CgGridColumnDescriptor<TItem>; readonly value?: unknown; readonly groupKey?: string; readonly actions: CgGridActions<TItem> }
 
-export interface CgGridLabels { searchPlaceholder: string; loading: string; empty: string; loadError: string; refreshError: string; retry: string; rowsPerPage: string; records: string; add: string; edit: string; delete: string; save: string; cancel: string; columns: string; groupPanel: string; loadMore: string; summaryUnavailable: string; activeFilters: string; editFilters: string; suspendFilters: string; resumeFilters: string; clearFilters: string }
+export interface CgGridLabels {
+  searchPlaceholder: string; loading: string; empty: string; loadError: string; refreshError: string; retry: string; rowsPerPage: string; records: string; add: string; edit: string; delete: string; save: string; cancel: string; columns: string; groupPanel: string; loadMore: string; summaryUnavailable: string; activeFilters: string; editFilters: string; suspendFilters: string; resumeFilters: string; clearFilters: string;
+  /** The grid's accessible name when `aria-label` is not passed. */
+  gridAriaLabel: string; pagerAriaLabel: string; pageStatus: string; groupPanelAriaLabel: string; selectVisibleAriaLabel: string; selectRowAriaLabel: string; filterAriaLabel: string; filterAll: string; filterTrue: string; filterFalse: string;
+  /** Popup titles for a new row and an existing row. */
+  createPopupTitle: string; editPopupTitle: string;
+  columnChooserSearchPlaceholder: string; showAllColumns: string; hideAllColumns: string; resetColumns: string;
+  /** Context menu commands. */
+  sortAscending: string; sortDescending: string; groupByColumn: string; ungroup: string; hideColumn: string; autoFitColumn: string; selectRow: string; deselectRow: string; exportToJson: string; exportToExcel: string; refresh: string;
+  /** View manager. */
+  views: string; viewsTitle: string; view: string; viewName: string; viewScope: string; viewRole: string; systemDefaultView: string; personalView: string; roleView: string; companyView: string; saveNewView: string; updateView: string; makeDefaultView: string; deleteView: string; resetSystemView: string;
+}
 export interface CgGridTableStyleLabels { title: string; options: string; color: string; intensity: string; banding: string; borders: string; density: string; coloredHeader: string; emphasizeFirstColumn: string; emphasizeLastColumn: string; emphasizeTotals: string; reset: string; close: string; savedViewHint: string; temporaryHint: string; blue: string; green: string; teal: string; gray: string; orange: string; purple: string; light: string; medium: string; dark: string; none: string; rows: string; columns: string; horizontal: string; all: string; compact: string; normal: string; comfortable: string; presets: string }
 
 export interface CgGridActions<TItem> {
@@ -374,5 +385,9 @@ interface CgGridCommonProps<TItem> extends NativeGridProps {
   renderLoading?: () => ReactNode; renderEmpty?: () => ReactNode; renderError?: (details: CgGridDataErrorDetails) => ReactNode;
   stickyHeader?: boolean; stripedRows?: boolean; height?: CSSProperties['height']; size?: CgSizeMode; direction?: CgDirection; labels?: Partial<CgGridLabels>; actionsRef?: Ref<CgGridActions<TItem>>;
   allowTableStyling?: boolean; tableStyleLabels?: Partial<CgGridTableStyleLabels>;
+  /** Width of the popup edit form. Defaults to `min(36rem, 94vw)`. */
+  editPopupWidth?: CSSProperties['width'];
+  /** Maximum height of the popup edit form. Defaults to `min(44rem, 92vh)`. */
+  editPopupMaxHeight?: CSSProperties['maxHeight'];
 }
 export type CgGridProps<TItem> = CgGridCommonProps<TItem> & ({ readonly data: ReadonlyArray<TItem>; readonly dataProvider?: never } | { readonly data?: never; readonly dataProvider: CgGridDataProvider<TItem> });

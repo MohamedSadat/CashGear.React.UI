@@ -1,3 +1,4 @@
+import { useCgUiText } from '../UiText';
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useControllableState, useFormReset, useMergedRefs } from '../../hooks';
 import type { CgEditorButtonDescriptor } from '../../types';
@@ -9,9 +10,12 @@ import { CgNumericEditCore } from '../NumericEdit/CgNumericEdit';
 import type { CgSpinEditProps } from './CgSpinEdit.types';
 
 export const CgSpinEdit = forwardRef<HTMLInputElement, CgSpinEditProps>(function CgSpinEdit(
-  { enableKeyboardStepping = true, roundingMode, value, defaultValue = null, onValueChange, onChange, step = 1, pageStep, min, max, precision, locale, formatStyle = 'decimal', currency, useGrouping = true, disabled, readOnly, allowExpressions = false, updateValueOnInput = false, showSpinButtons = true, inputMode, incrementAriaLabel = 'Increase value', decrementAriaLabel = 'Decrease value', repeatOnHold = true, onKeyDown, ...props },
+  { enableKeyboardStepping = true, roundingMode, value, defaultValue = null, onValueChange, onChange, step = 1, pageStep, min, max, precision, locale, formatStyle = 'decimal', currency, useGrouping = true, disabled, readOnly, allowExpressions = false, updateValueOnInput = false, showSpinButtons = true, inputMode, incrementAriaLabel: incrementAriaLabelProp, decrementAriaLabel: decrementAriaLabelProp, repeatOnHold = true, onKeyDown, ...props },
   ref,
 ) {
+  const uiText = useCgUiText();
+  const incrementAriaLabel = incrementAriaLabelProp ?? uiText.translate('Increase value');
+  const decrementAriaLabel = decrementAriaLabelProp ?? uiText.translate('Decrease value');
   assertPositive('step', step);
   if (pageStep !== undefined) assertPositive('pageStep', pageStep);
   const [current, setCurrent] = useControllableState(value, defaultValue, 'CgSpinEdit');

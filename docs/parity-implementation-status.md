@@ -334,3 +334,18 @@ Pushed in `ab467b7` and `f66cb07`: `CgSelect`; `CgFilePicker` `directory`; `CgOp
 | New semantic and Axe cases | Follow-ups 10, sidebar and calendar 8, kanban columns 5, per engine: all passed in Chromium and WebKit, as did the earlier kanban, tree and calendar specs rerun with them. |
 | Package verification | Passed: 244 runtime exports and 2,789 packed files. |
 
+
+## Blazor-only features (2026-11-18)
+
+A research pass on 2026-11-18 compared Blazor `CashGear.Blazor.UI` (assistoWebApp, after `7db46710`) with this library and found 25 features Blazor gained after the `aea3e622` pin, or that were never ported. No component was missing. Each phase below ports one group in React idioms and is one commit on `claude/cashgear-react-ui-library-xq8tsz`.
+
+### R0: built-in text provider
+
+Blazor `Foundation/Localization/ICgUiText.cs` and `CgUiLabels.cs`. Added `CgUiTextProvider` (`translate(english) => string`) and `useCgUiText()`; without a provider text is unchanged. Every component with built-in English now sends its defaults through it: the label objects of Accordion, BorderPicker, Calendar, Chart, ColorPicker, DateEdit, DateRangePicker, FileUploader, FilterBuilder, Grid (and its table style picker), LookUpGrid, Map, Pager, PdfViewer, PivotFieldList, PivotTable, Ribbon, RichTextEditor, Scheduler, Stepper, Tabs, TimeEdit, TreeList and TreeView, the single-string defaults of 27 more (Popup and Window close buttons, ListBox, TagBox, DropDownBox, SearchBox, TextBox, Toolbar, Toast and others), Confirmation and MessageBox defaults, and Grid's editor validation messages. Labels passed as props are never translated, even when they equal the English text. Locale-driven Arabic label sets are used unchanged. ComboBox is left out until R8 because its files carry another session's uncommitted work; Phase 37 components keep their required labels.
+
+Hard-coded English became label props with the old text as default: Grid's context menu, `createPopupTitle`/`editPopupTitle`, the column chooser, filter row, legacy pager summary (`pageStatus`), `groupPanelAriaLabel` and the whole view manager; Grid `editPopupWidth`/`editPopupMaxHeight`; FilterBuilder's row editor names and placeholder options; TreeList `retryConflict`/`printTitle`; Toast provider `regionAriaLabel`.
+
+| Gate | Recorded result |
+| --- | --- |
+| Typecheck, lint | Passed. |
+| Full unit suite | 1,293 of 1,294 passed with two workers; the one failure was the public API list, edited while the run was in progress, and passed on rerun with the new `tests/ui-text.test.tsx` (10 cases) and the Grid suite. |

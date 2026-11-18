@@ -1,3 +1,5 @@
+import { useCgUiText } from '../UiText';
+import { useUiLabels } from '../UiText/uiLabels';
 import { forwardRef, useMemo, useRef } from 'react';
 import { useControllableState, useDirection, useMergedRefs } from '../../hooks';
 import { useRovingGrid } from '../../internal/rovingGrid';
@@ -8,7 +10,7 @@ import type { CgColorPickerValue } from '../ColorPicker';
 import { CgDropDownButton } from '../DropDownButton';
 import { CgIcon } from '../Icon';
 import styles from './CgBorderPicker.module.css';
-import type { CgBorderEdge, CgBorderLineStyle, CgBorderPickerProps, CgBorderPresetKey } from './CgBorderPicker.types';
+import type { CgBorderEdge, CgBorderLineStyle, CgBorderPickerLabels, CgBorderPickerProps, CgBorderPresetKey } from './CgBorderPicker.types';
 
 interface PresetDefinition {
   readonly icon: CgIconName;
@@ -62,6 +64,8 @@ function chunk<T>(items: ReadonlyArray<T>, size: number): ReadonlyArray<Readonly
   return rows;
 }
 
+const DEFAULT_BORDER_PICKER_LABELS: CgBorderPickerLabels = { picker: 'Border picker', presets: 'Borders', lineStyle: 'Line style', lineColor: 'Line color', presetNames: {}, lineStyleNames: {} };
+
 export const CgBorderPicker = forwardRef<HTMLDivElement, CgBorderPickerProps>(function CgBorderPicker(
   { onApply, presets = ALL_PRESETS, activePreset, lineStyle, defaultLineStyle = 'thin', onLineStyleChange, lineStyles = ALL_LINE_STYLES, color, defaultColor = AUTOMATIC, onColorChange, colorPicker, disabled = false, direction = 'auto', labels, className, 'aria-label': nativeAriaLabel, ...nativeProps },
   forwardedRef,
@@ -89,9 +93,10 @@ export const CgBorderPicker = forwardRef<HTMLDivElement, CgBorderPickerProps>(fu
   const presetGrid = useRovingGrid(presetKeyRows, activePreset ?? undefined, resolvedDirection);
   const lineGrid = useRovingGrid(lineKeyRows, currentLineStyle, resolvedDirection);
 
-  const text = { picker: 'Border picker', presets: 'Borders', lineStyle: 'Line style', lineColor: 'Line color', ...labels };
-  const presetName = (key: CgBorderPresetKey) => text.presetNames?.[key] ?? PRESETS[key].text;
-  const lineStyleName = (key: CgBorderLineStyle) => text.lineStyleNames?.[key] ?? LINE_STYLE_NAMES[key];
+  const uiText = useCgUiText();
+  const text = useUiLabels(DEFAULT_BORDER_PICKER_LABELS, labels);
+  const presetName = (key: CgBorderPresetKey) => text.presetNames?.[key] ?? uiText.translate(PRESETS[key].text);
+  const lineStyleName = (key: CgBorderLineStyle) => text.lineStyleNames?.[key] ?? uiText.translate(LINE_STYLE_NAMES[key]);
   const accent = currentColor.kind === 'none' ? 'transparent' : currentColor.kind === 'automatic' ? 'currentColor' : currentColor.color;
 
   const chooseLineStyle = (key: CgBorderLineStyle) => {

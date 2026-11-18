@@ -1,3 +1,5 @@
+import { useCgUiText } from '../UiText';
+import { mergeUiLabels } from '../UiText/uiLabels';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useCgId, useDirection, useFormReset, useMergedRefs, useStableCallback } from '../../hooks';
@@ -75,7 +77,7 @@ export const CgRichTextEditor = forwardRef<HTMLDivElement, CgRichTextEditorProps
   showStatusBar = true,
   direction = 'auto',
   inputId,
-  ariaLabel = 'Rich text editor',
+  ariaLabel: ariaLabelProp,
   ariaLabelledBy,
   ariaDescribedBy,
   name,
@@ -89,14 +91,15 @@ export const CgRichTextEditor = forwardRef<HTMLDivElement, CgRichTextEditorProps
   style,
   ...nativeProps
 }, forwardedRef) {
+  const uiText = useCgUiText();
+  const ariaLabel = ariaLabelProp ?? uiText.translate('Rich text editor');
   if (!Number.isInteger(inputDelay) || inputDelay < 0) throw new RangeError('CgRichTextEditor inputDelay must be a nonnegative integer.');
   if (typeof height === 'string' && (!height.trim() || /[;{}]/u.test(height))) throw new Error('CgRichTextEditor height must be one CSS length.');
 
   const text = useMemo(() => ({
-    ...DEFAULT_LABELS,
-    ...labels,
-    commandLabels: { ...COMMAND_LABELS, ...labels?.commandLabels },
-  }), [labels]);
+    ...mergeUiLabels(DEFAULT_LABELS, uiText, labels as Partial<CgRichTextEditorLabels> | undefined),
+    commandLabels: mergeUiLabels(COMMAND_LABELS, uiText, labels?.commandLabels),
+  }), [labels, uiText]);
   const generatedInputId = useCgId(inputId);
   const initialValue = useRef(normalize(value === undefined ? defaultValue : value));
   const [uncontrolledValue, setUncontrolledValue] = useState(initialValue.current);

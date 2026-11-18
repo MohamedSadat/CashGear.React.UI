@@ -1,4 +1,5 @@
 /* eslint-disable react-hooks/refs -- refs coordinate exact preview state, pointer generations, and imperative actions without driving renders. */
+import { useCgUiText } from '../UiText';
 import {
   forwardRef,
   useEffect,
@@ -139,8 +140,8 @@ function RangeSelectorImplementation(rawProps: CgRangeSelectorProps, forwardedRe
     markerCount = 5,
     showLabels = true,
     formatValue,
-    startHandleAriaLabel = 'Start value',
-    endHandleAriaLabel = 'End value',
+    startHandleAriaLabel: startHandleAriaLabelProp,
+    endHandleAriaLabel: endHandleAriaLabelProp,
     renderChart,
     onRangeChanging: _onRangeChanging,
     onValueChange: _onValueChange,
@@ -155,6 +156,9 @@ function RangeSelectorImplementation(rawProps: CgRangeSelectorProps, forwardedRe
     onKeyDown: consumerKeyDown,
     ...nativeProps
   } = props;
+  const uiText = useCgUiText();
+  const startHandleAriaLabel = startHandleAriaLabelProp ?? uiText.translate('Start value');
+  const endHandleAriaLabel = endHandleAriaLabelProp ?? uiText.translate('End value');
 
   if (!SIZES.includes(size)) throw new Error(`CgRangeSelector size "${String(size)}" is invalid.`);
   if (!Number.isInteger(markerCount) || markerCount < 2) throw new RangeError('CgRangeSelector markerCount must be an integer of at least two.');

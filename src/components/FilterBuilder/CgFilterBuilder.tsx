@@ -1,3 +1,5 @@
+import { useCgUiText } from '../UiText';
+import { useUiLabels } from '../UiText/uiLabels';
 import {
   useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState,
 } from 'react';
@@ -30,6 +32,9 @@ const DEFAULT_LABELS: CgFilterBuilderLabels = Object.freeze({
   secondValue: 'Second value', addCondition: 'Add condition', addGroup: 'Add group', addAggregate: 'Add collection condition',
   duplicate: 'Duplicate', remove: 'Remove', moveUp: 'Move up', moveDown: 'Move down', negate: 'Negate group',
   collapse: 'Collapse group', expand: 'Expand group', apply: 'Apply', cancel: 'Cancel', clear: 'Clear', reset: 'Reset', applying: 'Applying…',
+  aggregate: 'Aggregate', aggregateField: 'Aggregate field', groupLogic: 'Group logic', allConditions: 'All conditions', anyCondition: 'Any condition',
+  selectField: 'Select field', selectComparison: 'Select comparison', selectValue: 'Select value', selectPeriod: 'Select period', selectCollection: 'Select collection',
+  selectAggregateField: 'Select aggregate field', yes: 'Yes', no: 'No', cannotApply: 'The filter cannot be applied.',
 });
 
 const PERIOD_LABELS: Readonly<Record<string, string>> = Object.freeze({
@@ -78,7 +83,8 @@ export function CgFilterBuilder<TItem>({
   'data-testid': testId,
 }: CgFilterBuilderProps<TItem>) {
   if (!Number.isFinite(debounceMs) || debounceMs < 0) throw new Error('CgFilterBuilder debounceMs must be zero or greater.');
-  const labels = useMemo(() => ({ ...DEFAULT_LABELS, ...labelOverrides }), [labelOverrides]);
+  const uiText = useCgUiText();
+  const labels = useUiLabels(DEFAULT_LABELS, labelOverrides);
   const registry = useMemo(() => new CgFilterFieldRegistry(fieldDescriptors), [fieldDescriptors]);
   const visibleFields = useMemo(() => registry.all.filter((field) => field.visible !== false && (!isFieldAuthorized || isFieldAuthorized(field))), [isFieldAuthorized, registry]);
   const scalarFields = useMemo(() => visibleFields.filter((field) => field.kind !== 'collection'), [visibleFields]);
@@ -125,7 +131,7 @@ export function CgFilterBuilder<TItem>({
   const apply = useCallback(async (reason: CgFilterBuilderApplyReason = 'action'): Promise<boolean> => {
     const current = projectionRef.current;
     if (!current.valid || disabled || readOnly) {
-      setAnnouncement(current.problems[0]?.message ?? 'The filter cannot be applied.');
+      setAnnouncement(current.problems[0]?.message ?? labels.cannotApply);
       return false;
     }
     abortRef.current?.abort();
@@ -153,7 +159,7 @@ export function CgFilterBuilder<TItem>({
         setApplying(false);
       }
     }
-  }, [controlled, disabled, onApply, onApplyError, onCriteriaChange, readOnly]);
+  }, [controlled, disabled, labels.cannotApply, onApply, onApplyError, onCriteriaChange, readOnly]);
 
   useEffect(() => {
     if (applyMode === 'explicit' || !edited.current || !dirty || !projection.valid) return;
@@ -211,7 +217,7 @@ export function CgFilterBuilder<TItem>({
     if (field.renderEditor) return field.renderEditor(context);
     if (renderEditor) return renderEditor(context);
     const value = values[index];
-    if (descriptor.editor === 'period') return <select className={styles.select} aria-label={labels.value} aria-describedby={errorId} value={value?.text ?? ''} disabled={blocked} onChange={(event) => setValue(createFilterValue('relativePeriod', event.target.value))}><option value="">Select period</option>{CG_FILTER_PERIODS.map((period) => <option key={period} value={period}>{PERIOD_LABELS[period]}</option>)}</select>;
+    if (descriptor.editor === 'period') return <select className={styles.select} aria-label={labels.value} aria-describedby={errorId} value={value?.text ?? ''} disabled={blocked} onChange={(event) => setValue(createFilterValue('relativePeriod', event.target.value))}><option value="">{labels.selectPeriod}</option>{CG_FILTER_PERIODS.map((period) => <option key={period} value={period}>{uiText.translate(PERIOD_LABELS[period] ?? period)}</option>)}</select>;
     if (descriptor.arity === 'many' && field.options) {
       const selected = field.options.filter((option) => values.some((candidate) => candidate.kind === option.value.kind && candidate.text === option.value.text));
       return <CgTagBox options={field.options} value={selected} getOptionKey={(option) => `${option.value.kind}:${option.value.text ?? ''}`} getOptionLabel={(option) => option.label} onValueChange={(options) => replaceRoot(updateEditable(root, node.id, (candidate) => candidate.kind === 'group' ? candidate : { ...candidate, values: options.map((option) => option.value) }))} disabled={blocked} size={size} fullWidth aria-label={labels.value} aria-describedby={errorId} />;
@@ -221,7 +227,7 @@ export function CgFilterBuilder<TItem>({
       const key = value ? `${value.kind}:${value.text ?? ''}` : null;
       return <CgKeyComboBox options={field.options} value={key} getOptionKey={(option) => `${option.value.kind}:${option.value.text ?? ''}`} getOptionLabel={(option) => option.label} onValueChange={(_key, details) => setValue(details.selectedItem?.value ?? createFilterValue('null'))} disabled={blocked} size={size} fullWidth aria-label={index === 0 ? labels.value : labels.secondValue} aria-describedby={errorId} />;
     }
-    if (field.kind === 'boolean') return <select className={styles.select} aria-label={index === 0 ? labels.value : labels.secondValue} aria-describedby={errorId} value={value?.text ?? ''} disabled={blocked} onChange={(event) => setValue(createFilterValue('boolean', event.target.value))}><option value="">Select value</option><option value="true">Yes</option><option value="false">No</option></select>;
+    if (field.kind === 'boolean') return <select className={styles.select} aria-label={index === 0 ? labels.value : labels.secondValue} aria-describedby={errorId} value={value?.text ?? ''} disabled={blocked} onChange={(event) => setValue(createFilterValue('boolean', event.target.value))}><option value="">{labels.selectValue}</option><option value="true">{labels.yes}</option><option value="false">{labels.no}</option></select>;
     if (field.kind === 'date' || field.kind === 'dateTime') return <CgDateEdit value={value?.text?.slice(0, 10) ?? null} onValueChange={(date) => setValue(createFilterValue('date', date ?? undefined))} disabled={blocked} size={size} fullWidth aria-label={index === 0 ? labels.value : labels.secondValue} aria-describedby={errorId} />;
     if (field.kind === 'number') return <CgNumericEdit value={value?.text ? Number(value.text) : null} onValueChange={(number) => setValue(createFilterValue('number', number === null ? undefined : number.toString()))} onInvalidValue={(draft) => setValue(createFilterValue('number', draft))} disabled={blocked} size={size} fullWidth aria-label={index === 0 ? labels.value : labels.secondValue} aria-describedby={errorId} />;
     return <CgTextBox value={value?.text ?? ''} onValueChange={(text) => setValue(createFilterValue(valueKind(field), text))} disabled={blocked} size={size} fullWidth aria-label={index === 0 ? labels.value : labels.secondValue} aria-describedby={errorId} />;
@@ -250,10 +256,10 @@ export function CgFilterBuilder<TItem>({
     const error = invalid ? 'Complete this filter row before applying.' : undefined;
     return <div key={node.id} className={styles.row} data-invalid={invalid || undefined} onKeyDown={(event) => keyboardMove(event, node.id)}>
       <select className={styles.select} aria-label={labels.field} value={node.fieldId} disabled={blocked} onChange={(event) => { const selected = registry.find(event.target.value); if (selected) replaceRoot(setEditableField(root, node.id, selected)); }}>
-        <option value="">Select field</option>{scalarFields.map((candidate) => <option key={candidate.fieldId} value={candidate.fieldId}>{candidate.label}</option>)}
+        <option value="">{labels.selectField}</option>{scalarFields.map((candidate) => <option key={candidate.fieldId} value={candidate.fieldId}>{candidate.label}</option>)}
       </select>
       <select className={styles.select} aria-label={labels.operator} value={node.operator ?? ''} disabled={blocked || !field} onChange={(event) => replaceRoot(setEditableOperator(root, node.id, event.target.value as CgFilterOperator))}>
-        <option value="">Select comparison</option>{operators.map((operator) => <option key={operator.operator} value={operator.operator}>{operator.key}</option>)}
+        <option value="">{labels.selectComparison}</option>{operators.map((operator) => <option key={operator.operator} value={operator.operator}>{operator.key}</option>)}
       </select>
       {field && operator && descriptor ? Array.from({ length: descriptor.arity === 'two' ? 2 : descriptor.arity === 'none' ? 0 : 1 }, (_, index) => <div className={styles.editor} key={index}>{valueEditor(node, field, operator, index)}</div>) : null}
       {field && operator && (field.renderDisplay || renderDisplay) ? <div>{field.renderDisplay?.({ nodeId: node.id, field, operator, values: node.values }) ?? renderDisplay?.({ nodeId: node.id, field, operator, values: node.values })}</div> : null}
@@ -269,10 +275,10 @@ export function CgFilterBuilder<TItem>({
     const resultField = node.aggregate === 'count' || node.aggregate === 'sum' || node.aggregate === 'average' ? ({ fieldId: field?.fieldId ?? '', label: field?.label ?? '', kind: 'number' } satisfies CgFilterBuilderFieldDescriptor) : aggregateField;
     const invalid = projection.incompleteNodeIds.includes(node.id);
     return <div key={node.id} className={styles.row} data-invalid={invalid || undefined} onKeyDown={(event) => keyboardMove(event, node.id)}>
-      <select className={styles.select} aria-label={labels.field} value={node.collectionFieldId} disabled={blocked} onChange={(event) => { const selected = registry.find(event.target.value); if (selected) replaceRoot(setEditableField(root, node.id, selected)); }}><option value="">Select collection</option>{collectionFields.map((candidate) => <option key={candidate.fieldId} value={candidate.fieldId}>{candidate.label}</option>)}</select>
-      <select className={styles.select} aria-label="Aggregate" value={node.aggregate} disabled={blocked || !field} onChange={(event) => replaceRoot(updateEditable(root, node.id, (candidate) => candidate.kind === 'aggregate' ? { ...candidate, aggregate: event.target.value as CgFilterAggregate, resultOperator: event.target.value === 'exists' ? undefined : candidate.resultOperator ?? 'greaterThanOrEqual', values: event.target.value === 'exists' ? [] : candidate.values } : candidate))}>{AGGREGATES.filter((aggregate) => (field?.collection?.aggregates ?? ['exists', 'count']).includes(aggregate)).map((aggregate) => <option key={aggregate} value={aggregate}>{aggregate}</option>)}</select>
-      {field && node.aggregate !== 'exists' && node.aggregate !== 'count' ? <select className={styles.select} aria-label="Aggregate field" value={node.aggregateFieldId ?? ''} disabled={blocked} onChange={(event) => replaceRoot(updateEditable(root, node.id, (candidate) => candidate.kind === 'aggregate' ? { ...candidate, aggregateFieldId: event.target.value, values: [] } : candidate))}><option value="">Select aggregate field</option>{elementFields.filter((candidate) => candidate.kind !== 'collection').map((candidate) => <option key={candidate.fieldId} value={candidate.fieldId}>{candidate.label}</option>)}</select> : null}
-      {field && node.aggregate !== 'exists' ? <select className={styles.select} aria-label={labels.operator} value={node.resultOperator ?? ''} disabled={blocked} onChange={(event) => replaceRoot(setEditableOperator(root, node.id, event.target.value as CgFilterOperator))}><option value="">Select comparison</option>{CG_FILTER_OPERATOR_REGISTRY.all.filter((operator) => operator.allowedForAggregateResult).map((operator) => <option key={operator.operator} value={operator.operator}>{operator.key}</option>)}</select> : null}
+      <select className={styles.select} aria-label={labels.field} value={node.collectionFieldId} disabled={blocked} onChange={(event) => { const selected = registry.find(event.target.value); if (selected) replaceRoot(setEditableField(root, node.id, selected)); }}><option value="">{labels.selectCollection}</option>{collectionFields.map((candidate) => <option key={candidate.fieldId} value={candidate.fieldId}>{candidate.label}</option>)}</select>
+      <select className={styles.select} aria-label={labels.aggregate} value={node.aggregate} disabled={blocked || !field} onChange={(event) => replaceRoot(updateEditable(root, node.id, (candidate) => candidate.kind === 'aggregate' ? { ...candidate, aggregate: event.target.value as CgFilterAggregate, resultOperator: event.target.value === 'exists' ? undefined : candidate.resultOperator ?? 'greaterThanOrEqual', values: event.target.value === 'exists' ? [] : candidate.values } : candidate))}>{AGGREGATES.filter((aggregate) => (field?.collection?.aggregates ?? ['exists', 'count']).includes(aggregate)).map((aggregate) => <option key={aggregate} value={aggregate}>{aggregate}</option>)}</select>
+      {field && node.aggregate !== 'exists' && node.aggregate !== 'count' ? <select className={styles.select} aria-label={labels.aggregateField} value={node.aggregateFieldId ?? ''} disabled={blocked} onChange={(event) => replaceRoot(updateEditable(root, node.id, (candidate) => candidate.kind === 'aggregate' ? { ...candidate, aggregateFieldId: event.target.value, values: [] } : candidate))}><option value="">{labels.selectAggregateField}</option>{elementFields.filter((candidate) => candidate.kind !== 'collection').map((candidate) => <option key={candidate.fieldId} value={candidate.fieldId}>{candidate.label}</option>)}</select> : null}
+      {field && node.aggregate !== 'exists' ? <select className={styles.select} aria-label={labels.operator} value={node.resultOperator ?? ''} disabled={blocked} onChange={(event) => replaceRoot(setEditableOperator(root, node.id, event.target.value as CgFilterOperator))}><option value="">{labels.selectComparison}</option>{CG_FILTER_OPERATOR_REGISTRY.all.filter((operator) => operator.allowedForAggregateResult).map((operator) => <option key={operator.operator} value={operator.operator}>{operator.key}</option>)}</select> : null}
       {resultField && node.resultOperator ? <div className={styles.editor}>{valueEditor(node, resultField, node.resultOperator, 0)}</div> : null}
       {field ? <button type="button" className={styles.iconButton} disabled={blocked} onClick={() => replaceRoot(updateEditable(root, node.id, (candidate) => candidate.kind === 'aggregate' ? { ...candidate, nestedCriteria: candidate.nestedCriteria ?? { id: nextId(), kind: 'group', operator: 'and', negated: false, collapsed: false, children: [emptyCondition(nextId)] } } : candidate))}>Where…</button> : null}
       {rowActions(node)}
@@ -285,7 +291,7 @@ export function CgFilterBuilder<TItem>({
     <div className={styles.groupHeader}>
       <div className={styles.groupControls}>
         <button type="button" className={styles.iconButton} aria-expanded={!group.collapsed} aria-label={group.collapsed ? labels.expand : labels.collapse} onClick={() => replaceRoot(updateEditable(root, group.id, (node) => node.kind === 'group' ? { ...node, collapsed: !node.collapsed } : node))}>{group.collapsed ? '▸' : '▾'}</button>
-        <select className={styles.select} aria-label="Group logic" value={group.operator} disabled={blocked} onChange={(event) => replaceRoot(updateEditable(root, group.id, (node) => node.kind === 'group' ? { ...node, operator: event.target.value as 'and' | 'or' } : node))}><option value="and">All conditions</option><option value="or">Any condition</option></select>
+        <select className={styles.select} aria-label={labels.groupLogic} value={group.operator} disabled={blocked} onChange={(event) => replaceRoot(updateEditable(root, group.id, (node) => node.kind === 'group' ? { ...node, operator: event.target.value as 'and' | 'or' } : node))}><option value="and">{labels.allConditions}</option><option value="or">{labels.anyCondition}</option></select>
         <label><input type="checkbox" checked={group.negated} disabled={blocked} onChange={(event) => replaceRoot(updateEditable(root, group.id, (node) => node.kind === 'group' ? { ...node, negated: event.target.checked } : node))} /> {labels.negate}</label>
       </div>
       {!isRoot ? rowActions(group) : null}

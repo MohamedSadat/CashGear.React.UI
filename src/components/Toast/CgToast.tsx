@@ -1,3 +1,4 @@
+import { useCgUiText } from '../UiText';
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { FocusEvent, MouseEvent, ReactNode } from 'react';
 import { CgPortal } from '../../internal';
@@ -116,9 +117,12 @@ function ToastItem({ entry, dismiss, onActionError }: ToastItemProps) {
 
 export function CgToastProvider({
   children, duration = 5000, persistent = false, showCloseButton = true,
-  closeButtonAriaLabel = 'Dismiss notification', position = 'top-end', direction = 'auto',
+  closeButtonAriaLabel: closeButtonAriaLabelProp, regionAriaLabel: regionAriaLabelProp, position = 'top-end', direction = 'auto',
   maximumVisible = 5, newestFirst = false, portalTarget, subscribeToNavigation, onActionError,
 }: CgToastProviderProps) {
+  const uiText = useCgUiText();
+  const closeButtonAriaLabel = closeButtonAriaLabelProp ?? uiText.translate('Dismiss notification');
+  const regionAriaLabel = regionAriaLabelProp ?? uiText.translate('Notifications');
   if (!Number.isFinite(duration) || duration <= 0) throw new RangeError('CgToastProvider duration must be greater than zero.');
   if (!Number.isInteger(maximumVisible) || maximumVisible <= 0) throw new RangeError('CgToastProvider maximumVisible must be a positive integer.');
   if (!POSITIONS.includes(position)) throw new Error(`CgToastProvider position "${position}" is invalid.`);
@@ -206,7 +210,7 @@ export function CgToastProvider({
       const exiting = positioned.filter((entry) => entry.exiting);
       const rendered = [...visible, ...exiting].sort((left, right) => left.sequence - right.sequence);
       if (newestFirst) rendered.reverse();
-      return rendered.length ? <section key={toastPosition} className={styles.stack} data-position={toastPosition} aria-label="Notifications">
+      return rendered.length ? <section key={toastPosition} className={styles.stack} data-position={toastPosition} aria-label={regionAriaLabel}>
         {rendered.map((entry) => <ToastItem key={entry.id} entry={entry} dismiss={dismiss} onActionError={onActionError} />)}
       </section> : null;
     })}</div>

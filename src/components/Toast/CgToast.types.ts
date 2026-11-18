@@ -54,6 +54,8 @@ export interface CgToastProviderProps {
   persistent?: boolean;
   showCloseButton?: boolean;
   closeButtonAriaLabel?: string;
+  /** Accessible name of each toast stack. Defaults to "Notifications". */
+  regionAriaLabel?: string;
   position?: CgToastPosition;
   direction?: CgDirection;
   maximumVisible?: number;

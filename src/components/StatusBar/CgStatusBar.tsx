@@ -1,3 +1,4 @@
+import { useCgUiText } from '../UiText';
 import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useMergedRefs, useStableCallback } from '../../hooks';
 import { cx } from '../../utils';
@@ -32,6 +33,7 @@ export const CgStatusBar = forwardRef<HTMLDivElement, CgStatusBarProps>(function
   { items, size = 'medium', direction = 'auto', ariaLabel, 'aria-label': nativeAriaLabel, className, ...nativeProps },
   forwardedRef,
 ) {
+  const uiText = useCgUiText();
   const entries = useMemo(() => visibleItems(items), [items]);
   const rootRef = useRef<HTMLDivElement>(null);
   const mergedRef = useMergedRefs(rootRef, forwardedRef);
@@ -105,7 +107,7 @@ export const CgStatusBar = forwardRef<HTMLDivElement, CgStatusBarProps>(function
       {...nativeProps}
       ref={mergedRef}
       role="status"
-      aria-label={ariaLabel ?? nativeAriaLabel ?? 'Status bar'}
+      aria-label={ariaLabel ?? nativeAriaLabel ?? uiText.translate('Status bar')}
       dir={direction === 'auto' ? undefined : direction}
       className={cx(styles.root, className)}
       data-cg-status-bar=""

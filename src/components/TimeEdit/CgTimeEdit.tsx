@@ -1,3 +1,4 @@
+import { useUiLabels } from '../UiText/uiLabels';
 import {
   forwardRef,
   useEffect,
@@ -149,7 +150,7 @@ function CgTimeEditInner(
   const isControlled = value !== undefined;
   const openControlled = open !== undefined;
   const localeIsArabic = new Intl.Locale(resolvedLocale).language === 'ar';
-  const resolvedLabels = { ...(localeIsArabic ? ARABIC_LABELS : ENGLISH_LABELS), ...labels };
+  const resolvedLabels = useUiLabels(localeIsArabic ? ARABIC_LABELS : ENGLISH_LABELS, labels, !localeIsArabic);
   const resolvedInvalidMessage = invalidFormatMessage ?? (localeIsArabic ? `أدخل وقتًا صحيحًا بالتنسيق ${resolvedEditFormat}.` : `Enter a valid time in the format ${resolvedEditFormat}.`);
   const resolvedRequiredMessage = requiredMessage ?? (localeIsArabic ? 'الوقت مطلوب.' : 'A time is required.');
 
