@@ -78,6 +78,7 @@ function CgBreadcrumbInner<TData>(
       {shown.map((item, index) => <li key={item?.key ?? '…'} className={cx(styles.item, item === current && styles.currentItem)}>
         {index > 0 ? <span className={styles.separator} aria-hidden="true">{divider}</span> : null}
         {item ? crumb(item) : <CgDropDownButton
+          dropDownIndicatorVisible={false}
           className={styles.overflow}
           appearance="ghost"
           size="small"

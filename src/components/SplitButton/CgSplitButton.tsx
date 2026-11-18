@@ -1,6 +1,6 @@
 import { useCgUiText } from '../UiText';
-import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from 'react';
-import type { ForwardedRef, ReactElement, RefAttributes } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import type { ForwardedRef, KeyboardEvent, ReactElement, RefAttributes } from 'react';
 import { useCgId, useControllableState, useDirection } from '../../hooks';
 import { containsEnabledLeaf } from '../../internal';
 import { CgButton } from '../Button';
@@ -29,6 +29,8 @@ function CgSplitButtonInner<TData>(
     closeOnItemClick = true,
     zIndex,
     menuAriaLabel: menuAriaLabelProp,
+    menuClassName,
+    toggleIcon,
     onItemClick,
     onItemError,
     actionsRef,
@@ -53,9 +55,19 @@ function CgSplitButtonInner<TData>(
   const hasCommands = renderFlyout !== undefined || normalized.some(containsEnabledLeaf);
   const menuId = useCgId();
   const requestOpen = useCallback((value: boolean) => { setActualOpen(value); onOpenChange?.(value); }, [onOpenChange, setActualOpen]);
+  const [openFocus, setOpenFocus] = useState<'first' | 'last'>('first');
+  const canShow = !disabled && hasCommands;
+  // A menu that can no longer be shown closes and reports it once, so a controlled `open` never stays true.
+  useEffect(() => { if (actualOpen && !canShow) requestOpen(false); }, [actualOpen, canShow]); // eslint-disable-line react-hooks/exhaustive-deps
   useImperativeHandle(actionsRef, (): CgButtonMenuActions => ({
-    show: () => requestOpen(true), hide: () => requestOpen(false), toggle: () => requestOpen(!actualOpen), focus: () => primaryRef.current?.focus(),
+    show: () => { setOpenFocus('first'); requestOpen(true); }, hide: () => requestOpen(false), toggle: () => { setOpenFocus('first'); requestOpen(!actualOpen); }, focus: () => primaryRef.current?.focus(),
   }), [actualOpen, requestOpen]);
+  const onToggleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (!canShow || (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') || event.ctrlKey || event.metaKey) return;
+    event.preventDefault();
+    setOpenFocus(event.key === 'ArrowUp' ? 'last' : 'first');
+    if (!actualOpen) requestOpen(true);
+  };
   const toggle = <CgButton
     ref={toggleRef}
     type="button"
@@ -69,8 +81,9 @@ function CgSplitButtonInner<TData>(
     aria-expanded={actualOpen}
     aria-controls={menuId}
     tabIndex={toggleTabIndex}
-    onClick={() => requestOpen(!actualOpen)}
-  >{'▾'}</CgButton>;
+    onClick={() => { setOpenFocus('first'); requestOpen(!actualOpen); }}
+    onKeyDown={onToggleKeyDown}
+  >{toggleIcon !== undefined ? <span className={styles.chevron} aria-hidden="true">{toggleIcon}</span> : '▾'}</CgButton>;
   return <span ref={rootRef} className={styles.root} role="group" dir={resolvedDirection}>
     {togglePosition === 'start' ? toggle : null}
     <CgButton
@@ -85,8 +98,10 @@ function CgSplitButtonInner<TData>(
       items={items}
       renderItem={renderItem}
       renderFlyout={renderFlyout}
-      open={actualOpen}
+      open={actualOpen && canShow}
       requestOpen={requestOpen}
+      initialFocus={openFocus}
+      className={menuClassName}
       placement={placement}
       flipOnOverflow={flipOnOverflow}
       shiftOnOverflow={shiftOnOverflow}

@@ -91,6 +91,7 @@ function RibbonToolbar<TData>({ group, mode, events, onActivated }: { group: CgR
       autoOverflow={false}
       direction={direction}
       ariaLabel={group.text}
+      dropDownIndicatorVisible={false}
       onItemClick={(details: CgToolbarItemActivationDetails<TData>) => {
         const result = onItemClick?.(details);
         onActivated?.();
@@ -136,7 +137,7 @@ function RibbonCollapsedGroup<TData>({ group, events, onActivated }: { group: Cg
   return (
     <div className={styles.group} data-cg-ribbon-group={group.key} data-mode="collapsed">
       <div className={styles.groupBody}>
-        <CgToolbar<TData> className={styles.toolbar} items={items} layout="columns" size="small" autoCollapseText={false} autoOverflow={false} direction={events.direction} ariaLabel={group.text} />
+        <CgToolbar<TData> className={styles.toolbar} items={items} layout="columns" size="small" autoCollapseText={false} autoOverflow={false} direction={events.direction} ariaLabel={group.text} dropDownIndicatorVisible={false} />
       </div>
     </div>
   );

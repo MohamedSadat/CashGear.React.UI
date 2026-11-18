@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, MouseEvent, ReactNode, RefObject } from 'react';
-import { flattenMenu, MenuSurface, normalizeMenuTree, proposeMenuCheck } from '../../internal';
+import { enabledMenuItems, flattenMenu, MenuSurface, normalizeMenuTree, proposeMenuCheck } from '../../internal';
 import type { MenuDescriptor, MenuNode, MenuRenderContext } from '../../internal';
 import { CgFlyout } from '../Flyout';
 import type { CgFlyoutActions, CgFlyoutPlacement } from '../Flyout';
@@ -32,6 +32,9 @@ interface ButtonMenuProps<TData> {
   closeOnItemClick: boolean;
   zIndex?: number;
   ariaLabel: string;
+  className?: string;
+  /** Item focused when the menu opens: ArrowUp on the trigger opens on the last one. */
+  initialFocus?: 'first' | 'last';
   onItemClick?: (details: CgButtonMenuItemClickDetails<TData>) => void | CgButtonMenuActivationResult | PromiseLike<void | CgButtonMenuActivationResult>;
   onItemError?: (error: unknown, details: CgButtonMenuItemClickDetails<TData>) => void;
 }
@@ -88,6 +91,8 @@ export function ButtonMenu<TData>({
   closeOnItemClick,
   zIndex,
   ariaLabel,
+  className,
+  initialFocus = 'first',
   onItemClick,
   onItemError,
 }: ButtonMenuProps<TData>) {
@@ -159,9 +164,13 @@ export function ButtonMenu<TData>({
     >
       {/* The render context intentionally exposes deferred imperative helpers. */}
       {/* eslint-disable-next-line react-hooks/refs */}
-      {renderFlyout ? <div role="dialog" aria-label={ariaLabel}>{renderFlyout(context)}</div> : (
+      {renderFlyout ? <div role="dialog" aria-label={ariaLabel} className={className}>{renderFlyout(context)}</div> : (
         <MenuSurface
+          key={open ? initialFocus : 'closed'}
           items={snapshot}
+          levelClassName={className}
+          initialActiveKey={initialFocus === 'last' ? enabledMenuItems(snapshot).at(-1)?.key : undefined}
+          closeAllOnAltArrowUp
           ariaLabel={ariaLabel}
           direction={direction}
           expandedKeys={expanded}

@@ -105,6 +105,8 @@ export interface CgToolbarProps<TData = unknown> extends NativeToolbarProps {
   direction?: CgDirection;
   ariaLabel?: string;
   overflowButtonLabel?: string;
+  /** Shows the `▾` drop-down indicator on menu items. Defaults to true; a host that draws its own arrow turns it off. */
+  dropDownIndicatorVisible?: boolean;
   overflowButtonContent?: ReactNode;
   actionsRef?: Ref<CgToolbarActions>;
 }

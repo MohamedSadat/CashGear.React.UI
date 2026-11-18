@@ -76,10 +76,20 @@ export interface CgButtonMenuCommonProps<TData = unknown> {
   closeOnItemClick?: boolean;
   zIndex?: number;
   menuAriaLabel?: string;
+  /** Class names on the menu surface and every nested level. Blazor `MenuCssClass`. */
+  menuClassName?: string;
+  /**
+   * Replaces the `▾` glyph: a drop-down button's indicator or a split button's toggle chevron.
+   * Wrapped in an `aria-hidden` element, so it never changes an accessible name. Blazor `ToggleIconTemplate`.
+   */
+  toggleIcon?: ReactNode;
   onItemClick?: (details: CgButtonMenuItemClickDetails<TData>) => void | CgButtonMenuActivationResult | PromiseLike<void | CgButtonMenuActivationResult>;
   onItemError?: (error: unknown, details: CgButtonMenuItemClickDetails<TData>) => void;
   actionsRef?: Ref<CgButtonMenuActions>;
 }
 
-export type CgDropDownButtonProps<TData = unknown> = Omit<CgButtonProps, 'onClick' | 'type'> & CgButtonMenuCommonProps<TData>;
+export type CgDropDownButtonProps<TData = unknown> = Omit<CgButtonProps, 'onClick' | 'type' | 'trailingContent'> & CgButtonMenuCommonProps<TData> & {
+  /** Shows a decorative `▾` after the content, at the logical end. Turn it off when the content already signals a menu. Defaults to true. */
+  dropDownIndicatorVisible?: boolean;
+};
 

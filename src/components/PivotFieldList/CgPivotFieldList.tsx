@@ -609,6 +609,7 @@ export const CgPivotFieldList = forwardRef<HTMLDivElement, CgPivotFieldListProps
       <div className={styles.header}>
         <h2 id={titleId} className={styles.title}>{labels.title}</h2>
         <CgDropDownButton
+          dropDownIndicatorVisible={false}
           appearance="ghost"
           size="small"
           icon="settings"

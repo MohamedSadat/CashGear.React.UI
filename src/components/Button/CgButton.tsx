@@ -18,6 +18,7 @@ export const CgButton = forwardRef<HTMLButtonElement, CgButtonProps>(function Cg
     autoLoading = true,
     suppressDuplicateClicks = true,
     loadingContent,
+    trailingContent,
     disabled = false,
     fullWidth = false,
     type = 'button',
@@ -84,6 +85,7 @@ export const CgButton = forwardRef<HTMLButtonElement, CgButtonProps>(function Cg
       {!busy && icon && iconPosition === 'start' ? <span className={styles.icon}>{renderIcon(icon)}</span> : null}
       <span className={styles.label}>{content}</span>
       {!busy && icon && iconPosition === 'end' ? <span className={styles.icon}>{renderIcon(icon)}</span> : null}
+      {!busy && trailingContent !== undefined && trailingContent !== null ? trailingContent : null}
     </button>
   );
 });

@@ -162,6 +162,7 @@ function CgToolbarInner<TData>(
     direction = 'auto',
     ariaLabel: ariaLabelProp,
     overflowButtonLabel: overflowButtonLabelProp,
+    dropDownIndicatorVisible = true,
     overflowButtonContent = '⋯',
     actionsRef,
     className,
@@ -456,6 +457,7 @@ function CgToolbarInner<TData>(
         icon={node.icon}
         disabled={node.disabled}
         className={node.className}
+        dropDownIndicatorVisible={dropDownIndicatorVisible}
       >{label}</CgDropDownButton>;
     }
     return <CgButton
@@ -520,6 +522,7 @@ function CgToolbarInner<TData>(
       {overflowItems.length > 0 ? <CgDropDownButton<ToolbarNode<TData>>
         ref={(element) => { if (element) itemElements.current.set('__overflow', element); else itemElements.current.delete('__overflow'); }}
         actionsRef={overflowActions}
+        dropDownIndicatorVisible={false}
         items={overflowItems}
         renderItem={(context) => renderMenuItem(context, true)}
         onItemClick={(details) => activateMenuItem(details, true)}

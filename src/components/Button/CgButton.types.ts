@@ -16,6 +16,8 @@ export interface CgButtonProps extends NativeButtonProps, CgBaseProps {
   autoLoading?: boolean;
   suppressDuplicateClicks?: boolean;
   loadingContent?: ReactNode;
+  /** Content after the label and end icon, hidden while busy, such as a drop-down indicator. Blazor `TrailingContent`. */
+  trailingContent?: ReactNode;
   fullWidth?: boolean;
   type?: 'button' | 'submit' | 'reset';
   onClick?: (event: MouseEvent<HTMLButtonElement>) => void | PromiseLike<void>;

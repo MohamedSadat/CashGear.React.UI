@@ -1,2 +1,3 @@
 .root { display: inline-flex; max-inline-size: 100%; }
-
+/* Decorative and at the logical end; it never shrinks, so a long label wraps before the glyph is squeezed. */
+.indicator { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; line-height: 1; margin-inline-start: -0.125rem; }

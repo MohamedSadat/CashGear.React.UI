@@ -367,3 +367,20 @@ Stories are under `Blazor parity 2026-11/Small additions`.
 | --- | --- |
 | Typecheck, lint | Passed. |
 | Full unit suite | 1,316 tests in 114 files passed with two workers, including 12 new cases in `tests/blazor-parity-r1.test.tsx`. |
+
+### R2: button menus
+
+Blazor `CgButtonMenuBase.cs`, `CgDropDownButton.razor`, `CgSplitButton.razor`, `CgButton.razor.cs`, `CgButtonMenus.md` (commit `b76e6487`). `CgDropDownButton` draws a decorative `▾` indicator by default (`dropDownIndicatorVisible`); `toggleIcon` replaces it or a split button's chevron; `menuClassName` applies to every menu level; `CgButton` gains `trailingContent`. The trigger (or split toggle) opens on the first item with ArrowDown and on the last with ArrowUp; Alt+ArrowUp inside the menu closes every level and returns focus to the trigger; an open menu that loses its commands or becomes disabled closes and reports `onOpenChange(false)` once. As in Blazor, the toolbar overflow, breadcrumb overflow and pivot field list tool buttons turn the indicator off; toolbar menu items, BorderPicker line colour and Gallery triggers show it.
+
+Stories are under `Blazor parity 2026-11/Button menus`.
+
+| Gate | Recorded result |
+| --- | --- |
+| Typecheck, lint | Passed. |
+| Full unit suite | 1,333 tests in 116 files passed with two workers (R3's Calendar work was in the tree too), including `tests/blazor-parity-r2.test.tsx` (6 cases). |
+| Storybook build | Passed. |
+| Visual, Chromium | Full suite: 396 of 403 passed; the 7 failures were five Ribbon cases, where the new indicator doubled the Ribbon's own arrow (fixed: `CgToolbar` gains `dropDownIndicatorVisible`, which the Ribbon turns off), and two Pivot cases changed by R1's header (`phase-30-analysis-rtl`, `pivot-empty`). After the fix the Ribbon, calendar and date cases passed (28 of 28). |
+| Visual baselines | The indicator stays under the 0.1% pixel tolerance, so the 21 cases showing drop-down or split triggers (Phase 10 drop-down, split and toolbar, Phase 25 PDF viewer toolbar, Phase 34.1 BorderPicker and Gallery) plus the two Pivot cases were re-recorded with `--update-snapshots=all` in Chromium and WebKit and inspected: 23 files per engine. |
+| WebKit | The same 28 checks and 31 re-recorded cases passed. |
+| Chromium semantic and Axe | 148 of 148 passed for the menu, toolbar, ribbon, button, calendar and date specs. |
+| Firefox | Not attempted; it cannot launch on this host. |

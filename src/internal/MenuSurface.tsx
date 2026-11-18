@@ -36,6 +36,12 @@ export interface MenuSurfaceProps<TData = unknown> {
   parentKey?: string;
   onCloseCurrent?: () => void;
   onCloseRoot?: (reason: 'escape' | 'tab') => void;
+  /** Alt+ArrowUp closes every level through `onCloseRoot('escape')`, so focus returns to the trigger. Button menus use it. */
+  closeAllOnAltArrowUp?: boolean;
+  /** The item active (and marked for initial focus) when this level mounts. Defaults to the first usable item. */
+  initialActiveKey?: string;
+  /** Class names on this level and every nested level. */
+  levelClassName?: string;
   onActiveKeyChange?: (key: string) => void;
   className?: string;
   selectedKey?: string;
@@ -70,6 +76,9 @@ export function MenuSurface<TData>({
   parentKey,
   onCloseCurrent,
   onCloseRoot,
+  closeAllOnAltArrowUp = false,
+  initialActiveKey,
+  levelClassName,
   onActiveKeyChange,
   className,
   selectedKey,
@@ -82,7 +91,7 @@ export function MenuSurface<TData>({
   onPointerLeaveSurface,
 }: MenuSurfaceProps<TData>) {
   const usable = enabledMenuItems(items);
-  const [activeKey, setActiveKey] = useState<string | undefined>(usable[0]?.key);
+  const [activeKey, setActiveKey] = useState<string | undefined>(() => usable.some((node) => node.key === initialActiveKey) ? initialActiveKey : usable[0]?.key);
   const surfaceRef = useRef<HTMLUListElement>(null);
   const surfaceId = useCgId();
   const generatedScopeId = useCgId();
@@ -161,7 +170,8 @@ export function MenuSurface<TData>({
     const closeKey = direction === 'rtl' ? 'ArrowRight' : 'ArrowLeft';
     const nextRootKey = direction === 'rtl' ? 'ArrowLeft' : 'ArrowRight';
     const previousRootKey = direction === 'rtl' ? 'ArrowRight' : 'ArrowLeft';
-    if (rootMenubar && event.key === nextRootKey) { event.preventDefault(); move(1); }
+    if (closeAllOnAltArrowUp && event.altKey && event.key === 'ArrowUp') { event.preventDefault(); onCloseRoot?.('escape'); }
+    else if (rootMenubar && event.key === nextRootKey) { event.preventDefault(); move(1); }
     else if (rootMenubar && event.key === previousRootKey) { event.preventDefault(); move(-1); }
     else if (rootMenubar && event.key === 'ArrowDown' && node.children.length > 0) {
       event.preventDefault(); setExpanded(node.key, true);
@@ -210,7 +220,7 @@ export function MenuSurface<TData>({
       aria-orientation={semantic === 'navigation' ? undefined : rootMenubar ? rootOrientation : 'vertical'}
       data-cg-menu-parent={parentKey}
       data-cg-menu-scope={resolvedScopeId}
-      className={cx(styles.menu, className)}
+      className={cx(styles.menu, levelClassName, className)}
       dir={direction}
       onPointerEnter={onPointerEnterSurface}
       onPointerLeave={onPointerLeaveSurface}
@@ -245,6 +255,7 @@ export function MenuSurface<TData>({
           'aria-current': semantic === 'navigation' && selected ? 'page' as const : undefined,
           'data-selected': selected || undefined,
           'data-cg-menu-key': node.key,
+          'data-cg-initial-focus': level === 0 && initialActiveKey !== undefined && node.key === initialActiveKey ? '' : undefined,
           'data-cg-menu-scope': resolvedScopeId,
           className: cx(styles.item, active && styles.active, selected && styles.selected, node.disabled && styles.disabled, busy && styles.busy, node.intent === 'danger' && styles.danger, node.className),
           onFocus: () => { setActiveKey(node.key); onActiveKeyChange?.(node.key); },
@@ -285,6 +296,8 @@ export function MenuSurface<TData>({
             parentKey={node.key}
             onCloseCurrent={() => { setExpanded(node.key, false); focus(node.key); }}
             onCloseRoot={onCloseRoot}
+            closeAllOnAltArrowUp={closeAllOnAltArrowUp}
+            levelClassName={levelClassName}
             selectedKey={selectedKey}
             iconOnlyKeys={iconOnlyKeys}
             semantic={semantic}
