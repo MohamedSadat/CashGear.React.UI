@@ -409,3 +409,17 @@ Stories are under `Blazor parity 2026-11/TreeList layout and views`.
 | Typecheck, lint | Passed. |
 | Full unit suite | 1,337 tests in 117 files passed with two workers, including `tests/blazor-parity-r4.test.tsx` (4 cases) and the unchanged Grid view and TreeList suites. |
 | Browser | Not run separately for this phase: no existing story changes; the new story is covered by the Storybook build in R5. |
+
+### R5: Chart label layout
+
+Blazor `CgChartAxisLayout.cs` and `CgChartLayoutEngine.cs` (`PlanStackedLabels`, `FitSideBySide`, `BuildThinnedSideBySide`, the horizontal value-domain loop, `FitPointLabels`, `FitOutsideLabels`), and the README's "Differences from CashGear.React.UI". Card charts: horizontal bar categories are planned by line height and thinned keeping the first and last, names past 40% of the chart width are shortened with an ellipsis (the plot reserve is capped to match); horizontal value axes choose their tick count by label width starting at 72px per tick; side-by-side value labels an explicit interval crowds are thinned keeping both ends; columns and bars with the original `outside` labels stop the value scale short by up to 40% so the labels stay on the plot. Document pies with outside or best-fit labels shrink until the labels fit, with Blazor's floor of a fifth of the radius; best-fit labels that fit their slice reserve nothing. Text widths stay estimated, as in Blazor. React's vertical value axes keep their seven-tick domain.
+
+Stories are under `Blazor parity 2026-11/Chart layout`.
+
+| Gate | Recorded result |
+| --- | --- |
+| Typecheck, lint | Passed. |
+| Unit | `tests/blazor-parity-r5.test.ts` (6 cases) and the chart engine, card and document suites: 44 + 26 cases passed; the full suite ran with R6 below. |
+| Storybook build | Passed. |
+| Visual | Chart cases, Chromium: 25 of 29 unchanged; `phase-20-chart-cartesian`, `-dark-compact`, `-horizontal` (outside-label room) and `phase-35-chart-pie` (best-fit labels inside no longer reserve a ring) changed as intended, were inspected and re-recorded in Chromium and WebKit. |
+| Chromium semantic and Axe | 25 of 25 chart cases passed. |

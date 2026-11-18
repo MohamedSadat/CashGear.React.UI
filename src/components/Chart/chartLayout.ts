@@ -11,7 +11,7 @@ import type {
   CgChartTickMarkStyle,
   CgChartValueAxisDescriptor,
 } from './CgChart.types';
-import { estimateTextWidth, planAxisLabels } from './chartAxisLabels';
+import { estimateTextWidth, fitSideBySide, planAxisLabels, planStackedAxisLabels, thinSideBySide } from './chartAxisLabels';
 import type { AxisLabelPlan, AxisLabelPlanItem } from './chartAxisLabels';
 import {
   centredBaseline,
@@ -148,6 +148,13 @@ function resolvedAxisPosition(axis: CgChartValueAxisDescriptor, index: number): 
   return axis.position === 'start' || axis.position === 'end' ? axis.position : index === 0 ? 'start' : 'end';
 }
 
+/** Blazor `MaxStackedLabelShare`: the most of the chart's width a horizontal bar chart's category labels may take. */
+const MAX_STACKED_LABEL_SHARE = 0.4;
+/** Blazor `MaxLabelInsetShare`: the most of the value range kept clear for outside bar labels. */
+const MAX_LABEL_INSET_SHARE = 0.4;
+/** Blazor `HorizontalValueTickPixels`: the tick spacing a horizontal value axis starts from. */
+const HORIZONTAL_VALUE_TICK_PIXELS = 72;
+
 function axisDescriptor<TItem>(request: ChartLayoutRequest<TItem>, name: string): CgChartValueAxisDescriptor | undefined {
   return resolvedAxes(request.valueAxes).find((axis) => (axis.name ?? 'primary') === name);
 }
@@ -203,7 +210,8 @@ function chartPlot<TItem>(
       height: Math.max(1, height - 82),
     });
   }
-  const argumentReserve = maximumArgumentWidth + 18 + (request.argumentAxis?.title ? 20 : 0);
+  // Category names are shortened with an ellipsis past 40% of the chart, so one long name cannot crowd out the bars.
+  const argumentReserve = Math.min(maximumArgumentWidth, Math.max(0, width * MAX_STACKED_LABEL_SHARE - 8)) + 18 + (request.argumentAxis?.title ? 20 : 0);
   let startAxes = 0;
   let endAxes = 0;
   axes.forEach((axis, index) => {
@@ -288,6 +296,7 @@ function valueDomains<TItem>(
   stacks: ReadonlyMap<string, ChartStackPosition>,
 ): ReadonlyMap<string, AxisDomain> {
   const result = new Map<string, AxisDomain>();
+  let horizontalPlotLength: number | undefined;
   for (const axis of resolvedAxes(request.valueAxes)) {
     const name = axis.name ?? 'primary';
     const matching = request.model.visibleSeries.filter((series) => series.valueAxisName === name);
@@ -304,9 +313,67 @@ function valueDomains<TItem>(
       if (line.extendAxisRange !== false && line.axis !== 'argument') values.push(exactFromNumeric(line.value));
     }
     const automaticZero = matching.some((series) => series.descriptor.type === 'bar' || series.descriptor.type === 'area');
-    result.set(name, axisDomain(values, axis, axis.includeZero ?? automaticZero, 7));
+    const includeZero = axis.includeZero ?? automaticZero;
+    if (request.orientation !== 'horizontal' || request.document || axis.tickInterval !== undefined || axis.ticks?.length) {
+      result.set(name, axisDomain(values, axis, includeZero, 7));
+      continue;
+    }
+    // Blazor: a horizontal value axis lays its labels side by side, so the tick count steps down from
+    // one per 72px until the widest labels of the resulting domain clear their neighbours.
+    const length = horizontalPlotLength ??= chartPlot(request, new Map()).width;
+    let maximumTicks = Math.max(2, Math.floor(length / HORIZONTAL_VALUE_TICK_PIXELS));
+    for (;;) {
+      const domain = axisDomain(values, axis, includeZero, maximumTicks);
+      const positions = domain.ticks.map((tick) => exactRatio(tick, domain.minimum, domain.maximum) * length);
+      const widths = domain.ticks.map((_tick, index) => estimateTextWidth(valueAxisText(request as ChartLayoutRequest<unknown>, axis, domain, index)));
+      if (maximumTicks <= 2 || fitSideBySide(positions, widths)) { result.set(name, domain); break; }
+      maximumTicks -= 1;
+    }
   }
   return result;
+}
+
+/**
+ * Room kept clear at the maximum end of a value axis for outside bar labels (Blazor `FitPointLabels`).
+ * A label hangs past the end of its bar, so a bar reaching the end of the range would take its label off
+ * the plot; the scale stops short by up to 40% of the axis instead. Only the original `outside` placement
+ * is fitted, as in Blazor.
+ */
+function outsideLabelInset<TItem>(
+  request: ChartLayoutRequest<TItem>,
+  domain: AxisDomain,
+  axis: CgChartValueAxisDescriptor,
+  name: string,
+  stacks: ReadonlyMap<string, ChartStackPosition>,
+  length: number,
+  vertical: boolean,
+): number {
+  const crossing = axis.argumentAxisCrossesAt;
+  const baseline = crossing === undefined ? exactFromNumeric(0) : numericCrossingValue(domain, crossing);
+  const reaches: Array<{ readonly fraction: number; readonly ahead: number }> = [];
+  for (const generic of request.model.visibleSeries) {
+    const series = generic as ChartSeries<unknown>;
+    if (series.valueAxisName !== name || series.descriptor.type !== 'bar') continue;
+    if ((series.descriptor.pointLabelPosition ?? request.pointLabels?.position ?? 'outside') !== 'outside' || pointLabelStyle(request as ChartLayoutRequest<unknown>, series.descriptor)) continue;
+    for (const point of series.points) {
+      if (!point.exactValue || !point.visible || !point.showLabel || !point.labelText) continue;
+      const stack = stacks.get(stackPositionKey(series.name, point.pointIndex));
+      const startValue = stack?.start ?? baseline;
+      const endValue = stack?.end ?? point.exactValue;
+      if (exactCompare(endValue, startValue) < 0) continue;
+      const fraction = Math.max(0, Math.min(1, exactRatio(endValue, domain.minimum, domain.maximum)));
+      // The original placement: 5px above a column with a 13px glyph, or centred 6px past a bar.
+      reaches.push({ fraction, ahead: vertical ? 18 : 6 + Math.max(8, point.labelText.length * 7) / 2 });
+    }
+  }
+  if (!reaches.length || length <= 1) return 0;
+  let inset = 0;
+  for (const reach of reaches) {
+    if (reach.fraction <= 0) continue;
+    // A bar end at fraction f lands at f(L - e); its label needs f(L - e) + ahead <= L.
+    inset = Math.max(inset, length - (length - reach.ahead) / reach.fraction);
+  }
+  return Math.max(0, Math.min(inset, length * MAX_LABEL_INSET_SHARE));
 }
 
 /** Fraction (0 at minimum, 1 at maximum) of a crossing along a numeric domain. */
@@ -363,6 +430,10 @@ function planArgumentLabels<TItem>(
   const style = labelStyleFor(request as ChartLayoutRequest<unknown>, request.argumentAxis?.labelStyle);
   if (style && request.orientation === 'horizontal') return thinnedPlan(labels, length, style.size * 1.2, interval);
   const measure = measurer(request as ChartLayoutRequest<unknown>);
+  if (request.orientation === 'horizontal' && !interval) {
+    // Blazor PlanStackedLabels: down a vertical axis labels collide on line height, not on width.
+    return planStackedAxisLabels(labels, length, request.argumentAxis?.labelOverlapMode ?? 'auto', request.argumentAxis?.maximumLabelCharacters ?? 24, 13, request.width * MAX_STACKED_LABEL_SHARE);
+  }
   const indexes = interval && interval > 1 ? labels.map((_, index) => index).filter((index) => index % interval === 0) : null;
   const subset = indexes ? indexes.map((index) => labels[index]!) : labels;
   const plan = planAxisLabels(
@@ -640,10 +711,11 @@ function buildCartesian<TItem>(
     const name = axis.name ?? 'primary';
     const domain = domains.get(name)!;
     const reverse = (request.orientation === 'horizontal' && request.rtl) !== (axis.reversed === true);
+    const inset = documentMode || reverse ? 0 : outsideLabelInset(request, domain, axis, name, stacks, vertical ? plot.height : plot.width, vertical);
     const scale = createNumericScale(
       domain.minimum, domain.maximum,
       vertical ? plot.y + plot.height : plot.x,
-      vertical ? plot.y : plot.x + plot.width,
+      vertical ? plot.y + inset : plot.x + plot.width - inset,
       reverse,
     );
     scales.set(name, scale);
@@ -664,10 +736,14 @@ function buildCartesian<TItem>(
       position,
       offset,
       labelWidth,
-      ticks: Object.freeze(domain.ticks.map((tick, tickIndex) => {
-        const text = valueAxisText(request as ChartLayoutRequest<unknown>, axis, domain, tickIndex);
-        return Object.freeze({ position: scale.project(tick), text, fullText: text });
-      })),
+      ticks: (() => {
+        const texts = domain.ticks.map((_tick, tickIndex) => valueAxisText(request as ChartLayoutRequest<unknown>, axis, domain, tickIndex));
+        const positions = domain.ticks.map((tick) => scale.project(tick));
+        // Blazor: side-by-side value labels an explicit interval crowds are thinned, keeping the first and last.
+        const widths = texts.map((text) => estimateTextWidth(text));
+        const keep = !vertical && !documentMode && !fitSideBySide(positions, widths) ? thinSideBySide(positions, widths) : null;
+        return Object.freeze(texts.map((text, tickIndex) => Object.freeze({ position: positions[tickIndex]!, text: keep && !keep.has(tickIndex) ? '' : text, fullText: text })));
+      })(),
       zeroPosition: containsZero ? scale.project(zero) : null,
       showGridLines: axis.showGridLines ?? true,
       showAxisLine: axis.showAxisLine ?? false,
@@ -972,9 +1048,8 @@ function buildPie<TItem>(
   const centerY = plot.y + plot.height / 2;
   const outsideLabels = documentMode && series.points.some((point) => point.showLabel)
     && (labelPosition === 'outsideEnd' || labelPosition === 'bestFit' || labelPosition === 'outside');
-  const labelRoom = outsideLabels ? (labelStyle?.size ?? 12) * 1.6 : 0;
   const radius = documentMode
-    ? Math.max(1, (Math.min(plot.width, plot.height) / 2 - labelRoom) / (1 + maximumExplosion))
+    ? fitDocumentPieRadius(request, series, plot, total, labelPosition, labelStyle, outsideLabels, maximumExplosion)
     : Math.max(1, Math.min(plot.width, plot.height) * 0.38);
   const inner = radius * (descriptor.innerRadiusRatio ?? (descriptor.type === 'donut' ? 0.55 : 0));
   const direction = request.rtl ? -1 : 1;
@@ -1050,6 +1125,67 @@ function buildPie<TItem>(
     angle = end;
   }
   return { shapes: Object.freeze(shapes), labels: Object.freeze(labels), hitTargets: Object.freeze(hits) };
+}
+
+/**
+ * Shrinks a document pie until its outside labels stay inside the plot (Blazor `FitOutsideLabels`). Each
+ * outside label needs its slice's reach - the radius, plus the explosion, plus the label's own extent along
+ * the slice's direction - on both axes. Best-fit labels that fit their slice stay inside; a smaller pie can
+ * push more of them out, hence a few rounds. As in Blazor, the pie never shrinks below a fifth of its full size.
+ */
+function fitDocumentPieRadius<TItem>(
+  request: ChartLayoutRequest<TItem>,
+  series: ChartSeries<unknown>,
+  plot: ChartRectangle,
+  total: ExactValue,
+  labelPosition: CgChartPointLabelPosition,
+  labelStyle: ChartTextStyle | null | undefined,
+  outsideLabels: boolean,
+  maximumExplosion: number,
+): number {
+  const full = Math.max(1, Math.min(plot.width, plot.height) / 2 / (1 + maximumExplosion));
+  if (!outsideLabels) return full;
+  const descriptor = series.descriptor;
+  if (descriptor.type !== 'pie' && descriptor.type !== 'donut') return full;
+  const style = labelStyle ?? mergeTextStyle({ size: 12, color: 'var(--cg-chart-muted)', bold: false, italic: false });
+  const measure = measurer(request as ChartLayoutRequest<unknown>);
+  const direction = request.rtl ? -1 : 1;
+  const slices: Array<{ readonly mid: number; readonly span: number; readonly width: number; readonly height: number; readonly explosion: number }> = [];
+  let angle = (descriptor.startAngleDegrees ?? -90) * Math.PI / 180;
+  for (const point of series.points) {
+    if (!point.exactValue || point.exactValue.coefficient <= 0n || !point.visible) continue;
+    const ratio = exactDivide(point.exactValue, total);
+    const end = angle + direction * ratio * Math.PI * 2;
+    const showSmall = descriptor.smallSlicePolicy === 'show' || ratio >= (descriptor.smallSliceThreshold ?? 0.02);
+    const text = descriptor.showPercentages && !descriptor.pointLabelContent ? request.formatter.formatPercentage(ratio) : point.labelText;
+    if (point.showLabel && text && showSmall) {
+      slices.push({ mid: angle + (end - angle) / 2, span: Math.abs(end - angle), width: measure(text, style), height: style.size * 1.2, explosion: point.explosion ?? descriptor.explosion ?? 0 });
+    }
+    angle = end;
+  }
+  const innerRatio = descriptor.innerRadiusRatio ?? (descriptor.type === 'donut' ? 0.55 : 0);
+  let radius = full;
+  for (let round = 0; round < 4; round++) {
+    let fitted = full;
+    for (const slice of slices) {
+      if (labelPosition === 'bestFit') {
+        const inner = radius * innerRatio;
+        const fitRadius = inner > 0 ? (inner + radius) / 2 : radius * 0.62;
+        const chord = 2 * fitRadius * Math.sin(Math.min(Math.PI, slice.span) / 2);
+        if ((slice.span >= Math.PI || chord >= Math.max(slice.width, slice.height) * 1.05) && radius - inner > slice.height) continue;
+      }
+      const cos = Math.abs(Math.cos(slice.mid));
+      const sin = Math.abs(Math.sin(slice.mid));
+      const halfExtent = cos * slice.width / 2 + sin * slice.height / 2;
+      // The label's centre sits at r(1 + explosion) + halfExtent + 4 from the centre.
+      if (cos > 1e-6) fitted = Math.min(fitted, ((plot.width / 2 - slice.width / 2) / cos - halfExtent - 4) / (1 + slice.explosion));
+      if (sin > 1e-6) fitted = Math.min(fitted, ((plot.height / 2 - slice.height / 2) / sin - halfExtent - 4) / (1 + slice.explosion));
+    }
+    const next = Math.max(full * 0.2, Math.min(full, fitted));
+    if (Math.abs(next - radius) < 0.5) { radius = next; break; }
+    radius = next;
+  }
+  return Math.max(1, radius);
 }
 
 function constantLineLayouts<TItem>(

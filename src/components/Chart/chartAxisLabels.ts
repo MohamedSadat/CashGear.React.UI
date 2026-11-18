@@ -85,3 +85,76 @@ export function planAxisLabels(
       : base;
   return Object.freeze({ items: Object.freeze(items), rotation, staggered: resolvedMode === 'stagger', thickness });
 }
+
+/** Clearance between neighbouring labels before they count as colliding (Blazor `LabelGapPx`). */
+export const AXIS_LABEL_GAP = 8;
+
+/** Shortens text with an ellipsis to fit a pixel budget. The caller keeps the full text. */
+export function shortenToWidth(text: string, budget: number, fontSize = 13, measure?: (text: string) => number): string {
+  const width = (value: string) => measure ? measure(value) : estimateTextWidth(value, fontSize);
+  if (!text || !Number.isFinite(budget) || width(text) <= budget) return text;
+  if (budget <= width('…')) return '…';
+  const characters = [...text];
+  let low = 0;
+  let high = characters.length;
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2);
+    if (width(`${characters.slice(0, middle).join('').trimEnd()}…`) <= budget) low = middle;
+    else high = middle - 1;
+  }
+  return low <= 0 ? '…' : `${characters.slice(0, low).join('').trimEnd()}…`;
+}
+
+/**
+ * Plans category labels stacked down a vertical axis, as a horizontal bar chart's are (Blazor
+ * `PlanStackedLabels`). Neighbours collide on line height, not width, so the set is thinned keeping the
+ * first and last; text wider than `maximumWidth` is shortened with an ellipsis, so one long name cannot
+ * crowd out the bars. `none` still renders everything.
+ */
+export function planStackedAxisLabels(
+  labels: ReadonlyArray<string>,
+  availableLength: number,
+  mode: CgChartLabelOverlapMode,
+  maximumCharacters: number,
+  fontSize = 13,
+  maximumWidth = Number.POSITIVE_INFINITY,
+  measure?: (text: string) => number,
+): AxisLabelPlan {
+  if (!labels.length) return Object.freeze({ items: Object.freeze([]), rotation: 0, staggered: false, thickness: 0 });
+  const budget = Number.isFinite(maximumWidth) && maximumWidth > 0 ? Math.max(0, maximumWidth - AXIS_LABEL_GAP) : Number.POSITIVE_INFINITY;
+  const texts = labels.map((label) => shortenToWidth(mode === 'shorten' ? shortened(label, maximumCharacters) : label, budget, fontSize, measure));
+  const lineHeight = fontSize * 1.25;
+  const slot = availableLength / labels.length;
+  const keep = mode !== 'none' && lineHeight > slot ? thinIndexes(labels.length, Math.max(2, Math.floor(labels.length * slot / lineHeight))) : null;
+  const items = labels.flatMap((text, index) => keep && !keep.has(index) ? [] : [Object.freeze<AxisLabelPlanItem>({ index, fullText: text, displayText: texts[index]!, row: 0 })]);
+  const widest = Math.max(0, ...items.map((item) => measure ? measure(item.displayText) : estimateTextWidth(item.displayText, fontSize)));
+  return Object.freeze({ items: Object.freeze(items), rotation: 0, staggered: false, thickness: widest + AXIS_LABEL_GAP });
+}
+
+/** Whether labels centred on their positions clear each other along one line. */
+export function fitSideBySide(positions: ReadonlyArray<number>, widths: ReadonlyArray<number>): boolean {
+  const order = positions.map((_, index) => index).sort((left, right) => positions[left]! - positions[right]!);
+  for (let step = 1; step < order.length; step++) {
+    const before = order[step - 1]!;
+    const after = order[step]!;
+    if (positions[after]! - positions[before]! < (widths[before]! + widths[after]!) / 2 + AXIS_LABEL_GAP) return false;
+  }
+  return true;
+}
+
+/**
+ * Indexes of side-by-side labels to keep so none overprints, keeping the first and the last
+ * (Blazor `BuildThinnedSideBySide`): each label that clears the previous kept one stays, then the end
+ * gives way so the last label always shows.
+ */
+export function thinSideBySide(positions: ReadonlyArray<number>, widths: ReadonlyArray<number>): ReadonlySet<number> {
+  const order = positions.map((_, index) => index).sort((left, right) => positions[left]! - positions[right]!);
+  if (order.length <= 2) return new Set(order);
+  const clears = (before: number, after: number) => Math.abs(positions[after]! - positions[before]!) >= (widths[before]! + widths[after]!) / 2 + AXIS_LABEL_GAP;
+  const kept = [order[0]!];
+  for (let step = 1; step < order.length - 1; step++) if (clears(kept.at(-1)!, order[step]!)) kept.push(order[step]!);
+  const last = order.at(-1)!;
+  while (kept.length > 1 && !clears(kept.at(-1)!, last)) kept.pop();
+  if (clears(kept.at(-1)!, last)) kept.push(last);
+  return new Set(kept);
+}
