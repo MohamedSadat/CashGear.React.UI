@@ -153,6 +153,60 @@ test('ComboBox preserves ARIA ownership and keyboard and pointer selection', asy
   await expect(input).not.toHaveAttribute('aria-controls', /.+/u);
 });
 
+test('ComboBox opens on the last capped option and keeps wheel scroll inside the popup', async ({ page }) => {
+  await openStory(page, 'phase-3-combobox--scroll-fixture');
+  const input = page.getByRole('combobox', { name: 'Capped customers' });
+  await input.press('ArrowUp');
+  const last = page.getByRole('option', { name: 'C-50 - Customer 50', exact: true });
+  await expect(input).toHaveAttribute('aria-activedescendant', (await last.getAttribute('id'))!);
+  await expect(last).toBeInViewport();
+
+  const popup = page.getByRole('listbox').locator('..');
+  await popup.hover();
+  await page.mouse.wheel(0, -120);
+  await expect.poll(() => popup.evaluate((element) => element.scrollHeight - element.clientHeight - element.scrollTop)).toBeGreaterThan(0);
+  await page.mouse.wheel(0, 1000);
+  await expect.poll(() => popup.evaluate((element) => Math.abs(element.scrollHeight - element.clientHeight - element.scrollTop))).toBeLessThan(2);
+  await page.mouse.wheel(0, 450);
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  await expect(popup).toBeVisible();
+});
+
+test('ComboBox windows a large list while preserving keyboard navigation and selection', async ({ page }) => {
+  await openStory(page, 'phase-3-combobox--scroll-fixture');
+  const input = page.getByRole('combobox', { name: 'All customers' });
+  const openingOptionCount = await page.evaluateHandle(() => {
+    let addedOptions = 0;
+    const observer = new MutationObserver((records) => {
+      for (const { addedNodes } of records) {
+        for (const node of addedNodes) {
+          if (!(node instanceof Element)) continue;
+          if (node.matches('[role="option"]')) addedOptions += 1;
+          else addedOptions += node.querySelectorAll('[role="option"]').length;
+        }
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => { observer.disconnect(); return addedOptions; };
+  });
+  await input.press('ArrowDown');
+  const options = page.getByRole('option');
+  await expect(options.first()).toBeInViewport();
+  expect(await openingOptionCount.evaluate((readCount) => readCount())).toBeLessThan(50);
+  expect(await options.count()).toBeLessThan(50);
+
+  await input.press('End');
+  const last = page.getByRole('option', { name: 'C-3000 - Customer 3000', exact: true });
+  await expect(last).toBeInViewport();
+  await expect(last).toHaveAttribute('aria-posinset', '3000');
+  await expect(last).toHaveAttribute('aria-setsize', '3000');
+  await expect(input).toHaveAttribute('aria-activedescendant', (await last.getAttribute('id'))!);
+  expect(await options.count()).toBeLessThan(50);
+  await input.press('Enter');
+  await expect(input).toHaveValue('C-3000 - Customer 3000');
+});
+
 test('ComboBox supports Arabic folding, native forms, reset, and rejected controlled commits', async ({ page }) => {
   await openStory(page, 'phase-3-combobox--arabic-rtl', 'theme:light;density:comfortable;direction:rtl');
   const arabic = page.getByRole('combobox', { name: 'العميل' });

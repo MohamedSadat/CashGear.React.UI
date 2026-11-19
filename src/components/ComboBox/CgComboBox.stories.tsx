@@ -45,5 +45,19 @@ export const StatesAndValidation: Story = { render: () => <StoryFrame source={so
 export const KeyboardAndLongContent: Story = { render: () => <StoryFrame source={source} difference={difference}><CgComboBox aria-label="Keyboard customer" options={[...customers, { id: 5, code: 'C-500', name: 'A customer with an intentionally long legal company name for overflow testing', city: 'Giza' }]} getOptionLabel={getLabel} getOptionKey={getKey} style={{ width: 360 }} /><small>Use Arrow Up/Down, Home/End, Enter, Escape, and Tab.</small></StoryFrame> };
 export const ArabicRtl: Story = { globals: { direction: 'rtl' }, render: () => <StoryFrame source={source} difference={difference}><div dir="rtl"><CgField label="العميل"><CgComboBox options={customers} getOptionLabel={getLabel} getOptionKey={getKey} getOptionSearchText={(item) => item.name} locale="ar-EG" placeholder="اختر العميل" /></CgField></div></StoryFrame> };
 export const PopupViewportFixture: Story = { render: () => <StoryFrame source={source} difference={difference}><div style={{ minHeight: 460, display: 'flex', alignItems: 'end' }}><CgComboBox aria-label="Viewport customer" options={customers} getOptionLabel={getLabel} getOptionKey={getKey} /></div></StoryFrame> };
+
+const scrollCustomers = Array.from({ length: 3000 }, (_, index) => ({
+  id: index + 1, code: `C-${index + 1}`, name: `Customer ${index + 1}`, city: '',
+}));
+
+export const ScrollFixture: Story = {
+  render: () => (
+    <div style={{ minHeight: '200vh', padding: 16 }}>
+      <CgComboBox aria-label="Capped customers" options={scrollCustomers} getOptionLabel={getLabel} getOptionKey={getKey} />
+      <CgComboBox aria-label="All customers" options={scrollCustomers} maxVisibleItems={scrollCustomers.length} getOptionLabel={getLabel} getOptionKey={getKey} />
+    </div>
+  ),
+};
+
 export const NativeFormFixture: Story = { render: () => <StoryFrame source={source} difference={difference}><NativeFormExample /></StoryFrame> };
 export const RejectedControlledFixture: Story = { render: () => <StoryFrame source={source} difference={difference}><RejectedSelectionExample /></StoryFrame> };

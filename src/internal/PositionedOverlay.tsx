@@ -35,7 +35,7 @@ function viewportBounds() {
   };
 }
 
-function observeGeometry(elements: ReadonlyArray<Element | null>, update: () => void) {
+function observeGeometry(elements: ReadonlyArray<Element | null>, update: () => void, scrollSurface?: Element | null) {
   const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(update);
   const mutationObserver = typeof MutationObserver === 'undefined' ? undefined : new MutationObserver(update);
   elements.forEach((element) => { if (element) observer?.observe(element); });
@@ -46,15 +46,19 @@ function observeGeometry(elements: ReadonlyArray<Element | null>, update: () => 
       attributeFilter: ['data-cg-theme', 'data-cg-density', 'dir'],
     });
   }
+  const onScroll = (event: Event) => {
+    if (event.target instanceof Node && scrollSurface?.contains(event.target)) return;
+    update();
+  };
   window.addEventListener('resize', update);
-  window.addEventListener('scroll', update, true);
+  window.addEventListener('scroll', onScroll, true);
   window.visualViewport?.addEventListener('resize', update);
   window.visualViewport?.addEventListener('scroll', update);
   return () => {
     observer?.disconnect();
     mutationObserver?.disconnect();
     window.removeEventListener('resize', update);
-    window.removeEventListener('scroll', update, true);
+    window.removeEventListener('scroll', onScroll, true);
     window.visualViewport?.removeEventListener('resize', update);
     window.visualViewport?.removeEventListener('scroll', update);
   };
@@ -332,7 +336,7 @@ export const PositionedOverlay = forwardRef<HTMLDivElement, PositionedOverlayPro
       setReady(measuredWidth > 0 && measuredHeight > 0);
     };
     update();
-    const cleanup = observeGeometry([anchorRef?.current ?? null, contextRef?.current ?? null, overlayRef.current], update);
+    const cleanup = observeGeometry([anchorRef?.current ?? null, contextRef?.current ?? null, overlayRef.current], update, overlayRef.current);
     return () => {
       cleanup();
       setReady(false);

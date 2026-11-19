@@ -11,7 +11,10 @@
 
 .popup {
   box-sizing: border-box;
+  /* Limit the first measurement, before the overlay puts a viewport-specific cap in place. */
+  max-height: 288px;
   overflow: auto;
+  overscroll-behavior: contain;
   padding: var(--cg-space-2);
   color: var(--cg-text);
   font: var(--cg-font-size-md)/var(--cg-line-height) var(--cg-font-family);
@@ -31,6 +34,14 @@
   white-space: nowrap;
   border-radius: var(--cg-radius-sm);
   cursor: pointer;
+}
+
+.virtualListbox { display: block; }
+.virtualListbox .option {
+  box-sizing: border-box;
+  block-size: var(--cg-combobox-row-height);
+  align-content: center;
+  padding-block: 0;
 }
 
 .option:hover { background: var(--cg-hover); }

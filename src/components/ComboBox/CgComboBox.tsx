@@ -1,11 +1,15 @@
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { ChangeEvent, CompositionEvent, KeyboardEvent, MouseEvent } from 'react';
+import type { ChangeEvent, CompositionEvent, CSSProperties, KeyboardEvent, MouseEvent } from 'react';
 import { useAsyncOperation, useCgId, useControllableState, useDebouncedCallback, useDirection, useFormReset, useMergedRefs, useStableCallback } from '../../hooks';
 import { EditorButton, InputShell, OverlayOwnerProvider, PositionedOverlay, useFieldControl, useOverlayStack } from '../../internal';
 import { assertNonNegative, assertPositiveInteger } from '../../internal/validation';
+import { useVirtualWindow } from '../../internal/useVirtualWindow';
 import { cx } from '../../utils';
 import styles from './CgComboBox.module.css';
 import type { CgComboBoxChangeReason, CgComboBoxProps, CgComboBoxValueChangeDetails } from './CgComboBox.types';
+
+const VIRTUAL_ROW_HEIGHT = 40;
+const VIRTUAL_THRESHOLD = 100;
 
 function keyToken(key: string | number): string {
   if (typeof key === 'number' && !Number.isFinite(key)) {
@@ -98,6 +102,9 @@ function CgComboBoxInner<TItem, TContext>(
   const inputRef = useRef<HTMLInputElement>(null);
   const controlRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
+  const listboxRef = useRef<HTMLDivElement>(null);
+  const statusContainerRef = useRef<HTMLDivElement>(null);
+  const revealFrameRef = useRef<number>(undefined);
   const ref = useMergedRefs(inputRef, forwardedRef);
   const listboxId = `${useCgId(field.id)}-listbox`;
   const statusId = `${listboxId}-status`;
@@ -155,9 +162,10 @@ function CgComboBoxInner<TItem, TContext>(
   );
   const sourceItems = loadOptions ? remoteItems : localItems;
   const selectedToken = selected === null ? undefined : keyToken(getOptionKey(selected));
-  const resolvedSelected = selectedToken === undefined
+  const resolvedSelected = useMemo(() => selectedToken === undefined
     ? null
-    : sourceItems.find((item) => keyToken(getOptionKey(item)) === selectedToken) ?? selected;
+    : sourceItems.find((item) => keyToken(getOptionKey(item)) === selectedToken) ?? selected,
+  [getOptionKey, selected, selectedToken, sourceItems]);
   const committedText = resolvedSelected === null ? _unresolvedValueText ?? '' : getOptionLabel(resolvedSelected);
 
   const localMatches = useMemo(() => {
@@ -171,8 +179,15 @@ function CgComboBoxInner<TItem, TContext>(
       return searchMode === 'startsWith' ? candidate.startsWith(foldedQuery) : candidate.includes(foldedQuery);
     });
   }, [draft, getOptionSearchText, ignoreDiacritics, loadOptions, locale, minimumSearchLength, searchMode, sourceItems]);
-  const filteredItems = loadOptions ? sourceItems : localMatches.slice(0, maxVisibleItems);
+  const filteredItems = useMemo(() => loadOptions ? sourceItems : localMatches.slice(0, maxVisibleItems),
+    [loadOptions, localMatches, maxVisibleItems, sourceItems]);
   const incomplete = loadOptions ? remoteIncomplete : localMatches.length > maxVisibleItems;
+  // Custom renderers can produce rows of different heights.
+  const virtualized = renderOption === undefined && filteredItems.length > VIRTUAL_THRESHOLD;
+  useLayoutEffect(() => {
+    if (popupRef.current) popupRef.current.scrollTop = 0;
+  }, [draft, remoteItems]);
+  const rows = useVirtualWindow(popupRef, filteredItems.length, VIRTUAL_ROW_HEIGHT, 5, open && virtualized, 0, statusContainerRef);
 
   const cancelRemote = useStableCallback(() => {
     asyncOperation.cancel();
@@ -349,10 +364,30 @@ function CgComboBoxInner<TItem, TContext>(
     return () => input.setCustomValidity('');
   }, [field.required, selected]);
 
-  useEffect(() => {
-    if (!open || activeIndex < 0) return;
-    document.getElementById(`${listboxId}-option-${activeIndex}`)?.scrollIntoView?.({ block: 'nearest' });
-  }, [activeIndex, listboxId, open]);
+  const revealOption = useStableCallback((index: number) => {
+    const popup = popupRef.current;
+    const listbox = listboxRef.current;
+    if (!open || activeIndex !== index || !popup || !listbox || index >= filteredItems.length) return;
+
+    const option = virtualized ? undefined : listbox.children[index] as HTMLElement | undefined;
+    const top = option ? option.offsetTop : listbox.offsetTop + index * VIRTUAL_ROW_HEIGHT;
+    const bottom = top + (option?.offsetHeight ?? VIRTUAL_ROW_HEIGHT);
+    if (top < popup.scrollTop) popup.scrollTop = top;
+    else if (bottom > popup.scrollTop + popup.clientHeight) popup.scrollTop = bottom - popup.clientHeight;
+  });
+
+  useEffect(() => () => {
+    if (revealFrameRef.current !== undefined) cancelAnimationFrame(revealFrameRef.current);
+  }, []);
+
+  const activateFromKeyboard = (index: number) => {
+    setActiveIndex(index);
+    if (revealFrameRef.current !== undefined) cancelAnimationFrame(revealFrameRef.current);
+    revealFrameRef.current = requestAnimationFrame(() => {
+      revealFrameRef.current = undefined;
+      revealOption(index);
+    });
+  };
 
   const updateQuery = (next: string, event?: ChangeEvent<HTMLInputElement>) => {
     setDraft(next);
@@ -375,10 +410,9 @@ function CgComboBoxInner<TItem, TContext>(
 
   const moveActive = (delta: number) => {
     if (filteredItems.length === 0) return;
-    setActiveIndex((current) => {
-      if (current < 0) return delta > 0 ? 0 : filteredItems.length - 1;
-      return Math.max(0, Math.min(filteredItems.length - 1, current + delta));
-    });
+    const lastIndex = filteredItems.length - 1;
+    const index = activeIndex < 0 ? (delta > 0 ? 0 : lastIndex) : Math.max(0, Math.min(lastIndex, activeIndex + delta));
+    activateFromKeyboard(index);
   };
 
   const resolveKeyboardSelection = () => {
@@ -413,17 +447,17 @@ function CgComboBoxInner<TItem, TContext>(
       if (!open) {
         beginOpen();
         if (!loadOptions && minimumSearchLength === 0 && sourceItems.length > 0) {
-          setActiveIndex(event.key === 'ArrowDown' ? 0 : sourceItems.length - 1);
+          activateFromKeyboard(event.key === 'ArrowDown' ? 0 : Math.min(sourceItems.length, maxVisibleItems) - 1);
         }
       } else {
         moveActive(event.key === 'ArrowDown' ? 1 : -1);
       }
     } else if (event.key === 'Home' && open) {
       event.preventDefault();
-      if (filteredItems.length > 0) setActiveIndex(0);
+      if (filteredItems.length > 0) activateFromKeyboard(0);
     } else if (event.key === 'End' && open) {
       event.preventDefault();
-      if (filteredItems.length > 0) setActiveIndex(filteredItems.length - 1);
+      if (filteredItems.length > 0) activateFromKeyboard(filteredItems.length - 1);
     } else if (event.key === 'Enter' && open) {
       event.preventDefault();
       const item = resolveKeyboardSelection();
@@ -448,9 +482,14 @@ function CgComboBoxInner<TItem, TContext>(
           : filteredItems.length === 0
           ? emptyMessage
           : incomplete ? refineSearchMessage : undefined;
-  const activeOptionId = open && activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined;
+  const activeOptionId = open && activeIndex >= rows.start && activeIndex < rows.end ? `${listboxId}-option-${activeIndex}` : undefined;
   const describedBy = joinIds(field.describedBy, open && status !== undefined ? statusId : undefined);
   const serializedValue = _serializedValue ?? (selected === null ? '' : String(getOptionKey(selected)));
+  const listboxStyle = virtualized ? {
+    '--cg-combobox-row-height': `${VIRTUAL_ROW_HEIGHT}px`,
+    paddingBlockStart: rows.paddingBefore,
+    paddingBlockEnd: rows.paddingAfter,
+  } as CSSProperties : undefined;
   const start = null;
   const end = (
     <>
@@ -524,11 +563,14 @@ function CgComboBoxInner<TItem, TContext>(
       {open ? (
         <PositionedOverlay ref={popupRef} anchorRef={controlRef} className={styles.popup} role="presentation" maxHeight={288} style={{ zIndex: overlay.rootKind === 'modal' ? `calc(var(--cg-z-modal) + ${overlay.order * 2 + 1})` : `calc(var(--cg-z-popover) + ${overlay.order})` }} data-cg-overlay-id={overlay.id} data-cg-overlay-owner={overlay.ownerId}>
           <OverlayOwnerProvider id={overlay.id}>
-          {status !== undefined && status !== null ? (
-            <div id={statusId} className={cx(styles.status, asyncOperation.pending && styles.loading, loadError !== undefined && styles.error)} role={loadError !== undefined ? 'alert' : 'status'}>{status}</div>
-          ) : null}
-          <div id={listboxId} className={styles.listbox} role="listbox" aria-busy={asyncOperation.pending || undefined}>
-            {filteredItems.map((item, index) => {
+          <div ref={statusContainerRef}>
+            {status !== undefined && status !== null ? (
+              <div id={statusId} className={cx(styles.status, asyncOperation.pending && styles.loading, loadError !== undefined && styles.error)} role={loadError !== undefined ? 'alert' : 'status'}>{status}</div>
+            ) : null}
+          </div>
+          <div ref={listboxRef} id={listboxId} className={cx(styles.listbox, virtualized && styles.virtualListbox)} style={listboxStyle} role="listbox" aria-busy={asyncOperation.pending || undefined}>
+            {filteredItems.slice(rows.start, rows.end).map((item, windowIndex) => {
+              const index = rows.start + windowIndex;
               const token = keyToken(getOptionKey(item));
               const isSelected = selectedToken === token;
               const isActive = activeIndex === index;
@@ -539,6 +581,8 @@ function CgComboBoxInner<TItem, TContext>(
                   className={styles.option}
                   role="option"
                   aria-selected={isSelected}
+                  aria-posinset={virtualized ? index + 1 : undefined}
+                  aria-setsize={virtualized ? filteredItems.length : undefined}
                   data-selected={isSelected || undefined}
                   data-active={isActive || undefined}
                   onMouseDown={(event: MouseEvent<HTMLDivElement>) => event.preventDefault()}
