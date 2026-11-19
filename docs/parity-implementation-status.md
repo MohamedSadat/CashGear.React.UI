@@ -456,6 +456,8 @@ Stories are under `Blazor parity 2026-11/DateEdit typing and pickers`.
 | Visual, Chromium | Date, calendar, pivot and filter cases: 46 of 46 against the existing baselines. |
 | Chromium semantic and Axe | 55 of 56. The failure is `components.browser.spec.ts:526` ("DateEdit supports semantic keyboard navigation…"): line 548 presses a plain ArrowDown in the focused field to reopen the calendar, which now changes the highlighted part as in Blazor. The spec needs `Alt+ArrowDown` there; it was not changed because that file carries another session's uncommitted work. |
 
+Follow-up (2026-11-19): the spec now presses `Alt+ArrowDown` there and passes in Chromium and WebKit.
+
 ### R9 (part 1): numeric editors keep select-all on click
 
 Blazor `f4a27eb5` keeps a spin editor's select-all past the focusing click. Confirmed in React: `CgNumericEdit` and `CgDecimalEdit` call `select()` on focus, and the focusing click's mouseup then collapsed the selection to the caret. Both now note a pointer-initiated focus on `pointerdown` and cancel only that click's `mouseup`; host `onPointerDown`/`onMouseUp` still run.

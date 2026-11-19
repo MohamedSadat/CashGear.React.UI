@@ -545,7 +545,8 @@ test('DateEdit supports semantic keyboard navigation, panels, selection, Escape,
   await expect(dialog).toHaveCount(0);
   await expect(input).toBeFocused();
 
-  await input.press('ArrowDown');
+  // A plain ArrowDown in the focused field changes the date part (Blazor); Alt+ArrowDown opens.
+  await input.press('Alt+ArrowDown');
   await page.getByRole('button', { name: 'Choose month and year' }).click();
   await expect(page.getByRole('grid').getByRole('gridcell')).toHaveCount(12);
   await page.getByRole('button', { name: 'Choose year' }).click();
