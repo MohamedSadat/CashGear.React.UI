@@ -114,6 +114,15 @@ function constrainedMaximum(value: CSSProperties['maxWidth'], available: number)
   return `min(${available}px, ${value})`;
 }
 
+/** The surface's height under its own maximum alone; the viewport cap the last pass wrote is lifted for the read. */
+function ownCappedHeight(overlay: HTMLElement, maxHeight: CSSProperties['maxHeight']): number {
+  const previous = overlay.style.maxHeight;
+  overlay.style.maxHeight = maxHeight === undefined ? 'none' : typeof maxHeight === 'number' ? `${maxHeight}px` : maxHeight;
+  const height = overlay.offsetHeight;
+  overlay.style.maxHeight = previous;
+  return height;
+}
+
 function alignedOffset(
   alignment: 'start' | 'center' | 'end',
   anchorStart: number,
@@ -260,9 +269,13 @@ export const PositionedOverlay = forwardRef<HTMLDivElement, PositionedOverlayPro
       const naturalWidth = placementCandidates?.length
         ? overlayRect.width
         : Math.max(overlayRect.width, Math.min(overlay.scrollWidth, bounds.right - bounds.left));
+      // The height the surface takes when the viewport does not constrain it: its content under its own
+      // maxHeight, measured with last pass's viewport cap lifted and restored in the same task (Blazor
+      // 0e148f5a). The content's scroll height is not that number: a 560px list capped at 288px needs
+      // 288px, and counting the rows flipped it to the other side when 288px fitted below.
       const naturalHeight = placementCandidates?.length
         ? overlayRect.height
-        : Math.max(overlayRect.height, Math.min(overlay.scrollHeight, bounds.bottom - bounds.top));
+        : Math.max(overlayRect.height, Math.min(ownCappedHeight(overlay, maxHeight), bounds.bottom - bounds.top));
       const desiredHeight = naturalHeight;
       let selectedPlacement = placement;
       if (placementCandidates?.length) {

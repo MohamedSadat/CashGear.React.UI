@@ -30,3 +30,18 @@ test('ComboBox free text commits on Enter, Tab and an outside click, and Escape 
   await expect(page.getByText('Key: PALLET')).toBeVisible();
   await expect(key).toHaveValue('Pallet');
 });
+
+test('A capped flyout opens below its field when its cap fits there, not where its whole list would', async ({ page }) => {
+  await openStory(page, 'blazor-parity-2026-11-overlay-placement--capped-list-opens-below');
+  const anchor = page.getByTestId('capped-anchor');
+  const flyout = page.getByTestId('capped-flyout');
+  await expect(flyout).toBeVisible();
+  const field = (await anchor.boundingBox())!;
+  // Room below for the 20rem (320px) cap but not for the ~800px list, and more room above than below.
+  await page.setViewportSize({ width: 1280, height: Math.round(field.y + field.height + 360) });
+  await expect.poll(async () => (await flyout.boundingBox())!.y).toBeGreaterThanOrEqual(field.y + field.height);
+  const box = (await flyout.boundingBox())!;
+  expect(field.y).toBeGreaterThan(360);
+  expect(box.height).toBeLessThanOrEqual(321);
+  expect(box.y - (field.y + field.height)).toBeLessThan(8);
+});

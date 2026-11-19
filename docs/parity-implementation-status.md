@@ -464,7 +464,7 @@ Blazor `f4a27eb5` keeps a spin editor's select-all past the focusing click. Conf
 
 | Gate | Recorded result |
 | --- | --- |
-| Typecheck, lint | Passed. |
+| Typecheck, lint | Lint passed. Typecheck was recorded as passed but fails on this phase's test, which passes a string as a `CgDecimalEdit` value; fixed with R9 part 2. |
 | Full unit suite | 1,367 tests in 121 files passed with two workers, including `tests/blazor-parity-r9.test.tsx` (2 cases). |
 | Browser | Not rerun: no story or layout changes. |
 
@@ -484,3 +484,18 @@ Stories are under `Blazor parity 2026-11/ComboBox free text`. New browser spec `
 | Full unit suite | 1,375 tests in 122 files passed with two workers, including `tests/blazor-parity-r8.test.tsx` (8 cases: Enter with hint, caption wins, listed key, blur and outside click and Escape, refusal, no factory, text provider, KeyComboBox). |
 | Storybook build | Passed. |
 | Browser, Chromium and WebKit | Free-text spec 2 of 2. ComboBox, KeyComboBox and DateEdit semantic and visual cases 47 of 48. The failure is WebKit only, `components.browser.spec.ts:172` ("ComboBox opens on the last capped option and keeps wheel scroll inside the popup"): a wheel at the popup's end scrolls the page 450px. It fails the same way on a Storybook built from `444880c` without these changes, so it is not from R8; the case came with that commit. |
+
+### R9 (part 2): capped overlays open next to their field; overflow-anchor
+
+Blazor `0e148f5a` (`CgFlyout.razor.js` `position()`) sizes a popup for placement by its height under its own `MaxHeight`. Confirmed in React: outside the legacy editor sizing path, `PositionedOverlay` compared the room below with the content's whole `scrollHeight`, capped only by the viewport, so a 560px list under a 288px `maxHeight` flipped above its field when 288px fitted below. The natural height is now the surface's `offsetHeight` with its own `maxHeight` applied and the last pass's viewport cap lifted, read and restored in the same task. This reaches every `PositionedOverlay` surface without placement candidates: `CgFlyout`, DropDownBox, DateEdit, TimeEdit and tooltips. The editor drop-downs' sizing path already used `Math.min(maxHeight, scrollHeight)` and is unchanged.
+
+Blazor `7db46710` turns `overflow-anchor` off in `CgLookUpGrid` because its virtual rows are reused nodes, and the spacer resize made the browser's scroll anchoring jump the list. Not reproduced in React, so no CSS was changed: a Chromium probe scrolled ListBox, ComboBox, Grid and TreeView 115 programmatic steps each and saw no jump, with computed `overflow-anchor: auto` on their scrollers. React keys virtual rows by item (ListBox row key, TreeView node key, Grid row token), so anchoring follows the same row rather than a recycled one. A wheel-driven probe was dropped because WebKit and Chromium reported zero deltas under Playwright.
+
+Story: `Blazor parity 2026-11/Overlay placement` (`CappedListOpensBelow`).
+
+| Gate | Recorded result |
+| --- | --- |
+| Typecheck, lint | Passed, including R9 part 1's corrected test. |
+| Full unit suite | 1,376 tests in 122 files passed with two workers. `tests/blazor-parity-r9.test.tsx` gains a placement case (anchor at 420 to 450px, 560px content, 288px cap: opens below at 450px), which fails on the old code. |
+| Storybook build | Passed. |
+| Browser, full suite | Semantic and visual, Chromium and WebKit: 1,780 of 1,782; every visual case matched its existing baseline. New spec case: a capped flyout opens below its field when its cap fits there. The two failures are both WebKit semantic: `components.browser.spec.ts:172`, the pre-existing wheel case recorded under R8, and `phase34_1.browser.spec.ts:65` for `phase-34-ribbon--very-narrow`, where WebKit logged "preloaded but not used within a few seconds" warnings late in the 1.6-hour run. Run on its own, the WebKit ribbon spec passed 90 of 90, with that story passing all 3 repeats. |
