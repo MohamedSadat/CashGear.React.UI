@@ -69,6 +69,14 @@ export interface CgTimelineChangeInfo {
   readonly edge: CgTimelineEdge;
 }
 
+/** What `labels.movedLane` is given: the item's new days and the lane it is now under. `days` is 0 when only its lane changed. */
+export interface CgTimelineLaneChangeInfo extends CgTimelineChangeInfo {
+  /** The title of the lane it is now under, as drawn: `labels.noLane` for the last lane. */
+  readonly lane: string;
+  /** That lane's key, or null for the last lane of unlisted items. */
+  readonly laneKey: string | null;
+}
+
 export interface CgTimelineLabels<TData = unknown> {
   /** The grid's accessible name, as "Tasks timeline". */
   grid: string;
@@ -88,12 +96,21 @@ export interface CgTimelineLabels<TData = unknown> {
    * the days it covers.
    */
   item?: (item: CgTimelineItem<TData>, info: CgTimelineItemNameInfo) => string;
-  /** Read after a movable item's name, as "Alt and the arrow keys move it; add Shift to change its end, or Ctrl and Shift its start". */
+  /**
+   * Read after a movable item's name, as "Alt and the arrow keys move it; add Shift to change its
+   * end, or Ctrl and Shift its start". With `moveBetweenLanes`, name the lane keys too, as "…; Alt
+   * with ArrowUp or ArrowDown moves it to the lane above or below".
+   */
   moveHint?: string;
   /** Spoken after a move by drag or keys, as "Budget moved to Monday 16 November". Needed with `onItemMove`. */
   moved?: (item: CgTimelineItem<TData>, info: CgTimelineChangeInfo) => string;
   /** Spoken after a start or an end changed by drag or keys, as "Budget now ends Friday 20 November". Needed with `onItemMove`. */
   resized?: (item: CgTimelineItem<TData>, info: CgTimelineChangeInfo) => string;
+  /**
+   * Spoken after a move to another lane by drag or keys, its days changed or not, as "Budget moved
+   * to Review, Monday 16 November". Needed with `moveBetweenLanes` and `onItemMove`.
+   */
+  movedLane?: (item: CgTimelineItem<TData>, info: CgTimelineLaneChangeInfo) => string;
   /** The title of the last lane, holding the items whose lane is not listed. Needed with `lanes` when such items exist. */
   noLane?: string;
   /** Drawn and read for an item whose title is blank. */
@@ -140,10 +157,15 @@ export interface CgTimelineMoveDetails {
    * (or of the start when it had no end).
    */
   readonly end: string | null;
-  /** Whole days the changed part moved: negative is earlier. */
+  /** Whole days the changed part moved: negative is earlier, 0 when only its lane changed. */
   readonly days: number;
   readonly edge: CgTimelineEdge;
   readonly source: CgTimelineMoveSource;
+  /**
+   * With `moveBetweenLanes`, the lane it was moved to, in the same call as its dates: a lane's key,
+   * or null for the last lane of unlisted items. Absent when its lane did not change.
+   */
+  readonly lane?: string | null;
 }
 
 /** The days shown, inclusive (`YYYY-MM-DD`): the caller fetches the items in a window around them. */
@@ -251,9 +273,21 @@ export interface CgTimelineProps<TData = unknown> extends NativeTimelineProps {
    * moved with the keys on its focused bar, mirrored in right to left:
    * Alt+ArrowLeft and Alt+ArrowRight move it a day; Alt+Shift with them moves its end; Ctrl+Shift
    * (Cmd+Shift on a Mac) with them moves its start. None of them is Ctrl+Alt, which is AltGr. A start
-   * never passes its end. One call per change; the caller writes the new dates. Without it, nothing moves.
+   * never passes its end. With `moveBetweenLanes`, a move can also change its lane (`details.lane`).
+   * One call per change; the caller writes the new dates (and lane). Without it, nothing moves.
    */
   onItemMove?: (item: CgTimelineItem<TData>, details: CgTimelineMoveDetails) => void;
+  /**
+   * With `lanes` and `onItemMove`, a movable item can change lane: its body dragged over another
+   * lane's lines (or its header line, collapsed or not) while it moves by whole days as before, the
+   * lane it would drop in marked, dragging near the top or bottom edge scrolling the lines and
+   * Escape cancelling; or Alt+ArrowUp and Alt+ArrowDown on its focused bar, the lane above or below
+   * in the order drawn, never mirrored. `onItemMove` is called once with the new dates and
+   * `details.lane`; the focus follows the bar to its new line once the caller has moved it there (to
+   * the lane's header when that lane is collapsed). The last lane of unlisted items means no lane
+   * (null). Needs `labels.movedLane`. Default false.
+   */
+  moveBetweenLanes?: boolean;
   /** Finding and marking days from outside the grid, scrolling, and an item's bar. `ref` stays the root element. */
   actionsRef?: Ref<CgTimelineHandle>;
 }

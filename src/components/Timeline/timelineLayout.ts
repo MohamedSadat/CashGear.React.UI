@@ -2,8 +2,8 @@
 // read, in the caller's order, under a header line per lane (the items of a lane not listed under a
 // last one); where an item's bar falls (its first and last day, read only for the lines drawn, since
 // placing an instant in a time zone is the costly part); an item's dates after a move or a change
-// to its start or end, in the forms they were written; and the keys that move between lines and
-// change a bar.
+// to its start or end, in the forms they were written; the lanes a bar can be moved to and the line
+// under a dragged one; and the keys that move between lines, change a bar and move it between lanes.
 import { readPoint, shiftPoint } from '../MonthCalendar/monthCalendarDates';
 import type { CgTimelineEdge, CgTimelineItem, CgTimelineLane } from './CgTimeline.types';
 
@@ -36,6 +36,8 @@ export interface TimelineLines<TData> {
   readonly index: ReadonlyMap<string, number>;
   /** Lines are grouped under lanes. */
   readonly grouped: boolean;
+  /** The places of the lanes' header lines, in order: empty without lanes. */
+  readonly heads: ReadonlyArray<number>;
 }
 
 export const itemLineId = (key: string): string => `i:${key}`;
@@ -65,13 +67,14 @@ export function buildLines<TData>(
   }
   const lines: TimelineLine<TData>[] = [];
   const index = new Map<string, number>();
+  const heads: number[] = [];
   const add = (line: TimelineLine<TData>) => {
     index.set(line.id, lines.length);
     lines.push(line);
   };
   if (!lanes) {
     for (const item of shown) add({ kind: 'item', id: itemLineId(item.key), item, lane: null, laneTitle: null });
-    return { lines, index, grouped: false };
+    return { lines, index, grouped: false, heads };
   }
   const groups = new Map<string, CgTimelineItem<TData>[]>();
   for (const lane of lanes) {
@@ -86,6 +89,7 @@ export function buildLines<TData>(
   }
   const addLane = (lane: string | null, title: string, members: ReadonlyArray<CgTimelineItem<TData>>) => {
     const folded = collapsed.has(lane);
+    heads.push(lines.length);
     add({ kind: 'lane', id: laneLineId(lane), lane, title, count: members.length, collapsed: folded });
     if (!folded) for (const item of members) add({ kind: 'item', id: itemLineId(item.key), item, lane, laneTitle: title });
   };
@@ -94,7 +98,60 @@ export function buildLines<TData>(
     if (typeof noLane !== 'string' || !noLane.trim()) throw new Error('CgTimeline labels.noLane is required when items are in no listed lane.');
     addLane(null, noLane, rest);
   }
-  return { lines, index, grouped: true };
+  return { lines, index, grouped: true, heads };
+}
+
+// ---- Lanes a bar moves to -----------------------------------------------------------------------
+
+/** The lines a lane takes, from its header to its last item drawn (the header alone when it is collapsed or empty); null when it has no line. */
+export function laneRange(model: Pick<TimelineLines<unknown>, 'index' | 'heads' | 'lines'>, lane: string | null): { first: number; last: number } | null {
+  const first = model.index.get(laneLineId(lane));
+  if (first === undefined) return null;
+  const next = model.heads[model.heads.indexOf(first) + 1];
+  return { first, last: (next ?? model.lines.length) - 1 };
+}
+
+/**
+ * The lane `step` lanes from `lane` in the order drawn (the last lane of unlisted items, null, is
+ * last when it is drawn), or undefined past the first or the last.
+ */
+export function laneBeside(model: Pick<TimelineLines<unknown>, 'index' | 'heads' | 'lines'>, lane: string | null, step: -1 | 1): string | null | undefined {
+  const head = model.index.get(laneLineId(lane));
+  if (head === undefined) return undefined;
+  const next = model.heads[model.heads.indexOf(head) + step];
+  const line = next === undefined ? undefined : model.lines[next];
+  return line?.kind === 'lane' ? line.lane : undefined;
+}
+
+/** The lane an item is drawn under: its own when it is listed, else null (the last lane). */
+export function drawnLane(item: Pick<CgTimelineItem, 'lane'>, lanes: ReadonlyArray<CgTimelineLane> | undefined): string | null {
+  const key = item.lane;
+  return key !== undefined && key !== null && lanes?.some((lane) => lane.key === key) ? key : null;
+}
+
+/**
+ * The line a dragged bar is over: the one under `y` (a viewport y), kept inside the lines shown
+ * between `top` and `bottom` (the scroller's part below its header), so a pointer over the header
+ * takes the first line shown and one past the last line takes the last. `linesTop` is the viewport
+ * y of the first line's top. Null when there are no lines.
+ */
+export function lineUnder(y: number, top: number, bottom: number, linesTop: number, lineHeight: number, count: number): number | null {
+  if (count <= 0) return null;
+  const inside = Math.min(Math.max(y, top), Math.max(top, bottom - 1));
+  return Math.max(0, Math.min(count - 1, Math.floor((inside - linesTop) / lineHeight)));
+}
+
+/**
+ * An item's dates after a move to another lane by whole days, none included: as `changeItemDates`
+ * moves them, or the item's own when the days are 0 (an end missing or empty is null).
+ */
+export function laneMoveDates(
+  item: Pick<CgTimelineItem, 'start' | 'end'>,
+  span: TimelineSpan,
+  days: number,
+  timeZone: string | undefined,
+): TimelineChange {
+  return changeItemDates(item, span, 'move', days, timeZone) ?? { start: item.start, end: item.end ? item.end : null, days: 0, span };
 }
 
 // ---- Where a bar falls --------------------------------------------------------------------------
@@ -208,6 +265,18 @@ export function keyChange(chord: KeyChord, rtl: boolean): { edge: CgTimelineEdge
   const command = chord.ctrlKey || chord.metaKey;
   if (chord.altKey && !command) return { edge: chord.shiftKey ? 'end' : 'move', days };
   if (command && chord.shiftKey && !chord.altKey) return { edge: 'start', days };
+  return null;
+}
+
+/**
+ * The lane a key moves a focused bar to, never mirrored: Alt+ArrowUp the lane above (-1),
+ * Alt+ArrowDown the lane below (1). Not with Shift, Ctrl or Cmd (Ctrl with Alt is AltGr). Null
+ * when the key is not one of them.
+ */
+export function laneKeyStep(chord: KeyChord): -1 | 1 | null {
+  if (!chord.altKey || chord.shiftKey || chord.ctrlKey || chord.metaKey) return null;
+  if (chord.key === 'ArrowUp') return -1;
+  if (chord.key === 'ArrowDown') return 1;
   return null;
 }
 

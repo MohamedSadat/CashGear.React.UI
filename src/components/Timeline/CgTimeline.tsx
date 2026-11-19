@@ -20,7 +20,10 @@ import type {
   CgTimelineScale,
 } from './CgTimeline.types';
 import { DEFAULT_DAY_WIDTHS, REACH_DAYS, SCALE_TIERS, TIMELINE_SCALES, axisUnits, shownDays, timelineFormats } from './timelineDates';
-import { TimelinePlacements, buildLines, changeItemDates, clampChange, itemLineId, keyChange, lineStep } from './timelineLayout';
+import {
+  TimelinePlacements, buildLines, changeItemDates, clampChange, drawnLane, itemLineId, keyChange, laneBeside, laneKeyStep, laneLineId, laneMoveDates, laneRange,
+  lineStep, lineUnder,
+} from './timelineLayout';
 import type { TimelineItemLine, TimelineLine, TimelineSpan } from './timelineLayout';
 
 /** The header's two tiers, in pixels. */
@@ -37,6 +40,7 @@ const FALLBACK_WIDTH = 960;
 const MAX_WIDTH = 8192;
 const FALLBACK_HEIGHT = 448;
 const NO_LANES: ReadonlyArray<string | null> = Object.freeze([]);
+const MODIFIERS: ReadonlySet<string> = new Set(['Alt', 'AltGraph', 'Control', 'Meta', 'Shift', 'OS']);
 
 const knownZones = new Set<string>();
 function assertTimeZone(timeZone: string | undefined): void {
@@ -58,7 +62,7 @@ function dayOfValue(value: string, what: string): number {
 
 const filled = (value: unknown): boolean => typeof value === 'string' && value.trim() !== '';
 
-function assertLabels<TData>(labels: CgTimelineLabels<TData>, toolbar: boolean, moves: boolean, scales: ReadonlyArray<CgTimelineScale>): void {
+function assertLabels<TData>(labels: CgTimelineLabels<TData>, toolbar: boolean, moves: boolean, laneMoves: boolean, scales: ReadonlyArray<CgTimelineScale>): void {
   if (!filled(labels.grid)) throw new Error('CgTimeline labels.grid cannot be empty.');
   if (toolbar) {
     for (const name of ['previous', 'next', 'today'] as const) if (!filled(labels[name])) throw new Error(`CgTimeline labels.${name} cannot be empty.`);
@@ -68,6 +72,7 @@ function assertLabels<TData>(labels: CgTimelineLabels<TData>, toolbar: boolean, 
     }
   }
   if (moves && (typeof labels.moved !== 'function' || typeof labels.resized !== 'function')) throw new Error('CgTimeline labels.moved and labels.resized are required with onItemMove.');
+  if (moves && laneMoves && typeof labels.movedLane !== 'function') throw new Error('CgTimeline labels.movedLane is required with moveBetweenLanes and onItemMove.');
 }
 
 const isRtl = (element: Element): boolean => getComputedStyle(element).direction === 'rtl';
@@ -108,27 +113,36 @@ interface PendingFocus {
   readonly reveal: 'focus' | CgTimelineEdge;
 }
 
+/** An item moved to another lane: its bar is focused in its new line once the caller has moved it there. */
+interface PendingFollow {
+  /** The item's line id. */
+  readonly id: string;
+  readonly key: string;
+  readonly lane: string | null;
+}
+
 /**
  * Items on a time axis, one line each in the caller's order, optionally under lanes that collapse:
  * each item a bar from its start to its inclusive end, at a scale of days, weeks, months or
  * quarters, under a two-tier header. Only the lines in view, and the header's units and grid lines
  * near the days in view, are drawn, so 50,000 items cost little more than a date check each.
  * Time runs from the inline start: right to left in a right-to-left container. It has no editor:
- * opening, creating and moving (dragging a bar or an edge, or keys on its focused bar) are
- * callbacks. The lines are one tab stop moved by ArrowUp, ArrowDown, PageUp, PageDown, Home and
- * End. `actionsRef` finds and marks days for a drag from outside, and scrolls.
+ * opening, creating and moving (dragging a bar or an edge, or keys on its focused bar, and with
+ * `moveBetweenLanes` to another lane) are callbacks. The lines are one tab stop moved by ArrowUp,
+ * ArrowDown, PageUp, PageDown, Home and End. `actionsRef` finds and marks days for a drag from
+ * outside, and scrolls.
  */
 function CgTimelineInner<TData>(
   {
     items, labels, lanes, collapsedLanes, defaultCollapsedLanes, onCollapsedLanesChange, scale, defaultScale = 'week', onScaleChange, scales,
     dayWidths, startDate, defaultStartDate, onRangeChange, rangeChangeDelay = 150, lineHeight = 36, overscan = 6, height = '28rem',
-    showToolbar = true, locale, firstDayOfWeek, today, timeZone, renderItem, onItemOpen, onCreate, onItemMove, actionsRef, className, style,
-    ...nativeProps
+    showToolbar = true, locale, firstDayOfWeek, today, timeZone, renderItem, onItemOpen, onCreate, onItemMove, moveBetweenLanes = false, actionsRef,
+    className, style, ...nativeProps
   }: CgTimelineProps<TData>,
   forwardedRef: ForwardedRef<HTMLDivElement>,
 ) {
   const offered = scales ?? TIMELINE_SCALES;
-  assertLabels(labels, showToolbar, onItemMove !== undefined, offered);
+  assertLabels(labels, showToolbar, onItemMove !== undefined, moveBetweenLanes, offered);
   if (!Number.isFinite(lineHeight) || lineHeight < 24) throw new RangeError('CgTimeline lineHeight must be at least 24 pixels.');
   if (!Number.isInteger(overscan) || overscan < 0) throw new RangeError('CgTimeline overscan must be a whole number of lines, 0 or more.');
   if (!Number.isFinite(rangeChangeDelay) || rangeChangeDelay < 0) throw new RangeError('CgTimeline rangeChangeDelay must be 0 or more milliseconds.');
@@ -143,6 +157,7 @@ function CgTimelineInner<TData>(
   const scrollerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
+  const laneDropRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
   const live = useRef<CgLiveAnnouncerHandle>(null);
   const stopDrag = useRef<(() => void) | null>(null);
@@ -151,6 +166,7 @@ function CgTimelineInner<TData>(
   const seen = useRef<SeenView | null>(null);
   const pendingScroll = useRef<PendingScroll | null>(null);
   const pendingFocus = useRef<PendingFocus | null>(null);
+  const following = useRef<PendingFollow | null>(null);
   const lastRange = useRef('');
   const mounted = useRef(false);
 
@@ -177,6 +193,7 @@ function CgTimelineInner<TData>(
   const placements = useMemo(() => new TimelinePlacements(timeZone), [timeZone]);
   const { lines } = model;
   const count = lines.length;
+  const laneMoves = moveBetweenLanes && onItemMove !== undefined && model.grouped;
 
   // ---- Geometry ----------------------------------------------------------------------------------
   const width = view.width || FALLBACK_WIDTH;
@@ -276,6 +293,32 @@ function CgTimelineInner<TData>(
     }
   });
 
+  /**
+   * A bar moved to another lane is focused in its new line once the caller has drawn it there (that
+   * lane's header when the lane is collapsed and holds it), after the next drawing; not if the focus
+   * has left the timeline meanwhile. Until then it waits.
+   */
+  const settleFollow = useStableCallback(() => {
+    const follow = following.current;
+    const root = rootRef.current;
+    if (!follow || !root) return;
+    let arrived: number | undefined;
+    const at = model.index.get(follow.id);
+    if (at !== undefined) arrived = lines[at]?.lane === follow.lane ? at : undefined;
+    else if (collapsedSet.has(follow.lane)) {
+      const item = items.find((entry) => entry.key === follow.key);
+      arrived = item && drawnLane(item, lanes) === follow.lane ? model.index.get(laneLineId(follow.lane)) : undefined;
+    }
+    if (arrived === undefined) return;
+    following.current = null;
+    const focused = root.ownerDocument.activeElement;
+    if (focused && focused !== root.ownerDocument.body && !root.contains(focused)) return;
+    const line = lines[arrived]!;
+    setActive({ id: line.id, index: arrived });
+    pendingFocus.current = { id: line.id, reveal: 'focus' };
+    setFocusRequests((value) => value + 1);
+  });
+
   // The scroller is followed outside React: a drawing happens only when the lines or days to draw change.
   useLayoutEffect(() => {
     const scroller = scrollerRef.current;
@@ -327,6 +370,7 @@ function CgTimelineInner<TData>(
       if (index !== undefined) reveal(index, focus.reveal);
       target?.focus({ preventScroll: true });
     }
+    settleFollow();
   });
 
   useEffect(() => () => {
@@ -344,6 +388,8 @@ function CgTimelineInner<TData>(
     setFocusRequests((value) => value + 1);
   };
   const onStopFocus = (line: TimelineLine<TData>, index: number) => {
+    // Focus on another line ends a wait for a bar moved to another lane.
+    if (following.current && following.current.id !== line.id) following.current = null;
     if (active?.id !== line.id || active.index !== index) setActive({ id: line.id, index });
   };
   const toggleLane = (lane: string | null) => {
@@ -395,6 +441,21 @@ function CgTimelineInner<TData>(
     mark.style.setProperty('--cg-timeline-w', `${Math.max(2, dayWidth)}px`);
     mark.setAttribute('data-shown', '');
   };
+  /** Marks the lines of the lane a dragged bar would drop in, its header to its last line, or clears the mark with undefined. Written to the DOM. */
+  const markLane = (lane: string | null | undefined) => {
+    const mark = laneDropRef.current;
+    if (!mark) return;
+    const range = lane === undefined ? null : laneRange(model, lane);
+    if (!range) {
+      mark.removeAttribute('data-shown');
+      mark.removeAttribute('data-lane');
+      return;
+    }
+    mark.style.setProperty('--cg-timeline-y', `${range.first * lineHeight}px`);
+    mark.style.setProperty('--cg-timeline-h', `${(range.last - range.first + 1) * lineHeight}px`);
+    mark.setAttribute('data-lane', lane ?? '');
+    mark.setAttribute('data-shown', '');
+  };
   const shownNow = () => {
     const before = seen.current;
     return before ? shownDays(before.inline, before.width, before.dayWidth, before.from) : { first: view.day, last: view.day + shownDayCount - 1 };
@@ -441,27 +502,40 @@ function CgTimelineInner<TData>(
   const canMove = (item: CgTimelineItem<TData>) => onItemMove !== undefined && item.movable !== false;
   const canResize = (item: CgTimelineItem<TData>) => onItemMove !== undefined && item.resizable !== false;
   const allowed = (item: CgTimelineItem<TData>, edge: CgTimelineEdge) => (edge === 'move' ? canMove(item) : canResize(item));
-  /** One change, reported and spoken; false when it changes nothing. */
-  const commit = (line: TimelineItemLine<TData>, span: TimelineSpan, edge: CgTimelineEdge, days: number, source: CgTimelineMoveSource) => {
+  /** A lane's title as drawn on its header line: `labels.noLane` for the last lane. */
+  const laneTitleOf = (lane: string | null) => {
+    const head = model.index.get(laneLineId(lane));
+    const line = head === undefined ? undefined : lines[head];
+    return line?.kind === 'lane' ? line.title : lane ?? labels.noLane ?? '';
+  };
+  /**
+   * One change, reported and spoken in one call; false when it changes nothing. `lane` is the lane a
+   * move puts it in: a change when it is not the lane it is drawn under, even by no days.
+   */
+  const commit = (line: TimelineItemLine<TData>, span: TimelineSpan, edge: CgTimelineEdge, days: number, source: CgTimelineMoveSource, lane?: string | null) => {
     if (!onItemMove) return false;
-    const change = changeItemDates(line.item, span, edge, days, timeZone);
+    const toLane = edge === 'move' && lane !== undefined && lane !== line.lane ? lane : undefined;
+    const change = toLane === undefined ? changeItemDates(line.item, span, edge, days, timeZone) : laneMoveDates(line.item, span, days, timeZone);
     if (!change) return false;
-    onItemMove(line.item, Object.freeze({ start: change.start, end: change.end, days: change.days, edge, source }));
-    const info = Object.freeze({
+    onItemMove(line.item, Object.freeze({ start: change.start, end: change.end, days: change.days, edge, source, ...(toLane === undefined ? {} : { lane: toLane }) }));
+    const info = {
       start: formats.longDate(change.span.start),
       end: change.span.end > change.span.start ? formats.longDate(change.span.end) : null,
       length: change.span.end - change.span.start + 1,
       days: change.days,
       edge,
-    });
-    const message = edge === 'move' ? labels.moved?.(line.item, info) : labels.resized?.(line.item, info);
+    };
+    const message = toLane !== undefined
+      ? labels.movedLane?.(line.item, Object.freeze({ ...info, lane: laneTitleOf(toLane), laneKey: toLane }))
+      : edge === 'move' ? labels.moved?.(line.item, Object.freeze(info)) : labels.resized?.(line.item, Object.freeze(info));
     if (message) live.current?.announce(message);
     return true;
   };
 
-  // A drag is followed outside React: the bar is moved by two custom properties written to it, and
-  // only the drop is a call. The line stays drawn while it lasts; the timeline does not grow.
-  const startDrag = (event: PointerEvent<HTMLDivElement>, line: TimelineItemLine<TData>, span: TimelineSpan) => {
+  // A drag is followed outside React: the bar is moved by custom properties written to it (its
+  // place and length, and with lanes the lines it is shifted by), the lane it would drop in is
+  // marked, and only the drop is a call. The line stays drawn while it lasts; the timeline does not grow.
+  const startDrag = (event: PointerEvent<HTMLDivElement>, line: TimelineItemLine<TData>, index: number, span: TimelineSpan) => {
     if (event.button !== 0 || !onItemMove) return;
     const bar = event.currentTarget;
     const handle = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-cg-timeline-edge]') : null;
@@ -469,17 +543,32 @@ function CgTimelineInner<TData>(
     if (!allowed(line.item, edge) || !cgStartsDrag(event.target, bar)) return;
     const scroller = scrollerRef.current;
     if (!scroller) return;
+    following.current = null;
     const rtl = isRtl(scroller);
     const pressX = event.clientX;
     const from = extent.from;
     const across = dayWidth;
+    const acrossLanes = edge === 'move' && laneMoves;
     let grab = 0;
     let shownSpan = span;
+    let shownLane = line.lane;
+    let shownShift = 0;
     /** The whole days the pointer at `x` has carried the dragged part, a start kept on or before its end. */
     const carried = (x: number) => clampChange(span, edge, (dayAtX(x, rtl) ?? grab) - grab);
+    /** The line under a viewport y, kept to the lines shown below the header, and its lane: the bar's own when there is none. */
+    const target = (y: number) => {
+      const box = scroller.getBoundingClientRect();
+      const top = box.top + scroller.clientTop;
+      const canvas = canvasRef.current?.getBoundingClientRect();
+      const at = canvas ? lineUnder(y, top + HEADER, top + (scroller.clientHeight || box.height), canvas.top + HEADER, lineHeight, count) : null;
+      const under = at === null ? undefined : lines[at];
+      return under ? { index: at!, lane: under.lane } : { index, lane: line.lane };
+    };
     const finish = () => {
       bar.style.removeProperty('--cg-timeline-drag-x');
       bar.style.removeProperty('--cg-timeline-drag-w');
+      bar.style.removeProperty('--cg-timeline-drag-y');
+      markLane(undefined);
       stopDrag.current = null;
       dragging.current = false;
       setDragLine(null);
@@ -493,21 +582,37 @@ function CgTimelineInner<TData>(
         dragging.current = true;
         setDragLine(line.id);
       },
-      onMove: (x) => {
+      onMove: (x, y) => {
         const days = carried(x);
         const next = edge === 'move'
           ? { start: span.start + days, end: span.end + days }
           : edge === 'start' ? { start: span.start + days, end: span.end } : { start: span.start, end: span.end + days };
-        if (next.start === shownSpan.start && next.end === shownSpan.end) return;
-        shownSpan = next;
-        bar.style.setProperty('--cg-timeline-drag-x', `${(next.start - from) * across}px`);
-        bar.style.setProperty('--cg-timeline-drag-w', `${barSize(next, across)}px`);
+        if (next.start !== shownSpan.start || next.end !== shownSpan.end) {
+          shownSpan = next;
+          bar.style.setProperty('--cg-timeline-drag-x', `${(next.start - from) * across}px`);
+          bar.style.setProperty('--cg-timeline-drag-w', `${barSize(next, across)}px`);
+        }
+        if (!acrossLanes) return;
+        // Over another lane the bar is drawn on the line under the pointer; over its own, on its own line.
+        const over = target(y);
+        const shift = over.lane === line.lane ? 0 : (over.index - index) * lineHeight;
+        if (shift !== shownShift) {
+          shownShift = shift;
+          if (shift) bar.style.setProperty('--cg-timeline-drag-y', `${shift}px`);
+          else bar.style.removeProperty('--cg-timeline-drag-y');
+        }
+        if (over.lane !== shownLane) {
+          shownLane = over.lane;
+          markLane(over.lane === line.lane ? undefined : over.lane);
+        }
       },
       // Read at the drop itself: a quick drag can end before a frame has drawn its last move.
-      onDrop: (x) => {
+      onDrop: (x, y) => {
         const days = carried(x);
+        const lane = acrossLanes ? target(y).lane : line.lane;
         finish();
-        if (days) commit(line, span, edge, days, 'pointer');
+        if (!days && lane === line.lane) return;
+        if (commit(line, span, edge, days, 'pointer', lane) && lane !== line.lane) following.current = { id: line.id, key: line.item.key, lane };
       },
       onCancel: finish,
     });
@@ -526,6 +631,8 @@ function CgTimelineInner<TData>(
   };
   const onStopKeyDown = (event: KeyboardEvent<HTMLElement>, line: TimelineLine<TData> | null, index: number) => {
     if (event.target !== event.currentTarget) return;
+    // A key other than a modifier ends a wait for a bar moved to another lane (a lane key starts another).
+    if (!MODIFIERS.has(event.key)) following.current = null;
     const plain = !event.altKey && !event.ctrlKey && !event.metaKey;
     if (event.key === 'Enter' && event.shiftKey && plain) {
       if (!onCreate) return;
@@ -539,6 +646,16 @@ function CgTimelineInner<TData>(
       if ((event.key === 'Enter' || event.key === ' ') && plain && !event.shiftKey) {
         event.preventDefault();
         onItemOpen?.(line.item, Object.freeze({ source: 'keyboard', anchor: event.currentTarget }));
+        return;
+      }
+      // Alt+ArrowUp and Alt+ArrowDown: the lane above or below, the days kept.
+      const step = laneMoves ? laneKeyStep(event) : null;
+      if (step) {
+        const span = placements.get(line.item);
+        if (!span || !canMove(line.item)) return;
+        event.preventDefault();
+        const lane = laneBeside(model, line.lane, step);
+        if (lane !== undefined && commit(line, span, 'move', 0, 'keyboard', lane)) following.current = { id: line.id, key: line.item.key, lane };
         return;
       }
       const change = keyChange(event, isRtl(event.currentTarget));
@@ -572,6 +689,7 @@ function CgTimelineInner<TData>(
   const rangeId = `${baseId}-range`;
   const keysOf = (item: CgTimelineItem<TData>) => [
     ...(canMove(item) ? ['Alt+ArrowLeft', 'Alt+ArrowRight'] : []),
+    ...(canMove(item) && laneMoves ? ['Alt+ArrowUp', 'Alt+ArrowDown'] : []),
     ...(canResize(item) ? ['Alt+Shift+ArrowLeft', 'Alt+Shift+ArrowRight', 'Control+Shift+ArrowLeft', 'Control+Shift+ArrowRight'] : []),
     ...(onCreate ? ['Shift+Enter'] : []),
   ].join(' ') || undefined;
@@ -607,7 +725,7 @@ function CgTimelineInner<TData>(
       onClick={(event) => onItemOpen?.(item, Object.freeze({ source: 'pointer', anchor: event.currentTarget }))}
       onFocus={() => onStopFocus(line, index)}
       onKeyDown={(event) => onStopKeyDown(event, line, index)}
-      onPointerDown={(event) => startDrag(event, line, span)}
+      onPointerDown={(event) => startDrag(event, line, index, span)}
     >
       {resizable ? <span className={styles.edge} data-cg-timeline-edge="start" aria-hidden="true" /> : null}
       <span className={outside ? styles.outside : styles.inside}>{content}</span>
@@ -750,6 +868,7 @@ function CgTimelineInner<TData>(
               />
             </div>}
           </div>
+          {laneMoves ? <div ref={laneDropRef} className={styles.laneDrop} data-cg-timeline-lane-drop="" aria-hidden="true" /> : null}
         </div>
       </div>
     </div>

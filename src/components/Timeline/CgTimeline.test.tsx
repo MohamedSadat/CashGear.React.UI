@@ -36,9 +36,14 @@ const items: CgTimelineItem[] = [
 ];
 const lanes = [{ key: 'plan', title: 'التخطيط' }, { key: 'run', title: 'التنفيذ' }];
 
-type HostProps = Partial<ComponentProps<typeof CgTimeline>> & { onMove?: (key: string, details: CgTimelineMoveDetails) => void; dir?: 'rtl' | 'ltr' };
+type HostProps = Partial<ComponentProps<typeof CgTimeline>> & {
+  onMove?: (key: string, details: CgTimelineMoveDetails) => void;
+  dir?: 'rtl' | 'ltr';
+  /** Milliseconds before a move is written, as a caller that saves first; written at once without it. */
+  defer?: number;
+};
 
-function Host({ onMove, dir = 'rtl', items: initial = items, ...props }: HostProps) {
+function Host({ onMove, dir = 'rtl', items: initial = items, defer, ...props }: HostProps) {
   const [list, setList] = useState(initial);
   return <div dir={dir}>
     <CgTimeline
@@ -50,7 +55,11 @@ function Host({ onMove, dir = 'rtl', items: initial = items, ...props }: HostPro
       defaultStartDate="2026-11-01"
       onItemMove={(item, details) => {
         onMove?.(item.key, details);
-        setList((current) => current.map((entry) => (entry.key === item.key ? { ...entry, start: details.start, end: details.end } : entry)));
+        const write = () => setList((current) => current.map((entry) => (entry.key === item.key
+          ? { ...entry, start: details.start, end: details.end, ...(details.lane === undefined ? {} : { lane: details.lane }) }
+          : entry)));
+        if (defer === undefined) write();
+        else setTimeout(write, defer);
       }}
       {...props}
       items={list}
@@ -409,5 +418,248 @@ describe('CgTimeline', () => {
     // Without the toolbar, its labels are not needed.
     render(<Host showToolbar={false} labels={{ ...labels, previous: '', next: '', today: '' }} />);
     expect(screen.queryByRole('button', { name: 'اليوم' })).toBeNull();
+  });
+});
+
+const laneLabels: CgTimelineLabels = { ...labels, movedLane: (item, info) => `نُقل «${item.title}» إلى ${info.lane}، ${info.start}` };
+const rowOf = (element: Element | null) => element?.closest('[role="row"]')?.getAttribute('aria-rowindex');
+/** The middle of a line under the 56-pixel header, the scroller laid out at (0, 0) and not scrolled. */
+const lineY = (index: number) => 56 + index * 36 + 18;
+
+/** A drag of `element` pressed at (x, y): `to` moves the pointer and draws a frame, `drop` releases it. */
+function press(element: HTMLElement, x: number, y: number) {
+  fireEvent.pointerDown(element, { button: 0, pointerId: 1, clientX: x, clientY: y });
+  return {
+    to: (toX: number, toY: number) => {
+      act(() => { window.dispatchEvent(pointer('pointermove', toX, toY)); });
+      act(() => { vi.advanceTimersByTime(20); });
+    },
+    drop: (toX: number, toY: number) => act(() => { window.dispatchEvent(pointer('pointerup', toX, toY)); }),
+  };
+}
+
+describe('CgTimeline moving between lanes', () => {
+  // Lines: التخطيط, budget, quarter, التنفيذ, meeting, deadline, بلا مرحلة, stray.
+
+  it('moves a focused bar to the lane above or below with Alt+ArrowUp and Alt+ArrowDown, never mirrored, its days kept and the focus on it', async () => {
+    const onMove = vi.fn();
+    const { rerender } = render(<Host onMove={onMove} lanes={lanes} moveBetweenLanes labels={laneLabels} />);
+    expect(bar('مراجعة الميزانية')).toHaveAttribute('aria-keyshortcuts', 'Alt+ArrowLeft Alt+ArrowRight Alt+ArrowUp Alt+ArrowDown Alt+Shift+ArrowLeft Alt+Shift+ArrowRight Control+Shift+ArrowLeft Control+Shift+ArrowRight');
+    expect(bar('موعد التسليم')).not.toHaveAttribute('aria-keyshortcuts');
+    act(() => bar('مراجعة الميزانية').focus());
+    // The first lane has none above it.
+    await userEvent.keyboard('{Alt>}{ArrowUp}{/Alt}');
+    expect(onMove).not.toHaveBeenCalled();
+    await userEvent.keyboard('{Alt>}{ArrowDown}{/Alt}');
+    expect(onMove).toHaveBeenLastCalledWith('budget', { start: '2026-11-16', end: null, days: 0, edge: 'move', source: 'keyboard', lane: 'run' });
+    // Under التنفيذ now, first there as it is first in the caller's order, and still focused.
+    expect(rowOf(bar('مراجعة الميزانية'))).toBe('4');
+    expect(bar('مراجعة الميزانية')).toHaveFocus();
+    await nextFrame();
+    expect(screen.getByRole('status')).toHaveTextContent(`نُقل «مراجعة الميزانية» إلى التنفيذ، ${full('2026-11-16')}`);
+    // The last lane, of unlisted items, is no lane.
+    await userEvent.keyboard('{Alt>}{ArrowDown}{/Alt}');
+    expect(onMove).toHaveBeenLastCalledWith('budget', { start: '2026-11-16', end: null, days: 0, edge: 'move', source: 'keyboard', lane: null });
+    expect(rowOf(bar('مراجعة الميزانية'))).toBe('7');
+    expect(bar('مراجعة الميزانية')).toHaveFocus();
+    await nextFrame();
+    expect(screen.getByRole('status')).toHaveTextContent(`نُقل «مراجعة الميزانية» إلى بلا مرحلة، ${full('2026-11-16')}`);
+    await userEvent.keyboard('{Alt>}{ArrowDown}{/Alt}');
+    expect(onMove).toHaveBeenCalledTimes(2);
+
+    // Left to right the same keys go the same way, and the day keys are as they were.
+    rerender(<Host dir="ltr" onMove={onMove} lanes={lanes} moveBetweenLanes labels={laneLabels} />);
+    act(() => bar('مراجعة الميزانية').focus());
+    await userEvent.keyboard('{Alt>}{ArrowUp}{/Alt}');
+    expect(onMove).toHaveBeenLastCalledWith('budget', { start: '2026-11-16', end: null, days: 0, edge: 'move', source: 'keyboard', lane: 'run' });
+    await userEvent.keyboard('{Alt>}{ArrowRight}{/Alt}');
+    expect(onMove).toHaveBeenLastCalledWith('budget', { start: '2026-11-17', end: null, days: 1, edge: 'move', source: 'keyboard' });
+    expect(bar('مراجعة الميزانية')).toHaveFocus();
+    // An item that cannot move keeps its lane, and Shift with the lane keys does nothing.
+    act(() => bar('موعد التسليم').focus());
+    await userEvent.keyboard('{Alt>}{ArrowDown}{/Alt}{Alt>}{Shift>}{ArrowUp}{/Shift}{/Alt}{Control>}{Alt>}{ArrowUp}{/Alt}{/Control}');
+    act(() => bar('اجتماع الفريق').focus());
+    await userEvent.keyboard('{Alt>}{Shift>}{ArrowUp}{/Shift}{/Alt}');
+    expect(onMove).toHaveBeenCalledTimes(4);
+    expect(bar('اجتماع الفريق')).toHaveFocus();
+  });
+
+  it('moves a bar into a collapsed lane by keys, the focus going to that lane\'s header', async () => {
+    const onMove = vi.fn();
+    render(<Host onMove={onMove} lanes={lanes} moveBetweenLanes labels={laneLabels} defaultCollapsedLanes={['run']} />);
+    act(() => bar('إغلاق الربع').focus());
+    await userEvent.keyboard('{Alt>}{ArrowDown}{/Alt}');
+    expect(onMove).toHaveBeenLastCalledWith('quarter', { start: '2026-11-12', end: '2026-11-18', days: 0, edge: 'move', source: 'keyboard', lane: 'run' });
+    expect(within(grid()).queryByRole('button', { name: /^إغلاق الربع/u })).toBeNull();
+    const run = within(grid()).getByRole('button', { name: 'التنفيذ' });
+    expect(run).toHaveFocus();
+    expect(run).toHaveAttribute('tabindex', '0');
+    expect(run).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('follows a bar to its new lane once a caller that saves first has moved it there, unless the focus has moved on', async () => {
+    const onMove = vi.fn();
+    // Long enough that the keys are pressed before the caller writes, however busy the machine.
+    render(<Host onMove={onMove} lanes={lanes} moveBetweenLanes labels={laneLabels} defer={250} />);
+    act(() => bar('مراجعة الميزانية').focus());
+    await userEvent.keyboard('{Alt>}{ArrowDown}{/Alt}');
+    expect(onMove).toHaveBeenCalledTimes(1);
+    expect(rowOf(bar('مراجعة الميزانية'))).toBe('2');
+    await waitFor(() => expect(rowOf(bar('مراجعة الميزانية'))).toBe('4'));
+    expect(bar('مراجعة الميزانية')).toHaveFocus();
+    // Moved back up, then the focus goes to the next line before the caller writes it: it stays there.
+    await userEvent.keyboard('{Alt>}{ArrowUp}{/Alt}{ArrowDown}');
+    expect(bar('اجتماع الفريق')).toHaveFocus();
+    await waitFor(() => expect(rowOf(bar('مراجعة الميزانية'))).toBe('2'));
+    expect(bar('اجتماع الفريق')).toHaveFocus();
+  });
+
+  it('drags a bar onto another lane\'s lines while it moves by whole days, marking that lane, and reports both in one call', () => {
+    vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'setTimeout'] });
+    const onMove = vi.fn();
+    render(<Host dir="ltr" onMove={onMove} lanes={lanes} moveBetweenLanes labels={laneLabels} />);
+    layOut('ltr');
+    // Its height too, so following a dropped bar to a line in view does not scroll.
+    Object.defineProperty(scroller(), 'clientHeight', { configurable: true, value: 500 });
+    const quarter = bar('إغلاق الربع');
+    const mark = document.querySelector<HTMLElement>('[data-cg-timeline-lane-drop]')!;
+    expect(mark).not.toHaveAttribute('data-shown');
+    const x = screenX(xOf(quarter) + 10, 'ltr');
+    const drag = press(quarter, x, lineY(2));
+    // Two days later, over meeting's line in التنفيذ: drawn there, the lane's three lines marked.
+    drag.to(x + 45, lineY(4));
+    expect(quarter).toHaveAttribute('data-cg-dragging');
+    expect(quarter.style.getPropertyValue('--cg-timeline-drag-x')).toBe(`${xOf(quarter) + 40}px`);
+    expect(quarter.style.getPropertyValue('--cg-timeline-drag-y')).toBe('72px');
+    expect(mark).toHaveAttribute('data-shown');
+    expect(mark).toHaveAttribute('data-lane', 'run');
+    expect(mark.style.getPropertyValue('--cg-timeline-y')).toBe('108px');
+    expect(mark.style.getPropertyValue('--cg-timeline-h')).toBe('108px');
+    // Over its own lane again: back on its own line, nothing marked.
+    drag.to(x + 45, lineY(1));
+    expect(quarter.style.getPropertyValue('--cg-timeline-drag-y')).toBe('');
+    expect(mark).not.toHaveAttribute('data-shown');
+    // The last lane's header line is no lane.
+    drag.to(x + 45, lineY(6));
+    expect(quarter.style.getPropertyValue('--cg-timeline-drag-y')).toBe('144px');
+    expect(mark).toHaveAttribute('data-lane', '');
+    expect(mark.style.getPropertyValue('--cg-timeline-h')).toBe('72px');
+    drag.to(x + 45, lineY(4));
+    expect(onMove).not.toHaveBeenCalled();
+    drag.drop(x + 45, lineY(4));
+    expect(onMove).toHaveBeenCalledTimes(1);
+    expect(onMove).toHaveBeenCalledWith('quarter', { start: '2026-11-14', end: '2026-11-20', days: 2, edge: 'move', source: 'pointer', lane: 'run' });
+    expect(mark).not.toHaveAttribute('data-shown');
+    expect(bar('إغلاق الربع').style.getPropertyValue('--cg-timeline-drag-y')).toBe('');
+    expect(bar('إغلاق الربع')).not.toHaveAttribute('data-cg-dragging');
+    expect(rowOf(bar('إغلاق الربع'))).toBe('4');
+    // The focus follows the dropped bar to its new line, which is in view.
+    expect(bar('إغلاق الربع')).toHaveFocus();
+    expect(scroller().scrollTop).toBe(0);
+    act(() => { vi.advanceTimersByTime(20); });
+    expect(screen.getByRole('status')).toHaveTextContent(`نُقل «إغلاق الربع» إلى التنفيذ، ${full('2026-11-14')}`);
+
+    // Dragged only up and down within its lane, nothing changes.
+    const budget = bar('مراجعة الميزانية');
+    const from = screenX(xOf(budget) + 10, 'ltr');
+    const still = press(budget, from, lineY(1));
+    still.to(from, lineY(0));
+    still.drop(from, lineY(0));
+    expect(onMove).toHaveBeenCalledTimes(1);
+
+    // An edge changes its days only, wherever the pointer is.
+    const end = bar('إغلاق الربع').querySelector<HTMLElement>('[data-cg-timeline-edge="end"]')!;
+    const edgeX = screenX(xOf(bar('إغلاق الربع')) + 140 - 5, 'ltr');
+    const resize = press(end, edgeX, lineY(3));
+    resize.to(edgeX + 40, lineY(1));
+    expect(bar('إغلاق الربع').style.getPropertyValue('--cg-timeline-drag-y')).toBe('');
+    expect(mark).not.toHaveAttribute('data-shown');
+    resize.drop(edgeX + 40, lineY(1));
+    expect(onMove).toHaveBeenLastCalledWith('quarter', { start: '2026-11-14', end: '2026-11-22', days: 2, edge: 'end', source: 'pointer' });
+  });
+
+  it('takes a drop on a collapsed lane\'s header, keeps a pointer over the header or past the lines on the lines shown, and drops nothing on Escape', () => {
+    vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'setTimeout'] });
+    const onMove = vi.fn();
+    render(<Host onMove={onMove} lanes={lanes} moveBetweenLanes labels={laneLabels} defaultCollapsedLanes={['run']} />);
+    // Lines: التخطيط, budget, quarter, التنفيذ (collapsed), بلا مرحلة, stray.
+    layOut('rtl');
+    // Near the scroller's edges the drag scrolls it; jsdom has no scrolling of its own.
+    const scrollBy = vi.fn();
+    scroller().scrollBy = scrollBy as unknown as HTMLElement['scrollBy'];
+    const mark = document.querySelector<HTMLElement>('[data-cg-timeline-lane-drop]')!;
+    const budget = bar('مراجعة الميزانية');
+    const x = screenX(xOf(budget) + 10, 'rtl');
+    const drag = press(budget, x, lineY(1));
+    drag.to(x, lineY(3));
+    expect(budget.style.getPropertyValue('--cg-timeline-drag-y')).toBe('72px');
+    expect(mark).toHaveAttribute('data-lane', 'run');
+    expect(mark.style.getPropertyValue('--cg-timeline-h')).toBe('36px');
+    // Over the header: the first line shown, its own lane, and the lines scroll up.
+    drag.to(x, 20);
+    expect(budget.style.getPropertyValue('--cg-timeline-drag-y')).toBe('');
+    expect(mark).not.toHaveAttribute('data-shown');
+    expect(scrollBy).toHaveBeenLastCalledWith(0, expect.any(Number));
+    expect(scrollBy.mock.lastCall![1]).toBeLessThan(0);
+    // Past the last line, near the bottom: the last line, and the lines scroll down.
+    drag.to(x, 480);
+    expect(budget.style.getPropertyValue('--cg-timeline-drag-y')).toBe(`${4 * 36}px`);
+    expect(mark).toHaveAttribute('data-lane', '');
+    expect(scrollBy.mock.lastCall![1]).toBeGreaterThan(0);
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
+    expect(budget.style.getPropertyValue('--cg-timeline-drag-y')).toBe('');
+    expect(budget).not.toHaveAttribute('data-cg-dragging');
+    expect(mark).not.toHaveAttribute('data-shown');
+    drag.drop(x, 480);
+    expect(onMove).not.toHaveBeenCalled();
+
+    // A day later (further left in right to left), onto the collapsed lane's header.
+    const into = press(budget, x, lineY(1));
+    into.to(x - 25, lineY(3));
+    into.drop(x - 25, lineY(3));
+    expect(onMove).toHaveBeenCalledWith('budget', { start: '2026-11-17', end: null, days: 1, edge: 'move', source: 'pointer', lane: 'run' });
+    expect(within(grid()).queryByRole('button', { name: /^مراجعة الميزانية/u })).toBeNull();
+  });
+
+  it('moves a bar between lanes of 50,000 items, drawing only the lines in view, its new line scrolled into view', async () => {
+    const many = Array.from({ length: 50_000 }, (_, index): CgTimelineItem => ({
+      key: `k${index}`, title: `مهمة ${index}`, start: dateOfDay(day('2026-11-01') + (index % 30)), lane: index % 2 ? 'run' : 'plan',
+    }));
+    render(<Host items={many} lanes={lanes} moveBetweenLanes labels={laneLabels} />);
+    act(() => bar('مهمة 0').focus());
+    await userEvent.keyboard('{Alt>}{ArrowDown}{/Alt}');
+    // التخطيط and its other 24,999 items, then التنفيذ: k0 is first there.
+    expect(document.activeElement).toHaveAccessibleName(/^مهمة 0،/u);
+    expect(rowOf(document.activeElement)).toBe('25002');
+    expect(scroller().scrollTop).toBe(25_001 * 36);
+    expect(within(grid()).getAllByRole('row').length).toBeLessThan(50);
+  });
+
+  it('changes no lane without moveBetweenLanes, and needs labels.movedLane with it', () => {
+    vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'setTimeout'] });
+    const onMove = vi.fn();
+    const { unmount } = render(<Host dir="ltr" onMove={onMove} lanes={lanes} />);
+    expect(document.querySelector('[data-cg-timeline-lane-drop]')).toBeNull();
+    expect(bar('مراجعة الميزانية')).not.toHaveAttribute('aria-keyshortcuts', expect.stringContaining('ArrowUp'));
+    layOut('ltr');
+    const quarter = bar('إغلاق الربع');
+    const x = screenX(xOf(quarter) + 10, 'ltr');
+    const drag = press(quarter, x, lineY(2));
+    drag.to(x + 45, lineY(4));
+    expect(quarter.style.getPropertyValue('--cg-timeline-drag-y')).toBe('');
+    drag.drop(x + 45, lineY(4));
+    expect(onMove).toHaveBeenCalledWith('quarter', { start: '2026-11-14', end: '2026-11-20', days: 2, edge: 'move', source: 'pointer' });
+    expect(onMove.mock.lastCall![1]).not.toHaveProperty('lane');
+    act(() => bar('مراجعة الميزانية').focus());
+    fireEvent.keyDown(bar('مراجعة الميزانية'), { key: 'ArrowDown', altKey: true });
+    expect(onMove).toHaveBeenCalledTimes(1);
+    expect(bar('مراجعة الميزانية')).toHaveFocus();
+    unmount();
+
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(() => render(<Host moveBetweenLanes lanes={lanes} />)).toThrow(/labels\.movedLane/u);
+    // Without onItemMove nothing moves, so it is not needed.
+    render(<Host moveBetweenLanes lanes={lanes} onItemMove={undefined} />);
+    expect(document.querySelector('[data-cg-timeline-lane-drop]')).toBeNull();
   });
 });

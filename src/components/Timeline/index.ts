@@ -10,6 +10,7 @@ export type {
   CgTimelineItemRenderContext,
   CgTimelineLabels,
   CgTimelineLane,
+  CgTimelineLaneChangeInfo,
   CgTimelineLaneHit,
   CgTimelineMoveDetails,
   CgTimelineMoveSource,

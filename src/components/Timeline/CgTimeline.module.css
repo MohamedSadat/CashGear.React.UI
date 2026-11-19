@@ -2,7 +2,8 @@
    two-tier header, grid lines behind the lines, and each line's bar. Positions are custom
    properties written by script (--cg-timeline-x, -w, -y) and read with logical properties, so time
    runs from the inline start and mirrors in right to left. A drag writes --cg-timeline-drag-x and
-   -w on the bar, over the drawn ones, and removes them when it ends. */
+   -w on the bar, over the drawn ones, and -y, the lines it is shifted by over another lane, and
+   removes them when it ends. */
 .root {
   --cg-timeline-line: 36px;
   --cg-timeline-header: 56px;
@@ -121,6 +122,21 @@
   box-shadow: inset 0 0 0 2px var(--cg-accent);
 }
 .dropMark[data-shown] { display: block; }
+/* The lines of the lane a dragged bar would drop in (moveBetweenLanes): over the lines, so a lane's
+   header line and a collapsed lane are marked too, and under the dragged bar. */
+.laneDrop {
+  position: absolute;
+  z-index: 1;
+  inset-block-start: var(--cg-timeline-y, 0);
+  inset-inline: 0;
+  display: none;
+  box-sizing: border-box;
+  block-size: var(--cg-timeline-h, 0);
+  background: color-mix(in srgb, var(--cg-accent-soft) 45%, transparent);
+  box-shadow: inset 0 0 0 2px var(--cg-accent);
+  pointer-events: none;
+}
+.laneDrop[data-shown] { display: block; }
 /* Placed over a day on a line for a create: what the caller's editor is placed by. */
 .anchor {
   position: absolute;
@@ -205,7 +221,7 @@
 .bar[data-movable], .bar[data-resizable] { touch-action: none; }
 .bar:hover { background: color-mix(in srgb, var(--cg-timeline-item-color) 30%, var(--cg-surface)); }
 .bar:focus-visible { outline: var(--cg-focus-ring-width) solid var(--cg-focus-ring-color); outline-offset: 2px; }
-.bar[data-cg-dragging] { z-index: 2; box-shadow: var(--cg-shadow); cursor: grabbing; }
+.bar[data-cg-dragging] { z-index: 2; box-shadow: var(--cg-shadow); cursor: grabbing; translate: 0 var(--cg-timeline-drag-y, 0px); }
 .bar[data-outside], .bar[data-narrow] { overflow: visible; }
 /* The title stays in view while the bar's start is scrolled away (`overflow: clip` keeps the scroller its scroll box). */
 .inside {
@@ -248,7 +264,7 @@
   .bar:focus-visible, .laneToggle:focus-visible, .cell:focus-visible { outline-color: Highlight; }
   .todayLine, .todayMark { border-inline-start-color: Highlight; }
   .unit[data-today] .unitText { background: Highlight; color: HighlightText; forced-color-adjust: none; }
-  .dropMark { outline: 2px solid Highlight; outline-offset: -2px; }
+  .dropMark, .laneDrop { outline: 2px solid Highlight; outline-offset: -2px; }
   .edge::after { background: CanvasText; }
   .line:focus-within { outline: 1px dashed Highlight; outline-offset: -2px; }
 }

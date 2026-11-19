@@ -31,6 +31,9 @@ for (const [story, globals] of [
   ['phase-37-timeline--english-days', LIGHT],
   ['phase-37-timeline--fifty-thousand-items', RTL],
   ['phase-37-timeline--arabic-undated-drop', RTL],
+  ['phase-37-timeline--arabic-lane-moves', RTL],
+  ['phase-37-timeline--english-lane-moves', LIGHT],
+  ['phase-37-timeline--fifty-thousand-in-lanes', RTL],
 ] as const) {
   test(`${story} has no accessibility violations or browser errors`, async ({ page }) => {
     const problems = watchProblems(page);
@@ -142,6 +145,200 @@ test.describe('CgTimeline with 50,000 items', () => {
     await grid.getByRole('button', { name: /^مهمة رقم 1،/u }).focus();
     await page.keyboard.press('End');
     await expect(grid.getByRole('button', { name: /^مهمة رقم 50000،/u })).toBeFocused();
+    expect(await grid.getByRole('row').count()).toBeLessThan(60);
+  });
+});
+
+/** The middle of a lane's header button, on its header line. */
+async function lanePoint(page: Page, lane: string) {
+  const box = (await page.locator(`[data-cg-timeline-lane="${lane}"]`).boundingBox())!;
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+/** Presses at `from`, travels past the drag threshold, then moves to `to` in steps. */
+async function dragTo(page: Page, from: { x: number; y: number }, to: { x: number; y: number }) {
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(from.x, from.y + 8, { steps: 2 });
+  await page.mouse.move(to.x, to.y, { steps: 8 });
+}
+
+const scrollTop = (page: Page) => page.locator('[data-cg-timeline-scroller]').evaluate((element) => element.scrollTop);
+
+test.describe('CgTimeline moving between lanes, right to left', () => {
+  const STORY = 'phase-37-timeline--arabic-lane-moves';
+
+  test('drags a bar onto another lane\'s line while it moves by days, the lane marked, and the focus follows it there', async ({ page }) => {
+    await openStory(page, STORY, RTL);
+    const from = await barPoint(page, 'budget');
+    // Two days later (further left), over the line of «التعاقد مع الموردين» in التنفيذ.
+    const target = await barPoint(page, 'suppliers');
+    await dragTo(page, from, { x: from.x - 40, y: target.y });
+    const budget = page.locator('[data-cg-timeline-item="budget"]');
+    await expect(budget).toHaveAttribute('data-cg-dragging', '');
+    const mark = page.locator('[data-cg-timeline-lane-drop][data-shown]');
+    await expect(mark).toHaveAttribute('data-lane', 'build');
+    // The lane's header and its four lines are marked, and the bar is drawn on the line under the pointer.
+    expect((await mark.boundingBox())!.height).toBeCloseTo(5 * 36, 0);
+    expect(Math.abs((await budget.boundingBox())!.y - (await page.locator('[data-cg-timeline-item="suppliers"]').boundingBox())!.y)).toBeLessThan(2);
+    await page.mouse.up();
+    await expect(page.getByTestId('last-action')).toHaveText('move:budget:2026-11-11:2026-11-15:pointer:build');
+    await expect(mark).toHaveCount(0);
+    await expect(page.locator('[data-cg-live-announcer]')).toHaveText(`نُقل «مراجعة الميزانية» إلى «التنفيذ»، يبدأ ${await fullDate(page, 'ar', '2026-11-11')}`);
+    // Now under التنفيذ, below its header, and still focused.
+    const header = (await page.locator('[data-cg-timeline-lane="build"]').boundingBox())!;
+    expect((await budget.boundingBox())!.y).toBeGreaterThan(header.y);
+    await expect(budget).toBeFocused();
+    await expect(budget).toBeInViewport();
+  });
+
+  test('takes a drop on a collapsed lane\'s header, and drops nothing on Escape', async ({ page }) => {
+    await openStory(page, STORY, RTL);
+    const grid = page.getByRole('grid');
+    // Escape while over another lane: nothing marked, nothing moved.
+    const from = await barPoint(page, 'budget');
+    await dragTo(page, from, await barPoint(page, 'suppliers'));
+    await expect(page.locator('[data-cg-timeline-lane-drop][data-shown]')).toHaveAttribute('data-lane', 'build');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('[data-cg-timeline-lane-drop][data-shown]')).toHaveCount(0);
+    await expect(page.locator('[data-cg-timeline-item="budget"]')).not.toHaveAttribute('data-cg-dragging', '');
+    await page.mouse.up();
+    await expect(page.getByTestId('last-action')).toHaveText('');
+
+    await grid.getByRole('button', { name: 'التخطيط', exact: true }).click();
+    await expect(grid.getByRole('button', { name: 'التخطيط', exact: true })).toHaveAttribute('aria-expanded', 'false');
+    const stock = await barPoint(page, 'stock');
+    const plan = await lanePoint(page, 'plan');
+    await dragTo(page, stock, { x: stock.x, y: plan.y });
+    await expect(page.locator('[data-cg-timeline-lane-drop][data-shown]')).toHaveAttribute('data-lane', 'plan');
+    await page.mouse.up();
+    await expect(page.getByTestId('last-action')).toHaveText('move:stock:2026-11-18:2026-11-20:pointer:plan');
+    await expect(page.locator('[data-cg-timeline-item="stock"]')).toHaveCount(0);
+    await grid.getByRole('button', { name: 'التخطيط', exact: true }).click();
+    await expect(page.locator('[data-cg-timeline-item="stock"]')).toBeVisible();
+  });
+
+  test('scrolls the lines while a bar is dragged near the bottom edge, and back up over the header', async ({ page }) => {
+    await openStory(page, STORY, RTL);
+    expect(await scrollTop(page)).toBe(0);
+    const scroller = (await page.locator('[data-cg-timeline-scroller]').boundingBox())!;
+    const from = await barPoint(page, 'kickoff');
+    await dragTo(page, from, { x: from.x, y: scroller.y + scroller.height - 24 });
+    await expect.poll(() => scrollTop(page)).toBeGreaterThan(60);
+    // Over the header the lines scroll back up; the first line shown takes the drop.
+    await page.mouse.move(from.x, scroller.y + 20, { steps: 4 });
+    await expect.poll(() => scrollTop(page)).toBe(0);
+    await page.mouse.move(from.x, from.y, { steps: 4 });
+    await page.mouse.up();
+    await expect(page.getByTestId('last-action')).toHaveText('');
+  });
+
+  test('moves a focused bar a lane down and up with Alt+ArrowDown and Alt+ArrowUp, keeping its days and the focus', async ({ page }) => {
+    await openStory(page, STORY, RTL);
+    const budget = page.getByRole('grid').getByRole('button', { name: /^مراجعة الميزانية/u });
+    await expect(budget).toHaveAttribute('aria-keyshortcuts', /Alt\+ArrowUp Alt\+ArrowDown/u);
+    await budget.focus();
+    await page.keyboard.press('Alt+ArrowDown');
+    await expect(page.getByTestId('last-action')).toHaveText('move:budget:2026-11-09:2026-11-13:keyboard:build');
+    await expect(page.locator('[data-cg-live-announcer]')).toHaveText(`نُقل «مراجعة الميزانية» إلى «التنفيذ»، يبدأ ${await fullDate(page, 'ar', '2026-11-09')}`);
+    await expect(budget).toBeFocused();
+    expect((await budget.boundingBox())!.y).toBeGreaterThan((await page.locator('[data-cg-timeline-lane="build"]').boundingBox())!.y);
+    // The day keys are as they were, mirrored; plain arrows still walk the lines.
+    await page.keyboard.press('Alt+ArrowLeft');
+    await expect(page.getByTestId('last-action')).toHaveText('move:budget:2026-11-10:2026-11-14:keyboard');
+    await page.keyboard.press('Alt+ArrowUp');
+    await expect(page.getByTestId('last-action')).toHaveText('move:budget:2026-11-10:2026-11-14:keyboard:plan');
+    await expect(budget).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(page.getByRole('grid').getByRole('button', { name: /^اجتماع الانطلاق/u })).toBeFocused();
+  });
+});
+
+test.describe('CgTimeline moving between lanes, left to right', () => {
+  const STORY = 'phase-37-timeline--english-lane-moves';
+
+  test('moves a bar to another lane by a drag and by keys, the keys the same as in right to left', async ({ page }) => {
+    await openStory(page, STORY, LIGHT);
+    const grid = page.getByRole('grid', { name: 'Project timeline' });
+    // Today (Payroll's day) a fifth of the way in, away from the edges where a drag scrolls the days.
+    await page.getByRole('button', { name: 'Today', exact: true }).click();
+    // A day later (further right), onto Team stand-up's line in In progress.
+    const from = await barPoint(page, 'payroll', 0, false);
+    const standupLine = await barPoint(page, 'standup', 0, false);
+    await dragTo(page, from, { x: from.x + 48, y: standupLine.y });
+    await expect(page.locator('[data-cg-timeline-lane-drop][data-shown]')).toHaveAttribute('data-lane', 'doing');
+    await page.mouse.up();
+    await expect(page.getByTestId('last-action')).toHaveText('move:payroll:2026-11-17:-:pointer:doing');
+
+    const standup = grid.getByRole('button', { name: /^Team stand-up/u });
+    await standup.focus();
+    await page.keyboard.press('Alt+ArrowUp');
+    await expect(page.getByTestId('last-action')).toHaveText('move:standup:2026-11-16T14:30:00Z:-:keyboard:todo');
+    await expect(page.locator('[data-cg-live-announcer]')).toHaveText(/^Team stand-up moved to To do, starting /u);
+    await expect(standup).toBeFocused();
+    // An item that cannot move keeps its lane.
+    await grid.getByRole('button', { name: /^Tax filing due/u }).focus();
+    await page.keyboard.press('Alt+ArrowDown');
+    await expect(page.getByTestId('last-action')).toHaveText('move:standup:2026-11-16T14:30:00Z:-:keyboard:todo');
+  });
+});
+
+test.describe('CgTimeline moving between lanes by touch and pen', () => {
+  test.use({ hasTouch: true });
+
+  test('drags a bar onto another lane by touch and by pen as by mouse', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'Touch and pen input are sent through the Chrome DevTools Protocol.');
+    await openStory(page, 'phase-37-timeline--arabic-lane-moves', RTL);
+    const cdp = await page.context().newCDPSession(page);
+    const frame = () => page.evaluate(() => new Promise<void>((resolve) => { requestAnimationFrame(() => resolve()); }));
+    const path = (from: { x: number; y: number }, to: { x: number; y: number }) => Array.from({ length: 8 }, (_, index) => ({
+      x: from.x + ((to.x - from.x) * (index + 1)) / 8, y: from.y + 8 + ((to.y - from.y - 8) * (index + 1)) / 8,
+    }));
+
+    // Touch, a day later onto the suppliers' line: the bar takes the pointer (touch-action: none), so the lines do not pan.
+    const budget = await barPoint(page, 'budget');
+    const suppliers = await barPoint(page, 'suppliers');
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: budget.x, y: budget.y }] });
+    for (const point of path(budget, { x: budget.x - 20, y: suppliers.y })) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [point] });
+      await frame();
+    }
+    await expect(page.locator('[data-cg-timeline-lane-drop][data-shown]')).toHaveAttribute('data-lane', 'build');
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await expect(page.getByTestId('last-action')).toHaveText('move:budget:2026-11-10:2026-11-14:pointer:build');
+    expect(await scrollTop(page)).toBe(0);
+
+    // Pen: a day earlier, back onto التخطيط's header line.
+    const back = await barPoint(page, 'budget');
+    const plan = await lanePoint(page, 'plan');
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: back.x, y: back.y, pointerType: 'pen' });
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: back.x, y: back.y, button: 'left', buttons: 1, clickCount: 1, pointerType: 'pen' });
+    for (const point of path(back, { x: back.x + 20, y: plan.y })) {
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: point.x, y: point.y, button: 'left', buttons: 1, pointerType: 'pen' });
+      await frame();
+    }
+    await expect(page.locator('[data-cg-timeline-lane-drop][data-shown]')).toHaveAttribute('data-lane', 'plan');
+    const last = path(back, { x: back.x + 20, y: plan.y }).at(-1)!;
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: last.x, y: last.y, button: 'left', buttons: 0, clickCount: 1, pointerType: 'pen' });
+    await expect(page.getByTestId('last-action')).toHaveText('move:budget:2026-11-09:2026-11-13:pointer:plan');
+  });
+});
+
+test.describe('CgTimeline moving between lanes of 50,000 items', () => {
+  test('draws its first bars quickly, and follows a bar moved to another lane to its new line', async ({ page }) => {
+    await openStory(page, 'phase-37-timeline--fifty-thousand-in-lanes', RTL);
+    await expect(page.getByTestId('first-draw-ms')).toHaveText(/^\d+$/u);
+    expect(Number(await page.getByTestId('first-draw-ms').textContent())).toBeLessThan(500);
+    const grid = page.getByRole('grid');
+    await expect(grid).toHaveAttribute('aria-rowcount', '50005');
+    const first = grid.getByRole('button', { name: /^مهمة رقم 1،/u });
+    await first.focus();
+    await page.keyboard.press('Alt+ArrowDown');
+    await expect(page.getByTestId('last-action')).toHaveText('move:row-0:2026-01-01:2026-01-02:keyboard:stage-1');
+    // The first lane's other 9,999 lines, then the second lane's header: it is first there.
+    await expect(first).toBeFocused();
+    await expect(first.locator('xpath=ancestor::*[@role="row"]')).toHaveAttribute('aria-rowindex', '10002');
+    await expect(first).toBeInViewport();
     expect(await grid.getByRole('row').count()).toBeLessThan(60);
   });
 });

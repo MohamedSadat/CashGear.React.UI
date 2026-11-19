@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { dayOfDate } from '../MonthCalendar/monthCalendarDates';
 import type { CgTimelineItem } from './CgTimeline.types';
 import { axisUnits, shownDays, timelineFormats, unitStart } from './timelineDates';
-import { TimelinePlacements, buildLines, changeItemDates, keyChange, lineStep, placeItem } from './timelineLayout';
+import {
+  TimelinePlacements, buildLines, changeItemDates, drawnLane, keyChange, laneBeside, laneKeyStep, laneMoveDates, laneRange, lineStep, lineUnder, placeItem,
+} from './timelineLayout';
 
 const day = (date: string) => dayOfDate(date)!;
 const chord = (key: string, mods: Partial<{ altKey: boolean; shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }> = {}) => ({ key, altKey: false, shiftKey: false, ctrlKey: false, metaKey: false, ...mods });
@@ -69,6 +71,12 @@ describe('timeline lines', () => {
     expect(() => buildLines(items, lanes, new Set(), undefined)).toThrow(/labels\.noLane/u);
   });
 
+  it('keeps the lanes\' header lines in order, none without lanes', () => {
+    const lanes = [{ key: 'x', title: 'X' }, { key: 'y', title: 'Y' }, { key: 'z', title: 'Z' }];
+    expect(buildLines(items, lanes, new Set(['y']), 'None').heads).toEqual([0, 2, 3, 4]);
+    expect(buildLines(items, undefined, new Set(), undefined).heads).toEqual([]);
+  });
+
   it('refuses duplicate and empty keys', () => {
     expect(() => buildLines([{ key: 'a', title: '', start: '2026-01-01' }, { key: 'a', title: '', start: '2026-01-02' }], undefined, new Set(), undefined)).toThrow(/duplicate key 'a'/u);
     expect(() => buildLines([{ key: '', title: '', start: '2026-01-01' }], undefined, new Set(), undefined)).toThrow(/nonempty key/u);
@@ -123,7 +131,73 @@ describe('placing and changing items', () => {
   });
 });
 
+describe('moving between lanes', () => {
+  const lanes = [{ key: 'x', title: 'X' }, { key: 'y', title: 'Y' }, { key: 'z', title: 'Z' }];
+  // Lines: l:x, i:a, l:y (collapsed), l:z (empty), n, i:d, i:e.
+  const model = buildLines(items, lanes, new Set(['y']), 'None');
+
+  it('knows the lines each lane takes: a collapsed or empty one its header alone', () => {
+    expect(laneRange(model, 'x')).toEqual({ first: 0, last: 1 });
+    expect(laneRange(model, 'y')).toEqual({ first: 2, last: 2 });
+    expect(laneRange(model, 'z')).toEqual({ first: 3, last: 3 });
+    expect(laneRange(model, null)).toEqual({ first: 4, last: 6 });
+    expect(laneRange(model, 'gone')).toBeNull();
+  });
+
+  it('finds the lane above and below in the order drawn, the last lane of unlisted items last, nothing past either end', () => {
+    expect(laneBeside(model, 'x', -1)).toBeUndefined();
+    expect(laneBeside(model, 'x', 1)).toBe('y');
+    expect(laneBeside(model, 'y', 1)).toBe('z');
+    expect(laneBeside(model, 'z', 1)).toBeNull();
+    expect(laneBeside(model, null, -1)).toBe('z');
+    expect(laneBeside(model, null, 1)).toBeUndefined();
+    expect(laneBeside(model, 'gone', 1)).toBeUndefined();
+    // Without unlisted items there is no last lane to move to.
+    const listed = buildLines(items.filter((item) => item.lane === 'x' || item.lane === 'y'), lanes, new Set(), 'None');
+    expect(laneBeside(listed, 'z', 1)).toBeUndefined();
+  });
+
+  it('draws an item under its own lane only when that lane is listed', () => {
+    expect(drawnLane({ lane: 'x' }, lanes)).toBe('x');
+    expect(drawnLane({ lane: 'gone' }, lanes)).toBeNull();
+    expect(drawnLane({ lane: null }, lanes)).toBeNull();
+    expect(drawnLane({}, lanes)).toBeNull();
+    expect(drawnLane({ lane: 'x' }, undefined)).toBeNull();
+  });
+
+  it('finds the line under a dragged bar, kept to the lines shown and to the lines there are', () => {
+    // Lines shown from viewport y 100 to 400; the first line's top at y 100, then scrolled by 3 lines.
+    expect(lineUnder(150, 100, 400, 100, 36, 10)).toBe(1);
+    expect(lineUnder(20, 100, 400, 100 - 3 * 36, 36, 20)).toBe(3);
+    expect(lineUnder(900, 100, 400, 100 - 3 * 36, 36, 20)).toBe(Math.floor((399 - (100 - 3 * 36)) / 36));
+    // Below the last line: the last line.
+    expect(lineUnder(380, 100, 400, 100, 36, 4)).toBe(3);
+    expect(lineUnder(150, 100, 400, 100, 36, 0)).toBeNull();
+  });
+
+  it('keeps the dates of an item moved to another lane by no days, and moves them as a move does', () => {
+    const span = { start: day('2026-11-02'), end: day('2026-11-04') };
+    expect(laneMoveDates({ start: '2026-11-02', end: '2026-11-04' }, span, 0, undefined)).toEqual({ start: '2026-11-02', end: '2026-11-04', days: 0, span });
+    const one = { start: day('2026-11-02'), end: day('2026-11-02') };
+    expect(laneMoveDates({ start: '2026-11-02T10:00', end: '' }, one, 0, undefined)).toEqual({ start: '2026-11-02T10:00', end: null, days: 0, span: one });
+    expect(laneMoveDates({ start: '2026-11-02', end: '2026-11-04' }, span, -2, undefined)).toEqual({
+      start: '2026-10-31', end: '2026-11-02', days: -2, span: { start: day('2026-10-31'), end: day('2026-11-02') },
+    });
+  });
+});
+
 describe('timeline keys', () => {
+  it('moves to the lane above with Alt+ArrowUp and below with Alt+ArrowDown, and nothing else', () => {
+    expect(laneKeyStep(chord('ArrowUp', { altKey: true }))).toBe(-1);
+    expect(laneKeyStep(chord('ArrowDown', { altKey: true }))).toBe(1);
+    expect(laneKeyStep(chord('ArrowDown'))).toBeNull();
+    expect(laneKeyStep(chord('ArrowDown', { altKey: true, shiftKey: true }))).toBeNull();
+    // AltGr (Ctrl with Alt) and Cmd with Alt are left alone.
+    expect(laneKeyStep(chord('ArrowDown', { altKey: true, ctrlKey: true }))).toBeNull();
+    expect(laneKeyStep(chord('ArrowUp', { altKey: true, metaKey: true }))).toBeNull();
+    expect(laneKeyStep(chord('ArrowLeft', { altKey: true }))).toBeNull();
+  });
+
   it('moves along the line, mirrored in right to left, with Alt; the end with Alt+Shift; the start with Ctrl or Cmd and Shift', () => {
     expect(keyChange(chord('ArrowRight', { altKey: true }), false)).toEqual({ edge: 'move', days: 1 });
     expect(keyChange(chord('ArrowRight', { altKey: true }), true)).toEqual({ edge: 'move', days: -1 });

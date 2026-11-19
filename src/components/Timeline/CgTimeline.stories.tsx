@@ -8,7 +8,7 @@ import { CgIcon } from '../Icon';
 import { CgLiveAnnouncer } from '../LiveAnnouncer';
 import type { CgLiveAnnouncerHandle } from '../LiveAnnouncer';
 import { CgTimeline } from './CgTimeline';
-import type { CgTimelineHandle, CgTimelineItem, CgTimelineLabels, CgTimelineLane, CgTimelineProps, CgTimelineScale } from './CgTimeline.types';
+import type { CgTimelineHandle, CgTimelineItem, CgTimelineLabels, CgTimelineLane, CgTimelineMoveDetails, CgTimelineProps, CgTimelineScale } from './CgTimeline.types';
 
 const source = 'None: React only (Cash Gear Workspace Track U18, the database timeline view)';
 const difference = 'Items with a start and an inclusive end from the caller, one line each in its order, and no editor of its own: open, create and move are callbacks.';
@@ -47,6 +47,19 @@ const englishLabels: CgTimelineLabels = {
   quarter: (quarter, year) => `Q${quarter} ${year}`,
 };
 
+/** With moveBetweenLanes: the hint names the lane keys, and a lane move has words of its own. */
+const arabicLaneLabels: CgTimelineLabels = {
+  ...arabicLabels,
+  moveHint: 'Alt مع السهمين الأفقيين ينقله يوماً، ومع السهمين العموديين ينقله إلى المرحلة السابقة أو التالية؛ ومع Shift يغيّر نهايته، وCtrl مع Shift يغيّر بدايته',
+  movedLane: (item, info) => `نُقل «${item.title}» إلى «${info.lane}»، يبدأ ${info.start}`,
+};
+
+const englishLaneLabels: CgTimelineLabels = {
+  ...englishLabels,
+  moveHint: 'Alt and the left and right arrow keys move it a day, and Alt with up or down moves it to the stage above or below; add Shift to change its end, or use Ctrl and Shift to change its start',
+  movedLane: (item, info) => `${item.title} moved to ${info.lane}, starting ${info.start}`,
+};
+
 const arabicLanes: CgTimelineLane[] = [
   { key: 'plan', title: 'التخطيط' },
   { key: 'build', title: 'التنفيذ' },
@@ -78,7 +91,23 @@ const englishItems: CgTimelineItem[] = [
   { key: 'stock', title: 'Stock count', start: '2026-11-30', end: '2026-12-02', color: 'var(--cg-success-text)' },
 ];
 
-type PlannerProps = Pick<CgTimelineProps, 'labels' | 'lanes' | 'locale' | 'firstDayOfWeek' | 'timeZone'> & { initial: CgTimelineItem[]; defaultScale: CgTimelineScale };
+const englishLanes: CgTimelineLane[] = [
+  { key: 'todo', title: 'To do' },
+  { key: 'doing', title: 'In progress' },
+  { key: 'done', title: 'Done' },
+];
+
+const englishLaneOf: Readonly<Record<string, string | undefined>> = { standup: 'doing', close: 'doing', payroll: 'todo', filing: 'todo', review: 'todo', stock: 'done' };
+const englishLaneItems: CgTimelineItem[] = englishItems.map((item) => ({ ...item, lane: englishLaneOf[item.key] ?? null }));
+
+/** Writes a move into the caller's items: the new dates, and the lane when it changed. */
+const applyMove = (current: CgTimelineItem[], item: CgTimelineItem, details: CgTimelineMoveDetails) => current.map((entry) => (entry.key === item.key
+  ? { ...entry, start: details.start, end: details.end, ...(details.lane === undefined ? {} : { lane: details.lane }) }
+  : entry));
+/** The last action as the browser tests read it, the lane last when it changed. */
+const moveAction = (item: CgTimelineItem, details: CgTimelineMoveDetails) => `${details.edge}:${item.key}:${details.start}:${details.end ?? '-'}:${details.source}${details.lane === undefined ? '' : `:${details.lane ?? '-'}`}`;
+
+type PlannerProps = Pick<CgTimelineProps, 'labels' | 'lanes' | 'locale' | 'firstDayOfWeek' | 'timeZone' | 'moveBetweenLanes'> & { initial: CgTimelineItem[]; defaultScale: CgTimelineScale };
 
 /** The caller's side: it writes the moves into its own items, and shows the last action and the days shown. */
 function Planner({ initial, defaultScale, ...props }: PlannerProps) {
@@ -100,8 +129,8 @@ function Planner({ initial, defaultScale, ...props }: PlannerProps) {
       onItemOpen={(item, details) => setLastAction(`open:${item.key}:${details.source}`)}
       onCreate={(date, lane, details) => setLastAction(`create:${date}:${lane ?? '-'}:${details.source}`)}
       onItemMove={(item, details) => {
-        setItems((current) => current.map((entry) => (entry.key === item.key ? { ...entry, start: details.start, end: details.end } : entry)));
-        setLastAction(`${details.edge}:${item.key}:${details.start}:${details.end ?? '-'}:${details.source}`);
+        setItems((current) => applyMove(current, item, details));
+        setLastAction(moveAction(item, details));
       }}
     />
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, color: 'var(--cg-text-secondary)', fontSize: 'var(--cg-font-size-sm)' }}>
@@ -121,19 +150,25 @@ const DAY = 86_400_000;
 const isoDay = (offset: number) => new Date(Date.UTC(2026, 0, 1) + offset * DAY).toISOString().slice(0, 10);
 const tones = ['var(--cg-info-text)', 'var(--cg-success-text)', 'var(--cg-warning-text)', 'var(--cg-danger-text)', undefined];
 
-function manyItems(count: number): CgTimelineItem[] {
+const hugeLanes: CgTimelineLane[] = Array.from({ length: 5 }, (_, index) => ({ key: `stage-${index}`, title: `المرحلة ${index + 1}` }));
+
+function manyItems(count: number, inLanes: boolean): CgTimelineItem[] {
   return Array.from({ length: count }, (_, index) => {
     const start = (index * 37) % 700;
-    return { key: `row-${index}`, title: `مهمة رقم ${index + 1}`, start: isoDay(start), end: isoDay(start + 1 + (index % 13)), color: tones[index % tones.length] };
+    return {
+      key: `row-${index}`, title: `مهمة رقم ${index + 1}`, start: isoDay(start), end: isoDay(start + 1 + (index % 13)), color: tones[index % tones.length],
+      ...(inLanes ? { lane: `stage-${index % hugeLanes.length}` } : {}),
+    };
   });
 }
 
 /**
  * 50,000 items, with the milliseconds from the timeline's first drawing to its bars being in the
- * page (written once after that first commit, so the timing does not wait for a frame).
+ * page (written once after that first commit, so the timing does not wait for a frame); in five
+ * lanes that bars move between with `inLanes`.
  */
-function Huge() {
-  const initial = useMemo(() => manyItems(50_000), []);
+function Huge({ inLanes = false }: { inLanes?: boolean }) {
+  const initial = useMemo(() => manyItems(50_000, inLanes), [inLanes]);
   const [items, setItems] = useState(initial);
   const [started] = useState(() => performance.now());
   const elapsed = useRef<HTMLOutputElement>(null);
@@ -146,7 +181,9 @@ function Huge() {
     <CgTimeline
       data-testid="timeline"
       items={items}
-      labels={arabicLabels}
+      labels={inLanes ? arabicLaneLabels : arabicLabels}
+      lanes={inLanes ? hugeLanes : undefined}
+      moveBetweenLanes={inLanes}
       locale="ar"
       firstDayOfWeek="saturday"
       timeZone="Asia/Riyadh"
@@ -157,8 +194,8 @@ function Huge() {
       onRangeChange={(shown) => setRange(`${shown.from}:${shown.to}`)}
       onItemOpen={(item, details) => setLastAction(`open:${item.key}:${details.source}`)}
       onItemMove={(item, details) => {
-        setItems((current) => current.map((entry) => (entry.key === item.key ? { ...entry, start: details.start, end: details.end } : entry)));
-        setLastAction(`${details.edge}:${item.key}:${details.start}:${details.end ?? '-'}:${details.source}`);
+        setItems((current) => applyMove(current, item, details));
+        setLastAction(moveAction(item, details));
       }}
     />
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, color: 'var(--cg-text-secondary)', fontSize: 'var(--cg-font-size-sm)' }}>
@@ -276,5 +313,27 @@ export const EnglishDays: Story = {
   </StoryFrame>,
 };
 export const FiftyThousandItems: Story = { args, render: () => <StoryFrame source={source} difference={bigDifference}><Huge /></StoryFrame>, globals: { direction: 'rtl' } };
+
+// ---- Moving between lanes (Track U19) -----------------------------------------------------------
+const laneSource = 'None: React only (Cash Gear Workspace Track U19, the timeline view\'s lanes by a select or status property)';
+const laneDifference = 'With moveBetweenLanes, a bar dragged onto another lane, or moved by Alt+ArrowUp and Alt+ArrowDown, changes its lane and its days in one onItemMove; the caller writes both.';
+
+/** Bars dragged onto another lane's lines or header (the lane marked while dragging), or moved a lane up or down by keys; time runs from right to left. */
+export const ArabicLaneMoves: Story = {
+  args,
+  render: () => <StoryFrame source={laneSource} difference={laneDifference}>
+    <Planner initial={arabicItems} lanes={arabicLanes} labels={arabicLaneLabels} locale="ar" firstDayOfWeek="saturday" timeZone="Asia/Riyadh" defaultScale="week" moveBetweenLanes />
+  </StoryFrame>,
+  globals: { direction: 'rtl' },
+};
+/** The same left to right, at the day scale. */
+export const EnglishLaneMoves: Story = {
+  args,
+  render: () => <StoryFrame source={laneSource} difference={laneDifference}>
+    <Planner initial={englishLaneItems} lanes={englishLanes} labels={englishLaneLabels} locale="en-US" firstDayOfWeek="sunday" timeZone="America/New_York" defaultScale="day" moveBetweenLanes />
+  </StoryFrame>,
+};
+/** 50,000 items in five lanes, a bar moved to another lane followed to its new line. */
+export const FiftyThousandInLanes: Story = { args, render: () => <StoryFrame source={laneSource} difference={bigDifference}><Huge inLanes /></StoryFrame>, globals: { direction: 'rtl' } };
 /** Items with no date dragged onto a day and lane, or placed on the first day shown. */
 export const ArabicUndatedDrop: Story = { args, render: () => <StoryFrame source={source} difference={undatedDifference}><UndatedPlanner /></StoryFrame>, globals: { direction: 'rtl' } };
