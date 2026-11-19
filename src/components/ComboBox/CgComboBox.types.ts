@@ -55,6 +55,16 @@ interface CgComboBoxCommonProps<TItem, TContext> extends NativeComboBoxProps, Cg
   isQueryContextEqual?: (left: TContext, right: TContext) => boolean;
   dataVersion?: unknown;
   onSearchError?: (details: CgLookupErrorDetails<never, TContext>) => void;
+  /**
+   * Lets the user commit text that matches no option, for a field whose list suggests values rather than
+   * bounding them. Called with the trimmed text when the user presses Enter with nothing highlighted, tabs
+   * away, blurs or clicks outside; return the item to commit, or null to refuse the text and restore the
+   * previous value. Text that is exactly an option's caption commits that option, and so does a returned
+   * item whose key is an option's. A single remaining match no longer commits on Enter. Blazor `CustomItemFactory`.
+   */
+  customItemFactory?: (text: string) => TItem | null | undefined;
+  /** Shown while typed text would be committed as is; `{0}` is the text. Defaults to `Press Enter to use "{0}".` */
+  customItemText?: string;
   clearable?: boolean;
   clearAriaLabel?: string;
   toggleAriaLabel?: string;

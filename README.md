@@ -150,6 +150,19 @@ Remote loading receives a trimmed eligible query, monotonic request ID, opaque `
 
 The visible input retains focus while the body-portal listbox opens, flips, shifts, and follows nested scrolling or viewport changes. Arabic digits/text and diacritic-insensitive locale matching are supported. Results are marked incomplete when a local match set exceeds `maxVisibleItems` or a remote page reaches that limit; Enter then requires an explicitly highlighted option. IME composition suppresses navigation/commit keys, while clearable editors support Ctrl+Backspace and Ctrl+Delete and expose both shortcuts through ARIA. Duplicate keys, conflicting local/remote sources, negative timing/length values, and invalid result limits throw clear errors.
 
+`customItemFactory` makes the list a set of suggestions rather than a bound. Text that matches no caption is turned into an item when the user presses Enter with nothing highlighted, tabs away, blurs or clicks outside; Escape still restores the previous value. Text that is exactly an option's caption (ignoring case) commits that option, a returned item whose key is an option's commits the listed option, and returning `null` refuses the text. While typed text would be committed, the status line shows `customItemText` (default `Press Enter to use "{0}".`), and a single remaining match no longer commits on Enter, because a short code may narrow the list to a longer one and still mean itself.
+
+```tsx
+<CgComboBox<Unit>
+  options={units}
+  getOptionKey={(unit) => unit.code}
+  getOptionLabel={(unit) => unit.name}
+  customItemFactory={(text) => ({ code: text.toUpperCase(), name: text })}
+/>
+```
+
+The built-in English (loading, error, empty, minimum-length, refine and free-text messages, and the clear and toggle labels) goes through `CgUiTextProvider` unless a prop sets it.
+
 ## KeyComboBox
 
 `CgKeyComboBox<TItem, TValue>` is the scalar-key adapter for models that store an id or code instead of the selected object. `TValue` is a `string` or `number`; `null` is empty and `0` remains a valid key. Filtering, loading, keyboard, ARIA, popup positioning, validation, form serialization, and reset behavior come from `CgComboBox`.
@@ -171,6 +184,8 @@ interface Customer { id: number; name: string }
 ```
 
 Keys resolve synchronously from `selectedItem` first, then local `options` and the last item selected through the editor. An abortable `itemResolver` can hydrate an off-page key and receives the current `queryContext`. Successful, missing, and failed attempts are cached by key, context, and data version; `actionsRef.current.refreshSelectedItem()` invalidates the current attempt. Resolver key mismatches are failures. Until resolution succeeds, the bound key remains serialized and its safe string form remains visible. `onResolutionError` exposes raw diagnostic details while `resolutionErrorMessage` stays generic. `isValueEqual` customizes key matching; for example, account codes can compare case-insensitively.
+
+`customItemFactory` works here too: the typed item's key becomes the value and the item is kept as the last selected one, so its caption stays visible without an `itemResolver`.
 
 ```tsx
 <CgKeyComboBox<Customer, number>

@@ -7,6 +7,7 @@ import { useVirtualWindow } from '../../internal/useVirtualWindow';
 import { cx } from '../../utils';
 import styles from './CgComboBox.module.css';
 import type { CgComboBoxChangeReason, CgComboBoxProps, CgComboBoxValueChangeDetails } from './CgComboBox.types';
+import { useCgUiText } from '../UiText';
 
 const VIRTUAL_ROW_HEIGHT = 40;
 const VIRTUAL_THRESHOLD = 100;
@@ -49,18 +50,20 @@ function CgComboBoxInner<TItem, TContext>(
     searchDelay = 300,
     minimumSearchLength = 0,
     maxVisibleItems = 50,
-    loadingMessage = 'Loading…',
-    errorMessage = 'Unable to load results.',
-    emptyMessage = 'No results found',
-    minimumLengthMessage = (minimum) => `Type at least ${minimum} characters to search.`,
-    refineSearchMessage = 'Refine your search to see more results.',
+    loadingMessage: loadingMessageProp,
+    errorMessage: errorMessageProp,
+    emptyMessage: emptyMessageProp,
+    minimumLengthMessage: minimumLengthMessageProp,
+    refineSearchMessage: refineSearchMessageProp,
+    customItemFactory,
+    customItemText: customItemTextProp,
     queryContext,
     isQueryContextEqual = Object.is,
     dataVersion,
     onSearchError,
     clearable = true,
-    clearAriaLabel = 'Clear selection',
-    toggleAriaLabel = 'Toggle options',
+    clearAriaLabel: clearAriaLabelProp,
+    toggleAriaLabel: toggleAriaLabelProp,
     readOnly = false,
     size = 'medium',
     validationState = 'none',
@@ -97,6 +100,15 @@ function CgComboBoxInner<TItem, TContext>(
     throw new Error('CgComboBox accepts either options or loadOptions, not both.');
   }
 
+  const uiText = useCgUiText();
+  const loadingMessage = loadingMessageProp ?? uiText.translate('Loading…');
+  const errorMessage = errorMessageProp ?? uiText.translate('Unable to load results.');
+  const emptyMessage = emptyMessageProp ?? uiText.translate('No results found');
+  const minimumLengthMessage = minimumLengthMessageProp ?? ((minimum: number) => uiText.translate('Type at least {0} characters to search.').replace('{0}', String(minimum)));
+  const refineSearchMessage = refineSearchMessageProp ?? uiText.translate('Refine your search to see more results.');
+  const clearAriaLabel = clearAriaLabelProp ?? uiText.translate('Clear selection');
+  const toggleAriaLabel = toggleAriaLabelProp ?? uiText.translate('Toggle options');
+  const customItemText = customItemTextProp ?? uiText.translate('Press Enter to use "{0}".');
   const field = useFieldControl({ id, required, disabled, readOnly, validationState, describedBy: ariaDescribedBy, ariaLabel, labelledBy: ariaLabelledBy });
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -260,7 +272,6 @@ function CgComboBoxInner<TItem, TContext>(
     setActiveIndex(-1);
     setDraft(selectedRef.current === null ? _unresolvedValueText ?? '' : getOptionLabel(selectedRef.current));
   }, [_unresolvedValueText, cancelRemote, dataVersion, debouncedRemote, getOptionLabel, queryContext]);
-  const overlay = useOverlayStack(open, closeAndRestore, popupRef, closeAndRestore, controlRef);
 
   const beginOpen = useStableCallback(() => {
     if (field.disabled || field.readOnly) return;
@@ -422,8 +433,36 @@ function CgComboBoxInner<TItem, TContext>(
     const query = foldSearch(draft.trim(), locale, ignoreDiacritics);
     if (!query) return undefined;
     const exact = filteredItems.filter((item) => foldSearch(getOptionLabel(item), locale, ignoreDiacritics) === query);
-    return exact.length === 1 ? exact[0] : filteredItems.length === 1 ? filteredItems[0] : undefined;
+    // With free text allowed, one remaining option is not a choice: "A1" may narrow the list to "A10" and still mean A1.
+    return exact.length === 1 ? exact[0] : filteredItems.length === 1 && !customItemFactory ? filteredItems[0] : undefined;
   };
+
+  // Blazor CustomItemFactory: free text the user typed, when it may be committed. Not the caption already committed.
+  const typedCustomText = (() => {
+    if (!customItemFactory || !editing) return undefined;
+    const text = draft.trim();
+    return text && text !== committedText ? text : undefined;
+  })();
+  const findByCaption = (text: string): TItem | undefined => {
+    const folded = text.toLocaleLowerCase(locale);
+    return sourceItems.find((item) => getOptionLabel(item).toLocaleLowerCase(locale) === folded);
+  };
+  const customItemHint = typedCustomText !== undefined && findByCaption(typedCustomText) === undefined ? customItemText.replace('{0}', typedCustomText) : undefined;
+  /** Commits typed text the user is leaving; false when there is nothing to commit, so the caller restores. */
+  const commitTypedText = (event?: React.SyntheticEvent): boolean => {
+    if (typedCustomText === undefined || !customItemFactory) return false;
+    let item: TItem | null | undefined = findByCaption(typedCustomText);
+    if (item === undefined) {
+      const custom = customItemFactory(typedCustomText);
+      // A typed key that is in the list commits the listed item, caption and all.
+      item = custom === null || custom === undefined ? null : sourceItems.find((candidate) => keyToken(getOptionKey(candidate)) === keyToken(getOptionKey(custom))) ?? custom;
+    }
+    if (item === null) return false;
+    selectItem(item, event);
+    return true;
+  };
+  // Outside click keeps typed free text (Blazor); Escape still restores.
+  const overlay = useOverlayStack(open, closeAndRestore, popupRef, () => { if (!commitTypedText()) closeAndRestore(); }, controlRef);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (field.disabled || field.readOnly) {
@@ -462,12 +501,12 @@ function CgComboBoxInner<TItem, TContext>(
       event.preventDefault();
       const item = resolveKeyboardSelection();
       if (item) selectItem(item, event);
-      else closeAndRestore();
+      else if (!commitTypedText(event)) closeAndRestore();
     } else if (event.key === 'Escape' && (open || editing)) {
       event.preventDefault();
       closeAndRestore();
     } else if (event.key === 'Tab' && (open || editing)) {
-      closeAndRestore();
+      if (!commitTypedText(event)) closeAndRestore();
     }
     onKeyDown?.(event);
   };
@@ -479,6 +518,8 @@ function CgComboBoxInner<TItem, TContext>(
       ? loadingMessage
       : loadError !== undefined
         ? typeof errorMessage === 'function' ? errorMessage(loadError) : errorMessage
+        : customItemHint !== undefined
+          ? customItemHint
           : filteredItems.length === 0
           ? emptyMessage
           : incomplete ? refineSearchMessage : undefined;
@@ -532,7 +573,7 @@ function CgComboBoxInner<TItem, TContext>(
           readOnly={field.readOnly}
           onFocus={(event) => { if (!field.disabled && !field.readOnly) setEditing(true); onFocus?.(event); }}
           onBlur={(event) => {
-            queueMicrotask(() => { if (mountedRef.current && document.activeElement !== inputRef.current) closeAndRestore(); });
+            queueMicrotask(() => { if (mountedRef.current && document.activeElement !== inputRef.current && !commitTypedText()) closeAndRestore(); });
             onBlur?.(event);
           }}
           onChange={(event) => {

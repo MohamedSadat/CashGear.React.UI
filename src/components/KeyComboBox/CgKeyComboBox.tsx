@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useControllableState, useFormReset, useMergedRefs, useStableCallback } from '../../hooks';
 import { CgComboBox } from '../ComboBox';
+import { useCgUiText } from '../UiText';
 import type { CgComboBoxProps, CgComboBoxValueChangeDetails } from '../ComboBox';
 import type { CgKeyComboBoxActions, CgKeyComboBoxProps, CgKeyComboBoxValueChangeDetails } from './CgKeyComboBox.types';
 
@@ -30,7 +31,7 @@ function CgKeyComboBoxInner<TItem, TValue extends string | number, TContext>(
     isValueEqual = Object.is,
     itemResolver,
     actionsRef,
-    resolutionErrorMessage = 'Unable to resolve the selected item.',
+    resolutionErrorMessage: resolutionErrorMessageProp,
     onResolutionError,
     options,
     loadOptions,
@@ -46,6 +47,8 @@ function CgKeyComboBoxInner<TItem, TValue extends string | number, TContext>(
 ) {
   if (options !== undefined && loadOptions !== undefined) throw new Error('CgKeyComboBox accepts either options or loadOptions, not both.');
 
+  const uiText = useCgUiText();
+  const resolutionErrorMessage = resolutionErrorMessageProp ?? uiText.translate('Unable to resolve the selected item.');
   const [keyValue, setKeyValue] = useControllableState<TValue | null>(value, defaultValue ?? null, 'CgKeyComboBox');
   const [lastSelectedItem, setLastSelectedItem] = useState<TItem | null>(null);
   const [resolvedItem, setResolvedItem] = useState<TItem | null>(null);

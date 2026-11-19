@@ -466,6 +466,19 @@ Blazor `f4a27eb5` keeps a spin editor's select-all past the focusing click. Conf
 | Full unit suite | 1,367 tests in 121 files passed with two workers, including `tests/blazor-parity-r9.test.tsx` (2 cases). |
 | Browser | Not rerun: no story or layout changes. |
 
-### Held: R8 and the rest of R9
+### R8: ComboBox and KeyComboBox free text
 
-R8 (ComboBox and KeyComboBox free text) and R9's overlay change (measure a capped surface before flipping, `PositionedOverlay.tsx`) and `overflow-anchor: none` on virtual lists (ListBox, ComboBox, Grid, TreeView) were not started. They need `src/components/ComboBox/CgComboBox.tsx`, `CgComboBox.module.css`, `CgComboBox.stories.tsx`, `src/internal/PositionedOverlay.tsx`, `src/internal/useVirtualWindow.ts` and `tests/browser/components.browser.spec.ts`, which still carry another session's uncommitted edits from 2026-11-18 06:45. The same spec file needs `Alt+ArrowDown` at line 548 for R7's DateEdit keyboard change.
+Blazor `CgComboBox.razor.cs` (`CustomItemFactory`, `CustomItemText`, `TypedCustomText`, `TryCommitTypedText`, `ResolveUnambiguousMatch`). New `customItemFactory(text)` returns the item to commit for text that matches no option, or `null` to refuse it. Typed text (trimmed, and not the caption already committed) is committed on Enter with nothing highlighted, on Tab, on blur and on an outside click; Escape still restores. Text that is exactly an option's caption, ignoring case, commits that option without calling the factory, and a returned item whose key is an option's commits the listed option. While typed text would be committed and matches no caption, the status line shows `customItemText` (default `Press Enter to use "{0}".`, after a load error and before the empty message). With a factory set, a single remaining match no longer commits on Enter. `CgKeyComboBox` passes the props through: the typed item's key becomes the value and the item is kept as the last selected one, so its caption shows without an `itemResolver`.
+
+R0 follow-up: ComboBox's built-in English (loading, error, empty, minimum-length, refine and free-text messages, clear and toggle labels) and KeyComboBox's `resolutionErrorMessage` now go through `CgUiTextProvider` when no prop sets them. These two files were held during R0.
+
+Also fixed: `tests/blazor-parity-r9.test.tsx` from R9 part 1 passed a string as a `CgDecimalEdit` value, which `npm run typecheck` rejects (the branded `CgDecimalValue`); R9 part 1's typecheck record above was wrong. The test now uses `normalizeCgDecimalValue` and is committed with R9 part 2.
+
+Stories are under `Blazor parity 2026-11/ComboBox free text`. New browser spec `tests/browser/blazor-parity-2026-11.browser.spec.ts`.
+
+| Gate | Recorded result |
+| --- | --- |
+| Typecheck, lint | Passed. |
+| Full unit suite | 1,375 tests in 122 files passed with two workers, including `tests/blazor-parity-r8.test.tsx` (8 cases: Enter with hint, caption wins, listed key, blur and outside click and Escape, refusal, no factory, text provider, KeyComboBox). |
+| Storybook build | Passed. |
+| Browser, Chromium and WebKit | Free-text spec 2 of 2. ComboBox, KeyComboBox and DateEdit semantic and visual cases 47 of 48. The failure is WebKit only, `components.browser.spec.ts:172` ("ComboBox opens on the last capped option and keeps wheel scroll inside the popup"): a wheel at the popup's end scrolls the page 450px. It fails the same way on a Storybook built from `444880c` without these changes, so it is not from R8; the case came with that commit. |
