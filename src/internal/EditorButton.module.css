@@ -5,6 +5,10 @@
   align-self: stretch;
   gap: var(--cg-space-1);
   min-inline-size: 2rem;
+  /* WCAG 2.2 target size (2.5.8): at least 24 by 24 CSS pixels in every size and density. Each
+     shell's content is taller than this already, so no field grows; without it the button was
+     only as tall as its icon. */
+  min-block-size: max(1.5rem, 24px);
   padding-inline: var(--cg-space-2);
   color: inherit;
   font: inherit;

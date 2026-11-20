@@ -148,6 +148,92 @@ test.describe('CgContextMenu', () => {
   });
 });
 
+const WCAG22 = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
+
+type AxeResults = Awaited<ReturnType<AxeBuilder['analyze']>>;
+const listed = ({ violations }: AxeResults) => violations.map((violation) => `${violation.id}: ${violation.nodes.map((node) => node.target.join(' ')).join(', ')}`);
+
+/** Axe over WCAG 2.2 AA's tags, as Workspace walks it; with `labelInName`, also that rule, which axe marks experimental. */
+async function wcag22Problems(page: Page, labelInName: boolean): Promise<string[]> {
+  const builder = new AxeBuilder({ page });
+  if (labelInName) builder.options({ rules: { 'label-content-name-mismatch': { enabled: true } } });
+  return listed(await builder.withTags(WCAG22).analyze());
+}
+
+/** Axe's named rules only, over the page or one part of it. */
+async function ruleProblems(page: Page, rules: string[], include?: string): Promise<string[]> {
+  const builder = new AxeBuilder({ page }).withRules(rules);
+  if (include) builder.include(include);
+  return listed(await builder.analyze());
+}
+
+/** The story frame sets a density; take it away so the "default" group gets the page's own. */
+async function dropFrameDensity(page: Page) {
+  await page.locator('#storybook-root [data-cg-density]').first().evaluate((element) => element.removeAttribute('data-cg-density'));
+}
+
+for (const { story, globals, arabic } of [
+  { story: 'phase-37-library-fixes--input-target-size', globals: 'theme:light;density:comfortable;direction:ltr', arabic: false },
+  { story: 'phase-37-library-fixes--input-target-size-arabic-dark', globals: DARK_RTL, arabic: true },
+] as const) {
+  test.describe(`Buttons in a field and the calendar's heading (WCAG 2.2), ${arabic ? 'Arabic, dark' : 'English, light'}`, () => {
+    test('every button in a field is at least 24 by 24 px in each size and density, and Axe finds nothing', async ({ page }) => {
+      const problems = watchProblems(page);
+      await openStory(page, story, globals);
+      await dropFrameDensity(page);
+      const small = await page.locator('[data-testid^="targets-"] [class*="adornment"] > :is(button, a)').evaluateAll((elements) => {
+        const sizes = elements.map((element) => {
+          const box = element.getBoundingClientRect();
+          return { name: element.getAttribute('aria-label') ?? '', width: Math.round(box.width * 100) / 100, height: Math.round(box.height * 100) / 100 };
+        });
+        return { count: sizes.length, under: sizes.filter((size) => size.width < 24 || size.height < 24) };
+      });
+      // Measured, not left to Axe: with nothing near them Axe passes even the old 32 by 15 px buttons
+      // under WCAG's spacing exception. Per density: DateEdit 2 x 2, TimeEdit 2, ComboBox 2, TagBox 2,
+      // SpinEdit 2, DecimalEdit 2, TextBox 1.
+      expect(small.count).toBe(3 * 15);
+      expect(small.under).toEqual([]);
+      // No field grew for it: a small DateEdit in the compact density is as tall as its input makes it.
+      const compact = (await page.getByTestId('date-small-compact').boundingBox())!;
+      expect(compact.height).toBeLessThan(32);
+      expect(await wcag22Problems(page, true)).toEqual([]);
+      expect(problems).toEqual([]);
+    });
+
+    for (const size of ['small', 'medium'] as const) {
+      test(`a ${size} DateEdit's open calendar passes, its heading named by what it shows`, async ({ page }) => {
+        const problems = watchProblems(page);
+        await openStory(page, story, globals);
+        await dropFrameDensity(page);
+        const field = page.getByTestId(`date-${size}-default`);
+        await field.getByRole('button', { name: arabic ? 'فتح التقويم' : 'Open calendar', exact: true }).click();
+        const dialog = page.getByRole('dialog', { name: arabic ? 'التقويم' : 'Calendar' });
+        await expect(dialog).toBeVisible();
+        const selector = 'button[aria-describedby$="-heading-hint"]';
+        const heading = dialog.locator(selector);
+        await expect(heading).toHaveAccessibleName((await heading.innerText()).trim());
+        if (!arabic) await expect(heading).toHaveAccessibleName('October 2026');
+        await expect(heading).toHaveAccessibleDescription(arabic ? 'اختيار الشهر والسنة' : 'Choose month and year');
+        // The whole page, open. Arabic leaves label-in-name to the heading: ar-EG's day buttons draw
+        // Western digits under Arabic-Indic labels, a separate defect.
+        expect(await wcag22Problems(page, !arabic)).toEqual([]);
+        expect(await ruleProblems(page, ['label-content-name-mismatch'], selector)).toEqual([]);
+        // The month view's heading shows the year, the year view's the years it lists. Their grids'
+        // structure (cells without rows) is a separate defect, so only these two rules run there.
+        for (const view of ['month', 'year']) {
+          await heading.click();
+          await expect(heading).toHaveAccessibleName((await heading.innerText()).trim());
+          await expect(heading).toHaveAccessibleDescription(arabic ? 'اختيار السنة' : 'Choose year');
+          if (!arabic) await expect(heading).toHaveAccessibleName(view === 'month' ? '2026' : /^\d{4}–\d{4}$/u);
+          expect(await ruleProblems(page, ['target-size'])).toEqual([]);
+          expect(await ruleProblems(page, ['label-content-name-mismatch'], selector)).toEqual([]);
+        }
+        expect(problems).toEqual([]);
+      });
+    }
+  });
+}
+
 test.describe('CgChart', () => {
   test('makes its data toggle at least 24 px high', async ({ page }) => {
     await openStory(page, 'phase-37-library-fixes--chart-data-toggle', RTL);

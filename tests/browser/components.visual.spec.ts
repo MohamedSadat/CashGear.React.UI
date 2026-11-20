@@ -423,8 +423,8 @@ test('DateEdit min max and disabled dates', async ({ page }) => {
 
 test('DateEdit year panel', async ({ page }) => {
   await openStory(page, 'phase-8-dateedit--month-year-navigation');
-  await page.getByRole('button', { name: 'Choose month and year' }).click();
-  await page.getByRole('button', { name: 'Choose year' }).click();
+  await page.getByRole('button', { name: 'August 2026', exact: true }).click();
+  await page.getByRole('button', { name: '2026', exact: true }).click();
   await expect(page.getByRole('grid').getByRole('gridcell')).toHaveCount(12);
   await expect(page).toHaveScreenshot('date-edit-year-panel.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.001 });
 });

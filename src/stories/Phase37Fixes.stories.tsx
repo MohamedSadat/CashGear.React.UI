@@ -4,14 +4,22 @@ import { CgButton } from '../components/Button';
 import type { CgButtonAppearance } from '../components/Button';
 import { CgChart } from '../components/Chart';
 import type { CgChartSeriesDescriptor } from '../components/Chart';
+import { CgComboBox } from '../components/ComboBox';
 import { CgContextMenu, useCgContextMenuTarget } from '../components/ContextMenu';
 import type { CgContextMenuActions, CgContextMenuItem } from '../components/ContextMenu';
+import { CgDateEdit } from '../components/DateEdit';
+import { CgDecimalEdit } from '../components/DecimalEdit';
 import { CgDrawer } from '../components/Drawer';
 import { CgFlyout } from '../components/Flyout';
 import type { CgFlyoutActions } from '../components/Flyout';
+import { normalizeCgDecimalValue } from '../components/RangeSelector';
+import { CgSpinEdit } from '../components/SpinEdit';
 import { CgSplitter } from '../components/Splitter';
 import { CgTabs } from '../components/Tabs';
 import type { CgTabDescriptor } from '../components/Tabs';
+import { CgTagBox } from '../components/TagBox';
+import { CgTextBox } from '../components/TextBox';
+import { CgTimeEdit } from '../components/TimeEdit';
 import type { CgIntent } from '../types';
 import { StoryFrame } from './storySupport';
 
@@ -149,3 +157,36 @@ export const ChartDataToggle: Story = {
   </StoryFrame>,
   globals: { direction: 'rtl' },
 };
+
+interface Choice { key: string; name: string }
+const choices: ReadonlyArray<Choice> = [{ key: 'north', name: 'North' }, { key: 'south', name: 'South' }];
+const arabicChoices: ReadonlyArray<Choice> = [{ key: 'north', name: 'الشمال' }, { key: 'south', name: 'الجنوب' }];
+
+/** Every input whose buttons sit in the field, small and medium, in one density: "default" leaves it to the page. */
+function InputTargetGroup({ density, arabic }: { density: 'default' | 'compact' | 'comfortable'; arabic: boolean }) {
+  const locale = arabic ? 'ar-EG' : 'en-US';
+  const options = arabic ? arabicChoices : choices;
+  const name = (english: string, translated: string) => `${arabic ? translated : english} (${density})`;
+  return <section data-testid={`targets-${density}`} data-cg-density={density === 'default' ? undefined : density} style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8 }}>
+    <CgDateEdit aria-label={name('Small date', 'تاريخ صغير')} data-testid={`date-small-${density}`} size="small" locale={locale} defaultValue="2026-10-14" today="2026-10-14" />
+    <CgDateEdit aria-label={name('Medium date', 'تاريخ متوسط')} data-testid={`date-medium-${density}`} locale={locale} defaultValue="2026-10-14" today="2026-10-14" />
+    <CgTimeEdit aria-label={name('Small time', 'وقت صغير')} size="small" locale={locale} defaultValue="09:30:00" />
+    <CgComboBox aria-label={name('Small region', 'منطقة صغيرة')} size="small" options={options} defaultValue={options[0]} getOptionLabel={(item) => item.name} getOptionKey={(item) => item.key} clearable />
+    <CgTagBox aria-label={name('Small regions', 'مناطق صغيرة')} size="small" options={options} defaultValue={[options[1]!]} getOptionLabel={(item) => item.name} getOptionKey={(item) => item.key} clearable />
+    <CgSpinEdit aria-label={name('Small quantity', 'كمية صغيرة')} size="small" locale={locale} defaultValue={3} />
+    <CgDecimalEdit aria-label={name('Small amount', 'مبلغ صغير')} size="small" locale={locale} defaultValue={normalizeCgDecimalValue('12.5')} />
+    <CgTextBox aria-label={name('Small note', 'ملاحظة صغيرة')} size="small" defaultValue={arabic ? 'نص' : 'Text'} clearButton="always" />
+  </section>;
+}
+
+function InputTargets({ arabic }: { arabic: boolean }) {
+  return <StoryFrame source={source} difference={difference}>
+    <div style={{ display: 'grid', gap: 16, inlineSize: 1100, minBlockSize: 520 }}>
+      {(['default', 'compact', 'comfortable'] as const).map((density) => <InputTargetGroup key={density} density={density} arabic={arabic} />)}
+    </div>
+  </StoryFrame>;
+}
+
+/** WCAG 2.2: every button in a field is at least 24 px high, and the calendar's heading is named by what it shows. */
+export const InputTargetSize: Story = { render: () => <InputTargets arabic={false} /> };
+export const InputTargetSizeArabicDark: Story = { render: () => <InputTargets arabic />, globals: { theme: 'dark', direction: 'rtl' } };

@@ -65,7 +65,9 @@ export interface CgDateEditLabels {
   clearDate: string;
   previousPeriod: string;
   nextPeriod: string;
+  /** The calendar's heading button's description in the day view; the button is named by the month and year it shows. */
   chooseMonthAndYear: string;
+  /** The calendar's heading button's description in the month and year views; the button is named by the year or years it shows. */
   chooseYear: string;
   today: string;
   clear: string;

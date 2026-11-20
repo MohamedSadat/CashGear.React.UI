@@ -421,7 +421,8 @@ export const CgCalendar = forwardRef<HTMLDivElement, CgCalendarProps>(function C
           const next = view === 'day' ? addMonths(baseMonth, -monthCount) : addYears(baseMonth, view === 'month' ? -1 : -10);
           focusRequestedRef.current = true; changeVisible(next); setFocusedDate(next);
         }}><CgIcon name="chevron-start" /></button>
-        <button type="button" className={styles.heading} aria-label={view === 'day' ? text.chooseMonthAndYear : text.chooseYear} disabled={disabled} onClick={() => { focusRequestedRef.current = true; setView(view === 'day' ? 'month' : 'year'); }}>
+        {/* Named by what it shows (WCAG 2.5.3); what it does is its description. */}
+        <button type="button" className={styles.heading} aria-describedby={`${calendarId}-heading-hint`} disabled={disabled} onClick={() => { focusRequestedRef.current = true; setView(view === 'day' ? 'month' : 'year'); }}>
           {renderHeader ? renderHeader({ visibleDate: actualVisible, view, selectionView, heading }) : view === 'day' && monthCount === 2 ? <><span className={styles.rangeHeading}>{heading}</span><span className={styles.singleHeading}>{formatMonthHeading(baseMonth, resolvedLocale)}</span></> : heading}
         </button>
         <button type="button" className={styles.nav} aria-label={text.nextPeriod} disabled={disabled} onClick={() => {
@@ -430,6 +431,7 @@ export const CgCalendar = forwardRef<HTMLDivElement, CgCalendarProps>(function C
         }}><CgIcon name="chevron-end" /></button>
       </div>
       <div className={styles.srOnly} role="status" aria-live="polite" aria-atomic="true">{text.showing} {heading}</div>
+      <span id={`${calendarId}-heading-hint`} hidden>{view === 'day' ? text.chooseMonthAndYear : text.chooseYear}</span>
 
       {view === 'day' ? <div className={styles.months}>
         {months.map((month, panelIndex) => {

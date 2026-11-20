@@ -188,9 +188,9 @@ describe('CgDateEdit', () => {
     await waitFor(() => expect(document.querySelector('[data-focus-value="2026-08-22"]')).toHaveFocus());
     fireEvent.keyDown(grid, { key: 'ArrowRight' });
     await waitFor(() => expect(document.querySelector('[data-focus-value="2026-08-21"]')).toHaveFocus());
-    fireEvent.click(screen.getByRole('button', { name: 'Choose month and year' }));
+    fireEvent.click(screen.getByRole('button', { name: 'August 2026', description: 'Choose month and year' }));
     expect(screen.getAllByRole('gridcell')).toHaveLength(12);
-    fireEvent.click(screen.getByRole('button', { name: 'Choose year' }));
+    fireEvent.click(screen.getByRole('button', { name: '2026', description: 'Choose year' }));
     expect(screen.getAllByRole('gridcell')).toHaveLength(12);
     fireEvent.click(screen.getByRole('button', { name: '2027' }));
     fireEvent.click(screen.getByRole('button', { name: /August/u }));

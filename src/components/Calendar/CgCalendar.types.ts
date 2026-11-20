@@ -12,7 +12,9 @@ export interface CgCalendarLabels {
   calendar: string;
   previousPeriod: string;
   nextPeriod: string;
+  /** The day view's heading button's description; the button is named by the month and year it shows. */
   chooseMonthAndYear: string;
+  /** The month and year views' heading button's description; the button is named by the year or years it shows. */
   chooseYear: string;
   today: string;
   clear: string;

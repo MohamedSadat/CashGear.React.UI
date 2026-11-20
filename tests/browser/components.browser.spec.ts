@@ -547,9 +547,14 @@ test('DateEdit supports semantic keyboard navigation, panels, selection, Escape,
 
   // A plain ArrowDown in the focused field changes the date part (Blazor); Alt+ArrowDown opens.
   await input.press('Alt+ArrowDown');
-  await page.getByRole('button', { name: 'Choose month and year' }).click();
+  // The heading is named by what it shows; what it does is its description.
+  const heading = dialog.getByRole('button', { name: 'August 2026', exact: true });
+  await expect(heading).toHaveAccessibleDescription('Choose month and year');
+  await heading.click();
   await expect(page.getByRole('grid').getByRole('gridcell')).toHaveCount(12);
-  await page.getByRole('button', { name: 'Choose year' }).click();
+  const year = dialog.getByRole('button', { name: '2026', exact: true });
+  await expect(year).toHaveAccessibleDescription('Choose year');
+  await year.click();
   await expect(page.getByRole('grid').getByRole('gridcell')).toHaveCount(12);
   await page.getByRole('button', { name: '2027' }).click();
   await page.getByRole('button', { name: /August/u }).click();

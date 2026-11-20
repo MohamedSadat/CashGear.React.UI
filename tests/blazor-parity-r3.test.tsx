@@ -68,7 +68,7 @@ describe('visible range', () => {
     expect(changes[0]).toMatchObject({ startDate: '2026-03-01', endDate: '2026-04-11', view: 'day', monthCount: 1, version: 1 });
     fireEvent.click(screen.getByRole('button', { name: 'Next period' }));
     expect(changes.at(-1)).toMatchObject({ startDate: '2026-03-29', endDate: '2026-05-09', visibleDate: '2026-04-01', version: 2 });
-    fireEvent.click(screen.getByRole('button', { name: 'Choose month and year' }));
+    fireEvent.click(screen.getByRole('button', { name: 'April 2026', description: 'Choose month and year' }));
     expect(changes.at(-1)).toMatchObject({ startDate: '2026-01-01', endDate: '2026-12-31', view: 'month' });
   });
 });
