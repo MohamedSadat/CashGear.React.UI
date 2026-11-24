@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode, Ref } from 'react';
 import type { CgDateValue, CgDayOfWeek } from '../../types/date';
+import type { CgRecurrenceFrequency, CgRecurrenceRange, CgRecurrenceRule, CgRecurrenceWeekOfMonth } from '../RecurrenceFields/CgRecurrenceFields.types';
 import type { CgDirection } from '../../types';
 import type { CgPopupProps } from '../Popup';
 import type { CgSchedulerResource, CgSchedulerAppointmentLabel, CgSchedulerAppointmentStatus, CgSchedulerGroupType } from './schedulerResources';
@@ -22,20 +23,12 @@ export type CgSchedulerKey = string | number;
 /** ISO 8601 instant with an explicit Z or numeric offset. Callbacks emit UTC. */
 export type CgSchedulerInstant = string;
 export interface CgSchedulerVisibleRange { startDate: CgDateValue; endDate: CgDateValue; start: CgSchedulerInstant; end: CgSchedulerInstant }
-export type CgSchedulerRecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
-export type CgSchedulerRecurrenceRange = 'noEndDate' | 'occurrenceCount' | 'endByDate';
-export type CgSchedulerWeekOfMonth = 'none' | 'first' | 'second' | 'third' | 'fourth' | 'last';
+export type CgSchedulerRecurrenceFrequency = CgRecurrenceFrequency;
+export type CgSchedulerRecurrenceRange = CgRecurrenceRange;
+export type CgSchedulerWeekOfMonth = CgRecurrenceWeekOfMonth;
 export type CgSchedulerRecurrenceEditScope = 'series' | 'occurrence';
-export interface CgSchedulerRecurrenceRule {
-  readonly frequency: CgSchedulerRecurrenceFrequency;
-  readonly interval?: number;
-  readonly range?: CgSchedulerRecurrenceRange;
-  readonly occurrenceCount?: number;
-  readonly endDate?: CgDateValue;
-  readonly weekDays?: readonly CgDayOfWeek[];
-  readonly dayOfMonth?: number;
-  readonly month?: number;
-  readonly weekOfMonth?: CgSchedulerWeekOfMonth;
+/** `CgRecurrenceRule` with the occurrences changed or deleted. */
+export interface CgSchedulerRecurrenceRule extends CgRecurrenceRule {
   readonly exceptions?: readonly CgSchedulerRecurrenceException[];
 }
 export interface CgSchedulerRecurrenceException {

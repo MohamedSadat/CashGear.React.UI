@@ -8,7 +8,7 @@ import { CgButton } from '../Button';
 import { CgPopup } from '../Popup';
 import type { CgPopupActions } from '../Popup';
 import { cx } from '../../utils';
-import type { CgSchedulerAppointmentTarget, CgSchedulerAppointmentContext, CgSchedulerAppointmentDraft, CgSchedulerOperationHandler, CgSchedulerRecurrenceEditScope, CgSchedulerResource, CgSchedulerPopupContext, CgSchedulerProps, CgSchedulerTimeCellContext, CgSchedulerView } from './CgScheduler.types';
+import type { CgSchedulerAppointmentTarget, CgSchedulerAppointmentContext, CgSchedulerAppointmentDraft, CgSchedulerOperationHandler, CgSchedulerRecurrenceEditScope, CgSchedulerRecurrenceRule, CgSchedulerResource, CgSchedulerPopupContext, CgSchedulerProps, CgSchedulerTimeCellContext, CgSchedulerView } from './CgScheduler.types';
 import { addDays, boundary, civil, DAY, dayIndex, fromLocalInput, instant, iso, localInput, localParts, MINUTE, navigateDate, slots, timeMinutes, visibleDates, visibleRange, WEEKDAYS, WORKING_DAYS, zonedInstant } from './schedulerDate';
 import { draftOf, expandAppointments, layout, layoutDates, project } from './schedulerLayout';
 import type { Appointment, Segment } from './schedulerLayout';
@@ -17,13 +17,15 @@ import { schedulerReminders } from './schedulerReminders';
 import { downloadICalendar, schedulerICalendar } from './schedulerICalendar';
 import { SchedulerMetadataFields } from './SchedulerMetadataFields';
 import { useSchedulerPopupGate } from './useSchedulerPopupGate';
-import { SchedulerRecurrenceFields } from './SchedulerRecurrenceFields';
+import { CgRecurrenceFields } from '../RecurrenceFields/CgRecurrenceFields';
 import { matchesResource, resourceColumns, resourceKey, validateResources } from './schedulerResources';
 import { advanceScale, scaleCells } from './schedulerTimeline';
-import { arabic, english } from './schedulerLabels';
+import { arabic, english, recurrenceArabic, recurrenceEnglish } from './schedulerLabels';
 import { useSchedulerPointer } from './useSchedulerPointer';
 import type { PointerCell } from './useSchedulerPointer';
 import styles from './CgScheduler.module.css';
+
+const NO_RECURRENCE: CgSchedulerRecurrenceRule = Object.freeze({ frequency: 'none' });
 
 const VIEWS: readonly CgSchedulerView[] = ['day', 'workWeek', 'week', 'month', 'timeline'];
 const EMPTY: readonly never[] = [];
@@ -338,7 +340,7 @@ export function CgScheduler<TItem>(props: CgSchedulerProps<TItem>) {
       <label className={styles.checkbox}><input type="checkbox" checked={draft.isAllDay} disabled={busy} onChange={(e) => { const isAllDay = e.target.checked; const startDate = localParts(instant(draft.start), zone).date; const endDate = localParts(instant(draft.end), zone).date; update({ ...draft, isAllDay, ...(isAllDay ? { start: iso(boundary(startDate, zone)), end: iso(boundary(endDate > startDate ? endDate : addDays(startDate, 1), zone)) } : {}) }); }} />{labels.allDay}</label>
       {(['start', 'end'] as const).map((field) => <label key={field}>{labels[field]}<input name={field} type={draft.isAllDay ? 'date' : 'datetime-local'} value={draft.isAllDay ? localParts(instant(draft[field]), zone).date : localInput(draft[field], zone)} disabled={busy} aria-invalid={!!fieldErrors[field]} onChange={(e) => { if (!e.target.value) return; try { update({ ...draft, [field]: draft.isAllDay ? iso(boundary(e.target.value, zone)) : fromLocalInput(e.target.value, zone) }); } catch { setFieldErrors({ [field]: labels.invalidDates }); } }} /></label>)}
       <small>{labels.timeZone}: {zone}</small>
-      {props.enableRecurrence && editor.scope !== 'occurrence' && <SchedulerRecurrenceFields draft={draft} update={update} disabled={busy} locale={locale} />}
+      {props.enableRecurrence && editor.scope !== 'occurrence' && <CgRecurrenceFields value={draft.recurrence ?? NO_RECURRENCE} onChange={(rule) => update({ ...draft, recurrence: rule.frequency === 'none' ? undefined : rule })} labels={locale.startsWith('ar') ? recurrenceArabic : recurrenceEnglish} locale={locale} firstDayOfWeek={WEEKDAYS[first]} start={draft.start} dailyWeekDays disabled={busy} />}
       <SchedulerMetadataFields draft={draft} update={update} disabled={busy} locale={locale} resources={resources} labels={props.appointmentLabels} statuses={props.statuses} fields={props.customFields} showLocation={!!props.locationSelector || draft.location !== undefined} />
       <label>{labels.description}<textarea name="description" value={draft.description} disabled={busy} onChange={(e) => update({ ...draft, description: e.target.value })} /></label>
       <label>{labels.color}<input name="color" value={draft.color} disabled={busy} onChange={(e) => update({ ...draft, color: e.target.value })} /></label>

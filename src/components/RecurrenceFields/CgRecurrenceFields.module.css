@@ -1,0 +1,19 @@
+.root { display: grid; gap: var(--cg-space-3); min-inline-size: 0; margin: 0; padding: var(--cg-space-3); border: 1px solid var(--cg-border); border-radius: var(--cg-radius-sm); color: var(--cg-text); font: var(--cg-font-size-md)/var(--cg-line-height) var(--cg-font-family); }
+.root legend { padding-inline: var(--cg-space-1); font-weight: var(--cg-font-weight-medium); }
+.field { display: grid; gap: var(--cg-space-1); min-inline-size: 0; }
+.field select, .field input { box-sizing: border-box; min-block-size: var(--cg-control-height-medium); padding-block: var(--cg-space-1); padding-inline: var(--cg-control-padding-x); border: 1px solid var(--cg-border-strong); border-radius: var(--cg-radius-sm); color: var(--cg-text); background: var(--cg-surface); font: inherit; }
+.field select option { background: var(--cg-surface); color: var(--cg-text); }
+.field select:focus-visible, .field input:focus-visible, .check input:focus-visible { outline: var(--cg-focus-ring-width) solid var(--cg-focus-ring-color); outline-offset: var(--cg-focus-ring-offset); }
+.root:disabled { color: var(--cg-disabled-text); }
+.root:disabled select, .root:disabled input { border-color: var(--cg-disabled-border); background: var(--cg-disabled-bg); color: var(--cg-disabled-text); cursor: not-allowed; }
+.interval { display: flex; flex-wrap: wrap; align-items: end; gap: var(--cg-space-2); }
+.interval .field input { inline-size: 6rem; }
+.unit { min-block-size: var(--cg-control-height-medium); display: inline-flex; align-items: center; color: var(--cg-text-secondary); }
+.weekDays { display: flex; flex-wrap: wrap; gap: var(--cg-space-2) var(--cg-space-4); min-inline-size: 0; margin: 0; padding: var(--cg-space-2) var(--cg-space-3); border: 1px solid var(--cg-border); border-radius: var(--cg-radius-sm); }
+.weekDays legend { padding-inline: var(--cg-space-1); }
+.check { display: inline-flex; align-items: center; gap: var(--cg-space-1); min-block-size: 1.5rem; cursor: pointer; }
+.check input { inline-size: 1.1em; block-size: 1.1em; margin: 0; accent-color: var(--cg-accent); }
+
+@media (forced-colors: active) {
+  .field select, .field input { border-color: ButtonText; }
+}

@@ -142,6 +142,9 @@ expected.push('CG_DRAG_THRESHOLD', 'CgDragHandle', 'CgDropIndicator', 'cgEdgeScr
 expected.push('CgKanbanBoard', 'CgMonthCalendar');
 expected.push('CgSelect');
 expected.push('CgTimeline');
+// R0's text provider and R4's tree list view store, missing from this list since they landed.
+expected.push('CgUiTextProvider', 'useCgUiText', 'CgTreeListBrowserViewStore');
+expected.push('CgRecurrenceFields', 'cgNextOccurrence', 'cgOccurrencesBetween', 'cgSummarizeRecurrence', 'cgValidateRecurrence');
 expected.push('moveKanbanCard', 'moveKanbanColumn');
 assert.deepEqual(Object.keys(runtime).sort(), expected.sort());
 
