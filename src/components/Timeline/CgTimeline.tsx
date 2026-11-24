@@ -15,6 +15,7 @@ import type {
   CgTimelineHandle,
   CgTimelineItem,
   CgTimelineLabels,
+  CgTimelineLink,
   CgTimelineMoveSource,
   CgTimelineProps,
   CgTimelineScale,
@@ -25,6 +26,8 @@ import {
   lineStep, lineUnder,
 } from './timelineLayout';
 import type { TimelineItemLine, TimelineLine, TimelineSpan } from './timelineLayout';
+import { arrowPath, indexLinks, routeLink, routePath } from './timelineLinks';
+import type { LinkEnd } from './timelineLinks';
 
 /** The header's two tiers, in pixels. */
 const HEADER = 56;
@@ -62,7 +65,7 @@ function dayOfValue(value: string, what: string): number {
 
 const filled = (value: unknown): boolean => typeof value === 'string' && value.trim() !== '';
 
-function assertLabels<TData>(labels: CgTimelineLabels<TData>, toolbar: boolean, moves: boolean, laneMoves: boolean, scales: ReadonlyArray<CgTimelineScale>): void {
+function assertLabels<TData>(labels: CgTimelineLabels<TData>, toolbar: boolean, moves: boolean, laneMoves: boolean, scales: ReadonlyArray<CgTimelineScale>, links: boolean): void {
   if (!filled(labels.grid)) throw new Error('CgTimeline labels.grid cannot be empty.');
   if (toolbar) {
     for (const name of ['previous', 'next', 'today'] as const) if (!filled(labels[name])) throw new Error(`CgTimeline labels.${name} cannot be empty.`);
@@ -73,6 +76,9 @@ function assertLabels<TData>(labels: CgTimelineLabels<TData>, toolbar: boolean, 
   }
   if (moves && (typeof labels.moved !== 'function' || typeof labels.resized !== 'function')) throw new Error('CgTimeline labels.moved and labels.resized are required with onItemMove.');
   if (moves && laneMoves && typeof labels.movedLane !== 'function') throw new Error('CgTimeline labels.movedLane is required with moveBetweenLanes and onItemMove.');
+  if (links && (typeof labels.blockedBy !== 'function' || typeof labels.blocking !== 'function' || typeof labels.conflict !== 'function')) {
+    throw new Error('CgTimeline labels.blockedBy, labels.blocking and labels.conflict are required with links.');
+  }
 }
 
 const isRtl = (element: Element): boolean => getComputedStyle(element).direction === 'rtl';
@@ -91,6 +97,8 @@ interface ViewWindow {
   readonly day: number;
   readonly width: number;
   readonly height: number;
+  /** The scroller is right to left: the links' drawing, written from the inline start, is mirrored. */
+  readonly rtl: boolean;
 }
 
 /** What was last measured, to keep the day in the middle when the scale changes. */
@@ -112,6 +120,23 @@ interface PendingFocus {
   readonly id: string;
   readonly reveal: 'focus' | CgTimelineEdge;
 }
+
+/** The bar being dragged as its links see it: the line it is drawn on now and the days it covers now. */
+interface DragPlace {
+  readonly key: string;
+  readonly line: number;
+  readonly span: TimelineSpan;
+}
+
+/** A link as drawn: its route and arrowhead, and whether its blocked item starts before its blocker ends. */
+interface DrawnLink {
+  readonly link: CgTimelineLink;
+  readonly route: string;
+  readonly head: string;
+  readonly conflict: boolean;
+}
+
+const NO_LINKS: ReadonlyArray<DrawnLink> = Object.freeze([]);
 
 /** An item moved to another lane: its bar is focused in its new line once the caller has moved it there. */
 interface PendingFollow {
@@ -136,13 +161,13 @@ function CgTimelineInner<TData>(
   {
     items, labels, lanes, collapsedLanes, defaultCollapsedLanes, onCollapsedLanesChange, scale, defaultScale = 'week', onScaleChange, scales,
     dayWidths, startDate, defaultStartDate, onRangeChange, rangeChangeDelay = 150, lineHeight = 36, overscan = 6, height = '28rem',
-    showToolbar = true, locale, firstDayOfWeek, today, timeZone, renderItem, onItemOpen, onCreate, onItemMove, moveBetweenLanes = false, actionsRef,
+    showToolbar = true, locale, firstDayOfWeek, today, timeZone, renderItem, onItemOpen, onCreate, onItemMove, moveBetweenLanes = false, links, actionsRef,
     className, style, ...nativeProps
   }: CgTimelineProps<TData>,
   forwardedRef: ForwardedRef<HTMLDivElement>,
 ) {
   const offered = scales ?? TIMELINE_SCALES;
-  assertLabels(labels, showToolbar, onItemMove !== undefined, moveBetweenLanes, offered);
+  assertLabels(labels, showToolbar, onItemMove !== undefined, moveBetweenLanes, offered, !!links?.length);
   if (!Number.isFinite(lineHeight) || lineHeight < 24) throw new RangeError('CgTimeline lineHeight must be at least 24 pixels.');
   if (!Number.isInteger(overscan) || overscan < 0) throw new RangeError('CgTimeline overscan must be a whole number of lines, 0 or more.');
   if (!Number.isFinite(rangeChangeDelay) || rangeChangeDelay < 0) throw new RangeError('CgTimeline rangeChangeDelay must be 0 or more milliseconds.');
@@ -169,6 +194,8 @@ function CgTimelineInner<TData>(
   const following = useRef<PendingFollow | null>(null);
   const lastRange = useRef('');
   const mounted = useRef(false);
+  const linksRef = useRef<SVGSVGElement>(null);
+  const dragPlace = useRef<DragPlace | null>(null);
 
   const [scaleValue, setScaleValue] = useControllableState<CgTimelineScale>(scale, defaultScale, 'CgTimeline');
   if (!TIMELINE_SCALES.includes(scaleValue)) throw new RangeError(`CgTimeline scale '${String(scaleValue)}' is not day, week, month or quarter.`);
@@ -179,7 +206,7 @@ function CgTimelineInner<TData>(
     const day = startDay ?? defaultStartDay ?? todayDay;
     return { from: day - REACH_DAYS[scaleValue], to: day + REACH_DAYS[scaleValue] };
   });
-  const [view, setView] = useState<ViewWindow>(() => ({ line: 0, day: startDay ?? defaultStartDay ?? todayDay, width: 0, height: 0 }));
+  const [view, setView] = useState<ViewWindow>(() => ({ line: 0, day: startDay ?? defaultStartDay ?? todayDay, width: 0, height: 0, rtl: false }));
   const [active, setActive] = useState<{ id: string; index: number } | null>(null);
   const [dragLine, setDragLine] = useState<string | null>(null);
   const [shown, setShown] = useState<{ first: number; last: number } | null>(null);
@@ -191,6 +218,8 @@ function CgTimelineInner<TData>(
   const collapsedSet = useMemo(() => new Set(collapsed), [collapsed]);
   const model = useMemo(() => buildLines(items, lanes, collapsedSet, labels.noLane), [collapsedSet, items, labels.noLane, lanes]);
   const placements = useMemo(() => new TimelinePlacements(timeZone), [timeZone]);
+  const linkIndex = useMemo(() => (links?.length ? indexLinks(links) : null), [links]);
+  const listFormat = useMemo(() => new Intl.ListFormat(locale, { type: 'conjunction' }), [locale]);
   const { lines } = model;
   const count = lines.length;
   const laneMoves = moveBetweenLanes && onItemMove !== undefined && model.grouped;
@@ -232,9 +261,9 @@ function CgTimelineInner<TData>(
     const step = Math.max(1, Math.ceil((Math.ceil(across / dayWidth) + 1) / 2));
     const day = Math.floor(days.first / step) * step;
     const line = Math.floor(scroller.scrollTop / lineHeight / LINE_STEP) * LINE_STEP;
-    setView((current) => (current.line === line && current.day === day && current.width === viewWidth && current.height === viewHeight
+    setView((current) => (current.line === line && current.day === day && current.width === viewWidth && current.height === viewHeight && current.rtl === rtl
       ? current
-      : { line, day, width: viewWidth, height: viewHeight }));
+      : { line, day, width: viewWidth, height: viewHeight, rtl }));
     reportRange.schedule(days.first, Math.min(days.last, extent.to));
     // Near an end, the timeline grows by a reach (and the view keeps its day when it grows at the start).
     // Not while a drag measures against it, and never when the scroller is as wide as the canvas: a
@@ -319,6 +348,14 @@ function CgTimelineInner<TData>(
     setFocusRequests((value) => value + 1);
   });
 
+  /** A direction changed above the timeline: only the links' drawing needs telling (the rest is logical CSS). */
+  const followDirection = useStableCallback(() => {
+    const scroller = scrollerRef.current;
+    if (!linkIndex || !scroller) return;
+    const rtl = isRtl(scroller);
+    setView((current) => (current.rtl === rtl ? current : { ...current, rtl }));
+  });
+
   // The scroller is followed outside React: a drawing happens only when the lines or days to draw change.
   useLayoutEffect(() => {
     const scroller = scrollerRef.current;
@@ -350,6 +387,7 @@ function CgTimelineInner<TData>(
   // grow is made; a line reached by the keys is focused and brought into view.
   useLayoutEffect(() => {
     growing.current = false;
+    followDirection();
     const before = seen.current;
     if (before && before.dayWidth !== dayWidth && !pendingScroll.current) {
       pendingScroll.current = { position: before.from + (before.inline + before.width / 2) / before.dayWidth, lead: 0.5 };
@@ -498,6 +536,116 @@ function CgTimelineInner<TData>(
     })) ?? `${title} ${formats.span(span.start, span.end)}`;
   };
 
+  // ---- Links -------------------------------------------------------------------------------------
+  /**
+   * Where an item's bar is for its links: its line (its lane's header line when that lane is
+   * collapsed) and its days, or the dragged bar where it is drawn now. Null when it has no line.
+   */
+  const linkEnd = (key: string, dragged: DragPlace | null): (LinkEnd & { span: TimelineSpan }) | null => {
+    const item = model.byKey.get(key);
+    if (!item) return null;
+    const drag = dragged?.key === key ? dragged : null;
+    const span = drag ? drag.span : placements.get(item);
+    if (!span) return null;
+    let line = drag ? drag.line : model.index.get(itemLineId(key));
+    if (line === undefined && model.grouped) line = model.index.get(laneLineId(drawnLane(item, lanes)));
+    if (line === undefined) return null;
+    const start = xOf(span.start);
+    const size = barSize(span, dayWidth);
+    // A title drawn just after a short bar starts a few pixels on: the route turns before it.
+    const exit = fits(titleOf(item), size) ? undefined : size < 3 * EDGE ? 6 : 2;
+    return { line, start, end: start + size, span, ...(exit === undefined ? {} : { exit }) };
+  };
+  /**
+   * The links of the bars on the lines drawn (and of the dragged bar), routed round the bars and the
+   * titles drawn after short ones on those lines; the others are not drawn.
+   */
+  const drawLinks = (drag: DragPlace | null): ReadonlyArray<DrawnLink> => {
+    if (!linkIndex || !count) return NO_LINKS;
+    const top = firstLine * lineHeight;
+    const obstacles = new Map<number, (readonly [number, number])[]>();
+    const obstaclesOf = (index: number) => {
+      let spans = obstacles.get(index);
+      if (spans) return spans;
+      spans = [];
+      const line = lines[index];
+      const span = line?.kind === 'item' && line.item.key !== drag?.key ? placements.get(line.item) : null;
+      if (line?.kind === 'item' && span) {
+        const start = xOf(span.start);
+        const size = barSize(span, dayWidth);
+        const title = titleOf(line.item);
+        spans.push([start, start + size + (fits(title, size) ? 0 : (size < 3 * EDGE ? 12 : 4) + title.length * 7)]);
+      }
+      if (drag && drag.line === index) spans.push([xOf(drag.span.start), xOf(drag.span.start) + barSize(drag.span, dayWidth)]);
+      obstacles.set(index, spans);
+      return spans;
+    };
+    const drawn: DrawnLink[] = [];
+    const done = new Set<string>();
+    const add = (link: CgTimelineLink) => {
+      if (done.has(link.id)) return;
+      done.add(link.id);
+      const from = linkEnd(link.from, drag);
+      const to = linkEnd(link.to, drag);
+      if (!from || !to) return;
+      const points = routeLink(from, to, lineHeight, firstLine, lastLine, obstaclesOf);
+      drawn.push({ link, route: routePath(points, top), head: arrowPath(points, top), conflict: to.span.start <= from.span.end });
+    };
+    const addOf = (key: string) => {
+      for (const link of linkIndex.from.get(key) ?? []) add(link);
+      for (const link of linkIndex.to.get(key) ?? []) add(link);
+    };
+    for (let index = firstLine; index <= lastLine; index += 1) {
+      const line = lines[index];
+      if (line?.kind === 'item') addOf(line.item.key);
+    }
+    if (drag) addOf(drag.key);
+    return drawn;
+  };
+  // Drawn at rest; a drag writes its routes to the DOM (and a drawing during it is at rest until the next move).
+  const drawnLinks = drawLinks(null);
+  const redrawLinks = useStableCallback(() => {
+    const svg = linksRef.current;
+    if (!svg) return;
+    const routes = new Map(drawLinks(dragPlace.current).map((drawn) => [drawn.link.id, drawn]));
+    for (const group of svg.querySelectorAll<SVGGElement>('[data-cg-timeline-link]')) {
+      const drawn = routes.get(group.dataset.cgTimelineLink ?? '');
+      if (!drawn) continue;
+      group.firstElementChild?.setAttribute('d', drawn.route);
+      group.lastElementChild?.setAttribute('d', drawn.head);
+      group.toggleAttribute('data-conflict', drawn.conflict);
+    }
+  });
+  /** A bar's description of its links: what blocks it and what it blocks, then those in conflict. Null when it has none. */
+  const linkDescription = (item: CgTimelineItem<TData>): string | null => {
+    if (!linkIndex) return null;
+    const others = (found: ReadonlyArray<CgTimelineLink> | undefined, end: 'from' | 'to') => {
+      const seen = new Set<string>();
+      const result: CgTimelineItem<TData>[] = [];
+      for (const link of found ?? []) {
+        const other = model.byKey.get(link[end]);
+        if (other && !seen.has(other.key)) {
+          seen.add(other.key);
+          result.push(other);
+        }
+      }
+      return result;
+    };
+    const blockers = others(linkIndex.to.get(item.key), 'from');
+    const blocked = others(linkIndex.from.get(item.key), 'to');
+    if (!blockers.length && !blocked.length) return null;
+    const own = placements.get(item);
+    const list = (entries: ReadonlyArray<CgTimelineItem<TData>>) => listFormat.format(entries.map(titleOf));
+    const late = own ? blockers.filter((other) => { const span = placements.get(other); return !!span && own.start <= span.end; }) : [];
+    const early = own ? blocked.filter((other) => { const span = placements.get(other); return !!span && span.start <= own.end; }) : [];
+    return [
+      blockers.length ? labels.blockedBy?.(list(blockers), blockers) : null,
+      late.length ? labels.conflict?.(list(late), 'blockedBy', late) : null,
+      blocked.length ? labels.blocking?.(list(blocked), blocked) : null,
+      early.length ? labels.conflict?.(list(early), 'blocking', early) : null,
+    ].filter(Boolean).join(' ');
+  };
+
   // ---- Moving ------------------------------------------------------------------------------------
   const canMove = (item: CgTimelineItem<TData>) => onItemMove !== undefined && item.movable !== false;
   const canResize = (item: CgTimelineItem<TData>) => onItemMove !== undefined && item.resizable !== false;
@@ -553,6 +701,7 @@ function CgTimelineInner<TData>(
     let shownSpan = span;
     let shownLane = line.lane;
     let shownShift = 0;
+    let shownLine = index;
     /** The whole days the pointer at `x` has carried the dragged part, a start kept on or before its end. */
     const carried = (x: number) => clampChange(span, edge, (dayAtX(x, rtl) ?? grab) - grab);
     /** The line under a viewport y, kept to the lines shown below the header, and its lane: the bar's own when there is none. */
@@ -571,6 +720,10 @@ function CgTimelineInner<TData>(
       markLane(undefined);
       stopDrag.current = null;
       dragging.current = false;
+      if (dragPlace.current) {
+        dragPlace.current = null;
+        redrawLinks();
+      }
       setDragLine(null);
     };
     stopDrag.current?.();
@@ -580,6 +733,7 @@ function CgTimelineInner<TData>(
       onStart: () => {
         grab = dayAtX(pressX, rtl) ?? span.start;
         dragging.current = true;
+        if (linkIndex) dragPlace.current = { key: line.item.key, line: index, span };
         setDragLine(line.id);
       },
       onMove: (x, y) => {
@@ -587,23 +741,33 @@ function CgTimelineInner<TData>(
         const next = edge === 'move'
           ? { start: span.start + days, end: span.end + days }
           : edge === 'start' ? { start: span.start + days, end: span.end } : { start: span.start, end: span.end + days };
+        let changed = false;
         if (next.start !== shownSpan.start || next.end !== shownSpan.end) {
           shownSpan = next;
+          changed = true;
           bar.style.setProperty('--cg-timeline-drag-x', `${(next.start - from) * across}px`);
           bar.style.setProperty('--cg-timeline-drag-w', `${barSize(next, across)}px`);
         }
-        if (!acrossLanes) return;
-        // Over another lane the bar is drawn on the line under the pointer; over its own, on its own line.
-        const over = target(y);
-        const shift = over.lane === line.lane ? 0 : (over.index - index) * lineHeight;
-        if (shift !== shownShift) {
-          shownShift = shift;
-          if (shift) bar.style.setProperty('--cg-timeline-drag-y', `${shift}px`);
-          else bar.style.removeProperty('--cg-timeline-drag-y');
+        if (acrossLanes) {
+          // Over another lane the bar is drawn on the line under the pointer; over its own, on its own line.
+          const over = target(y);
+          const shift = over.lane === line.lane ? 0 : (over.index - index) * lineHeight;
+          if (shift !== shownShift) {
+            shownShift = shift;
+            shownLine = shift ? over.index : index;
+            changed = true;
+            if (shift) bar.style.setProperty('--cg-timeline-drag-y', `${shift}px`);
+            else bar.style.removeProperty('--cg-timeline-drag-y');
+          }
+          if (over.lane !== shownLane) {
+            shownLane = over.lane;
+            markLane(over.lane === line.lane ? undefined : over.lane);
+          }
         }
-        if (over.lane !== shownLane) {
-          shownLane = over.lane;
-          markLane(over.lane === line.lane ? undefined : over.lane);
+        // The links follow the bar: their routes are written to the DOM, as the bar's place is.
+        if (changed && dragPlace.current) {
+          dragPlace.current = { key: line.item.key, line: shownLine, span: shownSpan };
+          redrawLinks();
         }
       },
       // Read at the drop itself: a quick drag can end before a frame has drawn its last move.
@@ -704,7 +868,10 @@ function CgTimelineInner<TData>(
     const movable = canMove(item);
     const resizable = canResize(item);
     const content = renderItem ? renderItem(item, Object.freeze({ days: span.end - span.start + 1, outside })) : <span className={styles.text} dir="auto">{title}</span>;
-    return <div
+    const linked = linkDescription(item);
+    const linkedId = `${baseId}-links-${index}`;
+    const described = [linked ? linkedId : null, (movable || resizable) && labels.moveHint ? hintId : null].filter(Boolean).join(' ');
+    return <>{linked ? <span id={linkedId} hidden>{linked}</span> : null}<div
       role="button"
       className={styles.bar}
       tabIndex={line.id === activeId ? 0 : -1}
@@ -715,7 +882,7 @@ function CgTimelineInner<TData>(
       data-outside={outside ? '' : undefined}
       data-narrow={size < 3 * EDGE ? '' : undefined}
       aria-label={nameOf(line, span)}
-      aria-describedby={(movable || resizable) && labels.moveHint ? hintId : undefined}
+      aria-describedby={described || undefined}
       aria-keyshortcuts={keysOf(item)}
       style={{
         '--cg-timeline-x': `${xOf(span.start)}px`,
@@ -730,7 +897,7 @@ function CgTimelineInner<TData>(
       {resizable ? <span className={styles.edge} data-cg-timeline-edge="start" aria-hidden="true" /> : null}
       <span className={outside ? styles.outside : styles.inside}>{content}</span>
       {resizable ? <span className={styles.edge} data-cg-timeline-edge="end" aria-hidden="true" /> : null}
-    </div>;
+    </div></>;
   };
 
   const row = (index: number): ReactNode => {
@@ -868,6 +1035,25 @@ function CgTimelineInner<TData>(
               />
             </div>}
           </div>
+          {drawnLinks.length ? <svg
+            ref={linksRef}
+            className={styles.links}
+            aria-hidden="true"
+            focusable="false"
+            data-cg-timeline-links=""
+            style={{ '--cg-timeline-y': `${firstLine * lineHeight}px`, '--cg-timeline-h': `${(lastLine - firstLine + 1) * lineHeight}px`, transform: view.rtl ? 'scaleX(-1)' : undefined } as CSSProperties}
+          >
+            {drawnLinks.map(({ link, route, head, conflict }) => <g
+              key={link.id}
+              data-cg-timeline-link={link.id}
+              data-cg-timeline-link-from={link.from}
+              data-cg-timeline-link-to={link.to}
+              data-conflict={conflict ? '' : undefined}
+            >
+              <path d={route} />
+              <path d={head} data-head="" />
+            </g>)}
+          </svg> : null}
           {laneMoves ? <div ref={laneDropRef} className={styles.laneDrop} data-cg-timeline-lane-drop="" aria-hidden="true" /> : null}
         </div>
       </div>

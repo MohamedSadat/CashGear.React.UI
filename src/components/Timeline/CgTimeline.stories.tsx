@@ -8,7 +8,7 @@ import { CgIcon } from '../Icon';
 import { CgLiveAnnouncer } from '../LiveAnnouncer';
 import type { CgLiveAnnouncerHandle } from '../LiveAnnouncer';
 import { CgTimeline } from './CgTimeline';
-import type { CgTimelineHandle, CgTimelineItem, CgTimelineLabels, CgTimelineLane, CgTimelineMoveDetails, CgTimelineProps, CgTimelineScale } from './CgTimeline.types';
+import type { CgTimelineHandle, CgTimelineItem, CgTimelineLabels, CgTimelineLane, CgTimelineLink, CgTimelineMoveDetails, CgTimelineProps, CgTimelineScale } from './CgTimeline.types';
 
 const source = 'None: React only (Cash Gear Workspace Track U18, the database timeline view)';
 const difference = 'Items with a start and an inclusive end from the caller, one line each in its order, and no editor of its own: open, create and move are callbacks.';
@@ -60,6 +60,21 @@ const englishLaneLabels: CgTimelineLabels = {
   movedLane: (item, info) => `${item.title} moved to ${info.lane}, starting ${info.start}`,
 };
 
+/** With links: what blocks a bar and what it blocks, read in its description, lanes moved between too. */
+const arabicLinkLabels: CgTimelineLabels = {
+  ...arabicLaneLabels,
+  blockedBy: (titles) => `تنتظر ${titles}.`,
+  blocking: (titles) => `تنتظرها ${titles}.`,
+  conflict: (titles, side) => (side === 'blockedBy' ? `تبدأ قبل أن تنتهي ${titles}.` : `${titles} تبدأ قبل أن تنتهي هذه.`),
+};
+
+const englishLinkLabels: CgTimelineLabels = {
+  ...englishLaneLabels,
+  blockedBy: (titles) => `Blocked by ${titles}.`,
+  blocking: (titles) => `Blocking ${titles}.`,
+  conflict: (titles, side) => (side === 'blockedBy' ? `Starts before ${titles} ends.` : `${titles} starts before this ends.`),
+};
+
 const arabicLanes: CgTimelineLane[] = [
   { key: 'plan', title: 'التخطيط' },
   { key: 'build', title: 'التنفيذ' },
@@ -107,7 +122,7 @@ const applyMove = (current: CgTimelineItem[], item: CgTimelineItem, details: CgT
 /** The last action as the browser tests read it, the lane last when it changed. */
 const moveAction = (item: CgTimelineItem, details: CgTimelineMoveDetails) => `${details.edge}:${item.key}:${details.start}:${details.end ?? '-'}:${details.source}${details.lane === undefined ? '' : `:${details.lane ?? '-'}`}`;
 
-type PlannerProps = Pick<CgTimelineProps, 'labels' | 'lanes' | 'locale' | 'firstDayOfWeek' | 'timeZone' | 'moveBetweenLanes'> & { initial: CgTimelineItem[]; defaultScale: CgTimelineScale };
+type PlannerProps = Pick<CgTimelineProps, 'labels' | 'lanes' | 'locale' | 'firstDayOfWeek' | 'timeZone' | 'moveBetweenLanes' | 'links'> & { initial: CgTimelineItem[]; defaultScale: CgTimelineScale };
 
 /** The caller's side: it writes the moves into its own items, and shows the last action and the days shown. */
 function Planner({ initial, defaultScale, ...props }: PlannerProps) {
@@ -163,12 +178,26 @@ function manyItems(count: number, inLanes: boolean): CgTimelineItem[] {
 }
 
 /**
+ * Links among many items: each fifth item blocks the next line, or every other time the one 19 lines
+ * on (which starts three days after it, 19 × 37 days being 3 more than 700), and one link in fifty
+ * reaches 500 lines on, so arrows run out of view too.
+ */
+function manyLinks(count: number): CgTimelineLink[] {
+  return Array.from({ length: count }, (_, index) => {
+    const from = index * 5;
+    const to = index % 50 === 49 ? (from + 500) % 50_000 : (from + (index % 2 ? 19 : 1)) % 50_000;
+    return { id: `link-${index}`, from: `row-${from}`, to: `row-${to}` };
+  });
+}
+
+/**
  * 50,000 items, with the milliseconds from the timeline's first drawing to its bars being in the
  * page (written once after that first commit, so the timing does not wait for a frame); in five
  * lanes that bars move between with `inLanes`.
  */
-function Huge({ inLanes = false }: { inLanes?: boolean }) {
+function Huge({ inLanes = false, withLinks = false }: { inLanes?: boolean; withLinks?: boolean }) {
   const initial = useMemo(() => manyItems(50_000, inLanes), [inLanes]);
+  const links = useMemo(() => (withLinks ? manyLinks(10_000) : undefined), [withLinks]);
   const [items, setItems] = useState(initial);
   const [started] = useState(() => performance.now());
   const elapsed = useRef<HTMLOutputElement>(null);
@@ -181,7 +210,8 @@ function Huge({ inLanes = false }: { inLanes?: boolean }) {
     <CgTimeline
       data-testid="timeline"
       items={items}
-      labels={inLanes ? arabicLaneLabels : arabicLabels}
+      labels={withLinks ? arabicLinkLabels : inLanes ? arabicLaneLabels : arabicLabels}
+      links={links}
       lanes={inLanes ? hugeLanes : undefined}
       moveBetweenLanes={inLanes}
       locale="ar"
@@ -337,3 +367,45 @@ export const EnglishLaneMoves: Story = {
 export const FiftyThousandInLanes: Story = { args, render: () => <StoryFrame source={laneSource} difference={bigDifference}><Huge inLanes /></StoryFrame>, globals: { direction: 'rtl' } };
 /** Items with no date dragged onto a day and lane, or placed on the first day shown. */
 export const ArabicUndatedDrop: Story = { args, render: () => <StoryFrame source={source} difference={undatedDifference}><UndatedPlanner /></StoryFrame>, globals: { direction: 'rtl' } };
+
+// ---- Links between bars (Track U20) -------------------------------------------------------------
+const linkSource = 'None: React only (Cash Gear Workspace Track U20, dependencies on the timeline view: "Blocked by" and "Blocking")';
+const linkDifference = 'Arrows from a blocker\'s end to what it blocks, routed round the bars, dashed red when the blocked item starts before its blocker ends; each bar\'s description names them. Display only.';
+
+// Two of them in conflict: the suppliers' contract ends after the new branch starts, and the training after the audit starts.
+const arabicLinks: CgTimelineLink[] = [
+  { id: 'scope-budget', from: 'scope', to: 'budget' },
+  { id: 'scope-suppliers', from: 'scope', to: 'suppliers' },
+  { id: 'budget-kickoff', from: 'budget', to: 'kickoff' },
+  { id: 'stock-branch', from: 'stock', to: 'branch' },
+  { id: 'suppliers-branch', from: 'suppliers', to: 'branch' },
+  { id: 'training-audit', from: 'training', to: 'audit' },
+  { id: 'audit-report', from: 'audit', to: 'report' },
+];
+
+// Stand-up and payroll fall on the same day: a conflict.
+const englishLinks: CgTimelineLink[] = [
+  { id: 'close-review', from: 'close', to: 'review' },
+  { id: 'standup-payroll', from: 'standup', to: 'payroll' },
+  { id: 'review-stock', from: 'review', to: 'stock' },
+  { id: 'filing-holiday', from: 'filing', to: 'holiday' },
+];
+
+/** Links between bars in lanes that move between lanes; the arrows follow a dragged or resized bar; time runs from right to left. */
+export const ArabicLinks: Story = {
+  args,
+  render: () => <StoryFrame source={linkSource} difference={linkDifference}>
+    <Planner initial={arabicItems} lanes={arabicLanes} labels={arabicLinkLabels} links={arabicLinks} locale="ar" firstDayOfWeek="saturday" timeZone="Asia/Riyadh" defaultScale="week" moveBetweenLanes />
+  </StoryFrame>,
+  globals: { direction: 'rtl' },
+};
+export const ArabicLinksDark: Story = { ...ArabicLinks, globals: { theme: 'dark', direction: 'rtl' } };
+/** The same left to right, at the day scale. */
+export const EnglishLinks: Story = {
+  args,
+  render: () => <StoryFrame source={linkSource} difference={linkDifference}>
+    <Planner initial={englishLaneItems} lanes={englishLanes} labels={englishLinkLabels} links={englishLinks} locale="en-US" firstDayOfWeek="sunday" timeZone="America/New_York" defaultScale="day" moveBetweenLanes />
+  </StoryFrame>,
+};
+/** 50,000 items with 10,000 links: only the links of the lines in view are drawn. */
+export const FiftyThousandWithLinks: Story = { args, render: () => <StoryFrame source={linkSource} difference={bigDifference}><Huge withLinks /></StoryFrame>, globals: { direction: 'rtl' } };

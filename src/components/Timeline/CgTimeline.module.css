@@ -137,6 +137,22 @@
   pointer-events: none;
 }
 .laneDrop[data-shown] { display: block; }
+/* Links between bars: one drawing over the lines drawn, above the bars at rest and under a dragged
+   one, its routes written from the inline start and mirrored in right to left. A conflict, where
+   the blocked item starts before its blocker ends, is dashed in the danger colour. */
+.links {
+  position: absolute;
+  z-index: 1;
+  inset-block-start: var(--cg-timeline-y, 0);
+  inset-inline-start: 0;
+  inline-size: 100%;
+  block-size: var(--cg-timeline-h, 0);
+  overflow: hidden;
+  pointer-events: none;
+}
+.links path { fill: none; stroke: var(--cg-text-secondary); stroke-width: 1.5px; stroke-linecap: round; stroke-linejoin: round; }
+.links [data-conflict] path { stroke: var(--cg-danger-text); }
+.links [data-conflict] path:not([data-head]) { stroke-dasharray: 5 3; }
 /* Placed over a day on a line for a create: what the caller's editor is placed by. */
 .anchor {
   position: absolute;
@@ -267,4 +283,6 @@
   .dropMark, .laneDrop { outline: 2px solid Highlight; outline-offset: -2px; }
   .edge::after { background: CanvasText; }
   .line:focus-within { outline: 1px dashed Highlight; outline-offset: -2px; }
+  .links path { stroke: CanvasText; }
+  .links [data-conflict] path { stroke: Highlight; }
 }

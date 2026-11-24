@@ -37,6 +37,22 @@ export interface CgTimelineLane {
   title: string;
 }
 
+/**
+ * A link between two items, for dependencies: `from` blocks `to`. It is drawn as an arrow from the
+ * end of `from`'s bar to the start of `to`'s, and named in both bars' descriptions. Display only.
+ */
+export interface CgTimelineLink {
+  /** Unique among the links. */
+  readonly id: string;
+  /** The key of the item that blocks. */
+  readonly from: string;
+  /** The key of the item it blocks. */
+  readonly to: string;
+}
+
+/** Which side of its links a bar's description is naming: what blocks it, or what it blocks. */
+export type CgTimelineLinkSide = 'blockedBy' | 'blocking';
+
 /** What `labels.item` is given to name an item: its dates as the timeline writes them. */
 export interface CgTimelineItemNameInfo {
   /** The title as drawn: `labels.untitled` for a blank one. */
@@ -123,6 +139,20 @@ export interface CgTimelineLabels<TData = unknown> {
   lane?: (title: string, count: number, lane: string | null) => string;
   /** A quarter's header text, given its number (1 to 4) and its year as the header writes it. Default: its months, as "Jan – Mar". */
   quarter?: (quarter: number, year: string) => string;
+  /**
+   * With `links`, read in the description of a bar something blocks: the blockers' titles in a list
+   * in the locale ("Design and Budget") and the items, as "Blocked by Design and Budget". Needed with `links`.
+   */
+  blockedBy?: (titles: string, items: ReadonlyArray<CgTimelineItem<TData>>) => string;
+  /** With `links`, read in the description of a bar that blocks others, as "Blocking Launch". Needed with `links`. */
+  blocking?: (titles: string, items: ReadonlyArray<CgTimelineItem<TData>>) => string;
+  /**
+   * With `links`, read after them for the links in conflict, where the blocked item starts on or
+   * before the blocker's last day: the other items' titles and the side this bar is on, as "Starts
+   * before Design ends" (`blockedBy`) or "Launch starts before this ends" (`blocking`). Such a link
+   * is drawn dashed in the danger colour. Needed with `links`.
+   */
+  conflict?: (titles: string, side: CgTimelineLinkSide, items: ReadonlyArray<CgTimelineItem<TData>>) => string;
 }
 
 export interface CgTimelineItemRenderContext {
@@ -288,6 +318,16 @@ export interface CgTimelineProps<TData = unknown> extends NativeTimelineProps {
    * (null). Needs `labels.movedLane`. Default false.
    */
   moveBetweenLanes?: boolean;
+  /**
+   * Dependencies: an arrow from each link's `from` bar's end to its `to` bar's start, right-angled,
+   * routed round the bars between, mirrored in right to left, dashed in the danger colour when `to`
+   * starts on or before `from`'s last day. Drawn for the bars in view (an arrow to a bar out of view
+   * runs to the drawing's edge; one to an item in a collapsed lane, to that lane's header line), and
+   * following a bar while it is dragged, resized or moved to another lane. Each bar's description
+   * names what blocks it and what it blocks (`labels.blockedBy`, `labels.blocking`, `labels.conflict`).
+   * Links are not focus stops and cannot be drawn by pointer; a link naming an item not given is left out.
+   */
+  links?: ReadonlyArray<CgTimelineLink>;
   /** Finding and marking days from outside the grid, scrolling, and an item's bar. `ref` stays the root element. */
   actionsRef?: Ref<CgTimelineHandle>;
 }

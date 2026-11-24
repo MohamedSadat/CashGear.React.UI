@@ -12,6 +12,8 @@ export type {
   CgTimelineLane,
   CgTimelineLaneChangeInfo,
   CgTimelineLaneHit,
+  CgTimelineLink,
+  CgTimelineLinkSide,
   CgTimelineMoveDetails,
   CgTimelineMoveSource,
   CgTimelineOpenDetails,

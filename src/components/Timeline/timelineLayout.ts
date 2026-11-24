@@ -38,6 +38,8 @@ export interface TimelineLines<TData> {
   readonly grouped: boolean;
   /** The places of the lanes' header lines, in order: empty without lanes. */
   readonly heads: ReadonlyArray<number>;
+  /** Every item given by its key, a line or not. */
+  readonly byKey: ReadonlyMap<string, CgTimelineItem<TData>>;
 }
 
 export const itemLineId = (key: string): string => `i:${key}`;
@@ -57,12 +59,12 @@ export function buildLines<TData>(
   collapsed: ReadonlySet<string | null>,
   noLane: string | undefined,
 ): TimelineLines<TData> {
-  const keys = new Set<string>();
+  const byKey = new Map<string, CgTimelineItem<TData>>();
   const shown: CgTimelineItem<TData>[] = [];
   for (const item of items) {
     if (!item.key) throw new Error('CgTimeline items require a nonempty key.');
-    if (keys.has(item.key)) throw new Error(`CgTimeline contains duplicate key '${item.key}'.`);
-    keys.add(item.key);
+    if (byKey.has(item.key)) throw new Error(`CgTimeline contains duplicate key '${item.key}'.`);
+    byKey.set(item.key, item);
     if (readable(item.start)) shown.push(item);
   }
   const lines: TimelineLine<TData>[] = [];
@@ -74,7 +76,7 @@ export function buildLines<TData>(
   };
   if (!lanes) {
     for (const item of shown) add({ kind: 'item', id: itemLineId(item.key), item, lane: null, laneTitle: null });
-    return { lines, index, grouped: false, heads };
+    return { lines, index, grouped: false, heads, byKey };
   }
   const groups = new Map<string, CgTimelineItem<TData>[]>();
   for (const lane of lanes) {
@@ -98,7 +100,7 @@ export function buildLines<TData>(
     if (typeof noLane !== 'string' || !noLane.trim()) throw new Error('CgTimeline labels.noLane is required when items are in no listed lane.');
     addLane(null, noLane, rest);
   }
-  return { lines, index, grouped: true, heads };
+  return { lines, index, grouped: true, heads, byKey };
 }
 
 // ---- Lanes a bar moves to -----------------------------------------------------------------------

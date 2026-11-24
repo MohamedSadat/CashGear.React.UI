@@ -5,7 +5,7 @@ import type { ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { dateOfDay, dayOfDate } from '../MonthCalendar/monthCalendarDates';
 import { CgTimeline } from './CgTimeline';
-import type { CgTimelineHandle, CgTimelineItem, CgTimelineLabels, CgTimelineMoveDetails } from './CgTimeline.types';
+import type { CgTimelineHandle, CgTimelineItem, CgTimelineLabels, CgTimelineLink, CgTimelineMoveDetails } from './CgTimeline.types';
 
 const arabicDate = new Intl.DateTimeFormat('ar', { calendar: 'gregory', timeZone: 'UTC', dateStyle: 'full' });
 const full = (date: string) => arabicDate.format(new Date(`${date}T00:00:00Z`));
@@ -661,5 +661,128 @@ describe('CgTimeline moving between lanes', () => {
     // Without onItemMove nothing moves, so it is not needed.
     render(<Host moveBetweenLanes lanes={lanes} onItemMove={undefined} />);
     expect(document.querySelector('[data-cg-timeline-lane-drop]')).toBeNull();
+  });
+});
+
+describe('CgTimeline links', () => {
+  // Lines without lanes: budget, quarter, meeting, deadline, stray (undated has none).
+  const linkLabels: CgTimelineLabels = {
+    ...labels,
+    blockedBy: (titles) => `محجوب بـ ${titles}.`,
+    blocking: (titles) => `يحجب ${titles}.`,
+    conflict: (titles, side) => (side === 'blockedBy' ? `يبدأ قبل انتهاء ${titles}.` : `${titles} يبدأ قبل انتهائه.`),
+  };
+  const links: CgTimelineLink[] = [
+    { id: 'meeting-deadline', from: 'meeting', to: 'deadline' },
+    { id: 'quarter-deadline', from: 'quarter', to: 'deadline' },
+    { id: 'budget-quarter', from: 'budget', to: 'quarter' },
+    { id: 'undated-budget', from: 'undated', to: 'budget' },
+    { id: 'ghost-budget', from: 'ghost', to: 'budget' },
+  ];
+  const drawnLink = (id: string) => document.querySelector<SVGGElement>(`[data-cg-timeline-link="${id}"]`);
+  const route = (id: string) => drawnLink(id)?.firstElementChild?.getAttribute('d') ?? null;
+
+  it('draws an arrow from a blocker\'s end to the start of what it blocks, hidden from the accessibility tree and never a focus stop', () => {
+    render(<Host links={links} labels={linkLabels} />);
+    const drawing = document.querySelector('[data-cg-timeline-links]')!;
+    expect(drawing).toHaveAttribute('aria-hidden', 'true');
+    expect(drawing.querySelectorAll('[tabindex]')).toHaveLength(0);
+    // The undated item has no line, and ghost is no item: neither link is drawn.
+    expect([...drawing.querySelectorAll('[data-cg-timeline-link]')].map((group) => group.getAttribute('data-cg-timeline-link')).sort())
+      .toEqual(['budget-quarter', 'meeting-deadline', 'quarter-deadline']);
+    const quarter = xOf(bar('إغلاق الربع'));
+    // Out of quarter's end (line 1), down beside it to deadline's line (3), into deadline's start: meeting's bar is far behind.
+    expect(route('quarter-deadline')).toBe(`M${quarter + 140} 54 L${quarter + 146} 54 L${quarter + 146} 126 L${quarter + 160} 126`);
+    expect(drawnLink('quarter-deadline')!.lastElementChild!.getAttribute('d')).toBe(`M${quarter + 154} 122 L${quarter + 160} 126 L${quarter + 154} 130`);
+    // Budget blocks quarter, which starts before budget ends: a conflict.
+    expect(drawnLink('budget-quarter')).toHaveAttribute('data-conflict');
+    expect(drawnLink('quarter-deadline')).not.toHaveAttribute('data-conflict');
+  });
+
+  it('names in each bar\'s description what blocks it and what it blocks, and the conflicts', () => {
+    render(<Host links={links} labels={linkLabels} />);
+    expect(bar('موعد التسليم')).toHaveAccessibleDescription('محجوب بـ اجتماع الفريق وإغلاق الربع.');
+    expect(bar('إغلاق الربع')).toHaveAccessibleDescription('محجوب بـ مراجعة الميزانية. يبدأ قبل انتهاء مراجعة الميزانية. يحجب موعد التسليم. Alt مع الأسهم ينقله');
+    // An item with no line still names its link; one not given does not.
+    expect(bar('مراجعة الميزانية')).toHaveAccessibleDescription('محجوب بـ بلا تاريخ. يحجب إغلاق الربع. إغلاق الربع يبدأ قبل انتهائه. Alt مع الأسهم ينقله');
+    expect(bar('بلا عنوان')).toHaveAccessibleDescription('Alt مع الأسهم ينقله');
+  });
+
+  it('follows a bar while it is dragged, writing the routes to the DOM, and puts them back when the drag is cancelled', () => {
+    vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'setTimeout'] });
+    const onMove = vi.fn();
+    render(<Host dir="ltr" onMove={onMove} links={links} labels={linkLabels} />);
+    layOut('ltr');
+    const quarter = bar('إغلاق الربع');
+    const left = xOf(quarter);
+    const before = route('quarter-deadline');
+    const x = screenX(left + 10, 'ltr');
+    const drag = press(quarter, x, lineY(1));
+    // Three days later: it now ends after deadline starts.
+    drag.to(x + 65, lineY(1));
+    expect(route('quarter-deadline')).toMatch(new RegExp(`^M${left + 200} 54 `, 'u'));
+    expect(drawnLink('quarter-deadline')).toHaveAttribute('data-conflict');
+    expect(route('budget-quarter')).toMatch(new RegExp(` L${left + 60} 54$`, 'u'));
+    expect(onMove).not.toHaveBeenCalled();
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
+    expect(route('quarter-deadline')).toBe(before);
+    expect(drawnLink('quarter-deadline')).not.toHaveAttribute('data-conflict');
+    // A drop: the caller writes the dates, and the arrows are drawn from them.
+    const again = press(bar('إغلاق الربع'), x, lineY(1));
+    again.to(x + 65, lineY(1));
+    again.drop(x + 65, lineY(1));
+    expect(onMove).toHaveBeenCalledWith('quarter', { start: '2026-11-15', end: '2026-11-21', days: 3, edge: 'move', source: 'pointer' });
+    expect(route('quarter-deadline')).toMatch(new RegExp(`^M${left + 200} 54 `, 'u'));
+    expect(drawnLink('quarter-deadline')).toHaveAttribute('data-conflict');
+    expect(bar('موعد التسليم')).toHaveAccessibleDescription('محجوب بـ اجتماع الفريق وإغلاق الربع. يبدأ قبل انتهاء إغلاق الربع.');
+  });
+
+  it('follows a bar dragged to another lane, and ends an arrow to an item in a collapsed lane on that lane\'s header line', () => {
+    vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'setTimeout'] });
+    const { unmount } = render(<Host dir="ltr" lanes={lanes} moveBetweenLanes links={links} labels={{ ...linkLabels, movedLane: laneLabels.movedLane }} />);
+    layOut('ltr');
+    Object.defineProperty(scroller(), 'clientHeight', { configurable: true, value: 500 });
+    // Lines: التخطيط, budget, quarter, التنفيذ, meeting, deadline, بلا مرحلة, stray.
+    const quarter = bar('إغلاق الربع');
+    const x = screenX(xOf(quarter) + 10, 'ltr');
+    const drag = press(quarter, x, lineY(2));
+    drag.to(x, lineY(4));
+    // Drawn over meeting's line now: its arrow to deadline leaves from there.
+    expect(route('quarter-deadline')).toMatch(/^M\S+ 162 /u);
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
+    expect(route('quarter-deadline')).toMatch(/^M\S+ 90 /u);
+    unmount();
+
+    render(<Host dir="ltr" lanes={lanes} links={links} labels={linkLabels} defaultCollapsedLanes={['run']} />);
+    // Lines: التخطيط, budget, quarter, التنفيذ (collapsed), بلا مرحلة, stray: deadline is on التنفيذ's header line.
+    expect(route('quarter-deadline')).toMatch(/ 126$/u);
+    // Both meeting and deadline are hidden in the collapsed lane: no bar of theirs is drawn, so neither is their link.
+    expect(route('meeting-deadline')).toBeNull();
+  });
+
+  it('needs its words with links, and refuses a duplicate link id', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(() => render(<Host links={links} />)).toThrow(/labels\.blockedBy, labels\.blocking and labels\.conflict/u);
+    expect(() => render(<Host links={[links[0]!, links[0]!]} labels={linkLabels} />)).toThrow(/duplicate link 'meeting-deadline'/u);
+    // No links, no words needed, nothing drawn.
+    render(<Host links={[]} />);
+    expect(document.querySelector('[data-cg-timeline-links]')).toBeNull();
+  });
+
+  it('draws the links of the lines in view only, of 50,000 items with 10,000 links', () => {
+    const many = Array.from({ length: 50_000 }, (_, index): CgTimelineItem => ({
+      key: `k${index}`, title: `مهمة ${index}`, start: dateOfDay(day('2026-11-01') + (index % 30)), end: dateOfDay(day('2026-11-01') + (index % 30) + 2),
+    }));
+    const manyLinks = Array.from({ length: 10_000 }, (_, index): CgTimelineLink => ({ id: `l${index}`, from: `k${index * 5}`, to: `k${(index * 5 + 4 + (index % 7) * 3) % 50_000}` }));
+    const started = performance.now();
+    render(<Host items={many} links={manyLinks} labels={linkLabels} />);
+    const elapsed = performance.now() - started;
+    const drawn = document.querySelectorAll('[data-cg-timeline-link]').length;
+    expect(drawn).toBeGreaterThan(0);
+    expect(drawn).toBeLessThan(40);
+    expect(within(grid()).getAllByRole('row').length).toBeLessThan(50);
+    expect(bar('مهمة 5،')).toHaveAccessibleDescription(/^يحجب مهمة 12\./u);
+    // Generous for a test runner: the browser's budget is checked by the browser spec.
+    expect(elapsed).toBeLessThan(3000);
   });
 });
