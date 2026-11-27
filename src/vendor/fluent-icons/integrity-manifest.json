@@ -3,11 +3,11 @@
   "version": "1.1.345",
   "source": "https://registry.npmjs.org/@fluentui/svg-icons/-/svg-icons-1.1.345.tgz",
   "licenseSource": "https://github.com/microsoft/fluentui-system-icons/blob/main/LICENSE",
-  "icons": 164,
+  "icons": 167,
   "files": [
     {
       "file": "icons.ts",
-      "sha256": "f64369442766e87a32de9399b9c1ed19ee10c507cd40135ab43625023dec10ae"
+      "sha256": "89267dc835950a285b07b393e1990f6a5ef067f12d4316a0593941df0b668b6b"
     },
     {
       "file": "LICENSE",

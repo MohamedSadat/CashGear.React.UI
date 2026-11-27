@@ -181,6 +181,10 @@ const ICONS = {
   highlight: 'highlight',
   folder: 'folder',
   upload: 'arrow_upload',
+  // Recording (a voice note in Cash Gear Workspace)
+  mic: 'mic',
+  record: 'record',
+  stop: 'stop',
 };
 
 /**

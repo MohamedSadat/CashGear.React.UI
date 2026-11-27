@@ -45,7 +45,7 @@ const blockDifference = 'Document block, view and people icons for Cash Gear Wor
 const blockIcons: ReadonlyArray<readonly [string, ReadonlyArray<CgIconName>]> = [
   ['كتل النص', ['text', 'paragraph', 'heading-1', 'heading-2', 'heading-3', 'list-bullet', 'list-number', 'list-todo', 'todo', 'toggle', 'quote', 'callout', 'code', 'divider']],
   ['الوسائط والصفحات', ['image', 'file', 'bookmark', 'embed', 'page', 'page-add', 'page-link', 'toc', 'table', 'database', 'linked-view', 'chart', 'board', 'workbook', 'sync']],
-  ['العروض والأشخاص', ['calendar-month', 'view-list', 'gallery', 'timeline', 'drag-handle', 'emoji', 'emoji-add', 'mention', 'person', 'people', 'tag', 'rename', 'color', 'highlight', 'folder', 'upload']],
+  ['العروض والأشخاص', ['calendar-month', 'view-list', 'gallery', 'timeline', 'drag-handle', 'emoji', 'emoji-add', 'mention', 'person', 'people', 'tag', 'rename', 'color', 'highlight', 'folder', 'upload', 'mic', 'record', 'stop']],
 ];
 const Blocks = () => <div style={{ display: 'grid', gap: 12, inlineSize: '100%' }} data-testid="block-icons">
   {blockIcons.map(([title, names]) => <section key={title} style={{ display: 'grid', gap: 4 }}>
